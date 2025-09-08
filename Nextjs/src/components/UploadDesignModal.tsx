@@ -1,0 +1,2044 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Upload, FileText, Link, Loader2, CheckCircle, Figma, FileImage, Sparkles, ArrowRight, X, AlertCircle, AlertTriangle, Eye, Download, ExternalLink, Globe, Calendar } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip } from "@/components/ui/tooltip"
+import { BusinessDetailsForm } from "./BusinessDetailsForm"
+import { ComprehensiveAnalysisDisplay } from "./ComprehensiveAnalysisDisplay"
+import { FilteredAnalysisDisplay } from "./FilteredAnalysisDisplay"
+import { GeneratedSectionsModal } from "./GeneratedSectionsModal"
+import { api } from "@/lib/utils"
+import { UploadFile } from "@/types"
+import { PDFProcessor, PDFAnalysisResult, PDFSection } from "./PDFProcessor"
+import { FigmaProcessor, FigmaAnalysisResult, FigmaSection } from "./FigmaProcessor"
+import { filterDirectResponse } from "@/utils/filterAnalysis"
+import React from "react"
+
+interface UploadDesignModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: (landingPage: any) => void
+}
+
+export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignModalProps) {
+  const [step, setStep] = useState<"upload" | "sections-review" | "business-details" | "preview" | "sections-view" | "complete">("upload")
+  const [uploadFile, setUploadFile] = useState<UploadFile | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [isProcessingFile, setIsProcessingFile] = useState(false)
+  const [processingProgress, setProcessingProgress] = useState(0)
+  const [pdfAnalysis, setPdfAnalysis] = useState<PDFAnalysisResult | null>(null)
+  const [extractedSections, setExtractedSections] = useState<PDFSection[]>([])
+  const [figmaAnalysis, setFigmaAnalysis] = useState<FigmaAnalysisResult | null>(null)
+  const [extractedFigmaSections, setExtractedFigmaSections] = useState<FigmaSection[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [finalSections, setFinalSections] = useState<any[]>([])
+  const [businessDetails, setBusinessDetails] = useState<any>(null)
+
+  const handleFileUpload = async (file: File) => {
+    
+    // Always treat as PDF for now since we're focusing on PDF processing
+    setUploadFile({ type: "pdf", file })
+    setIsProcessing(true)
+    setProcessingProgress(0)
+    
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith('.pdf')) {
+      await processPDFDesign(file)
+    } else {
+      // Use same timing as PDF processing for consistency
+      simulateProcessing()
+    }
+  }
+
+  const processPDFDesign = async (file: File) => {
+    // Set processing state and let PDFProcessor handle the actual processing
+    setIsProcessing(true)
+    setProcessingProgress(0)
+    
+    // The PDFProcessor component will handle the actual processing
+    // We just need to stay in the processing step
+  }
+
+  const handleFigmaUrl = (url: string) => {
+    setUploadFile({ type: "figma", url })
+    setIsProcessing(true) // Start processing immediately - same as PDF
+    setProcessingProgress(0)
+  }
+
+  const handlePDFAnalysisComplete = (result: PDFAnalysisResult) => {
+    setPdfAnalysis(result)
+    setIsProcessing(false) // Processing complete
+    
+    // Preserve all sections from the analysis
+    if (result.sections && result.sections.length > 0) {
+      
+      // Store all sections without filtering
+      setExtractedSections(result.sections)
+    } else {
+      setExtractedSections([])
+    }
+    
+    // Auto-progress to sections review after processing is complete
+    setStep("sections-review")
+  }
+
+  const handlePDFAnalysisError = (error: string) => {
+    setError(error)
+    setIsProcessing(false) // Processing failed
+    // Set empty sections on error
+    setExtractedSections([])
+    // Still allow user to continue to sections review
+    setStep("sections-review")
+  }
+
+  const handleFigmaAnalysisComplete = (result: FigmaAnalysisResult) => {
+    
+    setFigmaAnalysis(result)
+    setExtractedFigmaSections(result.sections)
+    setIsProcessing(false) // Processing complete
+    
+    setError(null) // Clear any previous errors
+    
+    // Auto-progress to sections review after processing is complete
+    setStep("sections-review")
+  }
+
+  const handleFigmaAnalysisError = (error: string) => {
+    setError(error)
+    setIsProcessing(false) // Processing failed
+    // Set empty sections on error
+    setExtractedFigmaSections([])
+    // Still allow user to continue to sections review
+    setStep("sections-review")
+  }
+
+  const simulateProcessing = () => {
+    // This function is no longer needed since we use real PDF/Figma processors
+    // Auto-progression is handled by the actual analysis completion handlers
+  }
+
+  const handleBusinessDetailsSubmit = async (details: any) => {
+    // Store business details for later use in createLandingPage
+    setBusinessDetails(details)
+    
+    // Store in window context for PreviewStep to access
+    ;(window as any).modalBusinessDetails = details
+    ;(window as any).modalExtractedData = {
+      sections: uploadFile?.type === 'figma' ? extractedFigmaSections : extractedSections
+    }
+    ;(window as any).modalDesignType = uploadFile?.type || 'unknown'
+    
+    // Move directly to preview step
+    setStep("preview")
+  }
+
+
+  const createLandingPage = async () => {
+    try {
+      
+      // Get the actual extracted sections from the appropriate source
+      let extractedSectionsData = uploadFile?.type === 'figma' ? extractedFigmaSections : extractedSections
+      
+      // Process and enhance sections with business information
+      const enhancedSections = await processSectionsWithBusinessInfo(extractedSectionsData, businessDetails)
+      
+      // Create landing page with real data
+      const newPage = {
+        id: Date.now().toString(),
+        title: businessDetails?.businessName ? 
+          (businessDetails.businessName.length > 80 ? 
+            `${businessDetails.businessName.substring(0, 80)}... Landing Page` : 
+            `${businessDetails.businessName} Landing Page`).substring(0, 100) : 
+          `Landing Page ${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        // Include business details
+        businessName: businessDetails?.businessName || '',
+        businessOverview: businessDetails?.businessOverview || '',
+        targetAudience: businessDetails?.targetAudience || '',
+        brandTone: businessDetails?.brandTone || 'professional',
+        customContentLength: businessDetails?.customContentLength || 150,
+        // Use enhanced sections with real content
+        sections: enhancedSections,
+        designSource: {
+          type: uploadFile?.type || 'unknown',
+          url: uploadFile?.url || '',
+          fileName: uploadFile?.file?.name || '',
+          processedAt: new Date()
+        },
+        // Include analysis metadata
+        analysisData: {
+          pdfAnalysis: pdfAnalysis,
+          figmaAnalysis: figmaAnalysis,
+          totalSections: enhancedSections.length,
+          designType: uploadFile?.type
+        }
+      }
+      
+      
+      // Call onSuccess to create the landing page
+      onSuccess(newPage)
+      
+    } catch (error) {
+      // Create a fallback landing page with available data
+      const fallbackSections = createFallbackSections(businessDetails, uploadFile?.type)
+      
+      const newPage = {
+        id: Date.now().toString(),
+        title: businessDetails?.businessName ? 
+          (businessDetails.businessName.length > 80 ? 
+            `${businessDetails.businessName.substring(0, 80)}... Landing Page` : 
+            `${businessDetails.businessName} Landing Page`).substring(0, 100) : 
+          `Landing Page ${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        businessName: businessDetails?.businessName || '',
+        businessOverview: businessDetails?.businessOverview || '',
+        targetAudience: businessDetails?.targetAudience || '',
+        brandTone: businessDetails?.brandTone || 'professional',
+        sections: fallbackSections,
+        designSource: {
+          type: uploadFile?.type || 'unknown',
+          url: uploadFile?.url || '',
+          fileName: uploadFile?.file?.name || '',
+          processedAt: new Date()
+        }
+      }
+      
+      onSuccess(newPage)
+    }
+  }
+
+  // Helper function to process sections with business information
+  const processSectionsWithBusinessInfo = async (sections: any[], businessInfo: any) => {
+    
+    if (!sections || sections.length === 0) {
+      return createBusinessFocusedSections(businessInfo)
+    }
+    
+    return sections.map((section, index) => {
+      // Enhance section content with business information
+      const enhancedContent = enhanceSectionContent(section, businessInfo)
+      
+      return {
+        id: section.id || `section-${index + 1}`,
+        type: section.type || 'content',
+        title: section.title || `Section ${index + 1}`,
+        content: enhancedContent,
+        order: section.order || index + 1,
+        pageNumber: section.pageNumber || 1,
+        depth: section.depth || 1,
+        // Preserve original section data
+        originalData: section,
+        // Add business context
+        businessContext: {
+          businessName: businessInfo?.businessName,
+          targetAudience: businessInfo?.targetAudience,
+          brandTone: businessInfo?.brandTone
+        }
+      }
+    })
+  }
+
+  // Helper function to enhance section content with business information
+  const enhanceSectionContent = (section: any, businessInfo: any) => {
+    if (!section.content || section.content.trim().length === 0) {
+      // Create content based on section type and business info
+      return generateContentForSection(section, businessInfo)
+    }
+    
+    // Check if content is a generic placeholder that should be replaced
+    const isGenericPlaceholder = /^Content for .+ section$/i.test(section.content.trim())
+    
+    if (isGenericPlaceholder) {
+      // Replace generic placeholder with business-specific content
+      return generateContentForSection(section, businessInfo)
+    }
+    
+    // Enhance existing content with business context
+    let enhancedContent = section.content
+    
+    // Replace generic placeholders with business-specific content
+    if (businessInfo?.businessName) {
+      enhancedContent = enhancedContent.replace(/\[Business Name\]/g, businessInfo.businessName)
+      enhancedContent = enhancedContent.replace(/\[Company Name\]/g, businessInfo.businessName)
+    }
+    
+    if (businessInfo?.businessOverview) {
+      enhancedContent = enhancedContent.replace(/\[Business Overview\]/g, businessInfo.businessOverview)
+      enhancedContent = enhancedContent.replace(/\[Company Description\]/g, businessInfo.businessOverview)
+    }
+    
+    if (businessInfo?.targetAudience) {
+      enhancedContent = enhancedContent.replace(/\[Target Audience\]/g, businessInfo.targetAudience)
+    }
+    
+    return enhancedContent
+  }
+
+  // Helper function to generate content for sections without content
+  const generateContentForSection = (section: any, businessInfo: any) => {
+    const businessName = businessInfo?.businessName || 'Your Business'
+    const businessOverview = businessInfo?.businessOverview || 'We provide excellent services to our customers'
+    const targetAudience = businessInfo?.targetAudience || 'our valued customers'
+    const targetWordCount = businessInfo?.customContentLength || 150
+    
+    // Base content templates
+    const baseContent = {
+      hero: `Welcome to ${businessName}! ${businessOverview}. We're here to serve ${targetAudience} with exceptional quality and service.`,
+      about: `About ${businessName}: ${businessOverview}. We are committed to providing the best experience for ${targetAudience}.`,
+      services: `Our Services: At ${businessName}, we offer a comprehensive range of services designed to meet the needs of ${targetAudience}. ${businessOverview}.`,
+      contact: `Contact ${businessName}: Ready to get started? We'd love to hear from ${targetAudience}. Get in touch with us today!`,
+      features: `Why Choose ${businessName}? We provide exceptional value to ${targetAudience} through our commitment to quality and innovation.`,
+      default: `${businessName} - ${businessOverview}. We're dedicated to serving ${targetAudience} with excellence.`
+    }
+    
+    // Get base content for section type
+    const sectionType = section.type?.toLowerCase() as keyof typeof baseContent
+    let content = baseContent[sectionType] || baseContent.default
+    
+    // Adjust content length based on target word count
+    const currentWordCount = content.split(' ').length
+    
+    if (currentWordCount < targetWordCount) {
+      // Expand content to reach target word count
+      const additionalWords = targetWordCount - currentWordCount
+      const expansion = ` Our team is dedicated to delivering exceptional results and exceeding expectations. We pride ourselves on our commitment to quality, innovation, and customer satisfaction. With years of experience and expertise, we ensure that every project meets the highest standards.`
+      
+      // Add expansion text to reach target length
+      const expansionWords = expansion.split(' ')
+      const wordsToAdd = Math.min(additionalWords, expansionWords.length)
+      const additionalText = expansionWords.slice(0, wordsToAdd).join(' ')
+      
+      content = content + additionalText
+    } else if (currentWordCount > targetWordCount) {
+      // Truncate content to target word count
+      const words = content.split(' ')
+      content = words.slice(0, targetWordCount).join(' ')
+    }
+    
+    return content
+  }
+
+  // Helper function to create business-focused sections when no sections are extracted
+  const createBusinessFocusedSections = (businessInfo: any) => {
+    const businessName = businessInfo?.businessName || 'Your Business'
+    const businessOverview = businessInfo?.businessOverview || 'We provide excellent services to our customers'
+    const targetAudience = businessInfo?.targetAudience || 'our valued customers'
+    
+    // Create sections with proper content length
+    const heroSection = {
+      id: 'hero-section',
+      type: 'hero',
+      title: `Welcome to ${businessName}`,
+      content: generateContentForSection({ type: 'hero' }, businessInfo),
+      order: 1,
+      pageNumber: 1,
+      businessContext: {
+        businessName: businessInfo?.businessName,
+        targetAudience: businessInfo?.targetAudience,
+        brandTone: businessInfo?.brandTone
+      }
+    }
+    
+    const aboutSection = {
+      id: 'about-section',
+      type: 'about',
+      title: `About ${businessName}`,
+      content: generateContentForSection({ type: 'about' }, businessInfo),
+      order: 2,
+      pageNumber: 1,
+      businessContext: {
+        businessName: businessInfo?.businessName,
+        targetAudience: businessInfo?.targetAudience,
+        brandTone: businessInfo?.brandTone
+      }
+    }
+    
+    const servicesSection = {
+      id: 'services-section',
+      type: 'services',
+      title: 'Our Services',
+      content: generateContentForSection({ type: 'services' }, businessInfo),
+      order: 3,
+      pageNumber: 1,
+      businessContext: {
+        businessName: businessInfo?.businessName,
+        targetAudience: businessInfo?.targetAudience,
+        brandTone: businessInfo?.brandTone
+      }
+    }
+    
+    const contactSection = {
+      id: 'contact-section',
+      type: 'contact',
+      title: 'Contact Us',
+      content: generateContentForSection({ type: 'contact' }, businessInfo),
+      order: 4,
+      pageNumber: 1,
+      businessContext: {
+        businessName: businessInfo?.businessName,
+        targetAudience: businessInfo?.targetAudience,
+        brandTone: businessInfo?.brandTone
+      }
+    }
+    
+    return [heroSection, aboutSection, servicesSection, contactSection]
+  }
+
+  // Helper function to create fallback sections
+  const createFallbackSections = (businessInfo: any, designType?: string) => {
+    return createBusinessFocusedSections(businessInfo)
+  }
+
+  const resetModal = () => {
+    setStep("upload")
+    setUploadFile(null)
+    setIsProcessing(false)
+    setProcessingProgress(0)
+    setPdfAnalysis(null)
+    setFigmaAnalysis(null)
+    setExtractedSections([])
+    setExtractedFigmaSections([])
+    setBusinessDetails(null)
+    setFinalSections([])
+    setError(null) // Clear any errors
+  }
+
+  const handleClose = () => {
+    onClose()
+    resetModal()
+  }
+
+  const dismissError = () => {
+    setError(null)
+  }
+
+
+
+
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[91vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50/30">
+        <DialogHeader className="text-center pb-6 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl border-b border-gray-200/50">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-600 to-purple-700 bg-clip-text text-transparent mb-2">
+            Create New Landing Page
+          </DialogTitle>
+          {step === "upload" && (
+            <DialogDescription className="text-base text-gray-600 max-w-lg mx-auto">
+              Upload your design file or provide a Figma URL to get started with AI-powered content generation
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        {/* Enhanced Progress Steps */}
+        <div className="flex items-center justify-center py-6 bg-white/50">
+          <div className="flex items-center space-x-2">
+            {["upload", "sections-review", "business-details", "preview", "sections-view"].map((stepName, index) => (
+              <div key={stepName} className="flex items-center">
+                <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-500 transform ${
+                  step === stepName 
+                    ? "bg-gradient-to-r from-primary to-purple-600 text-white scale-110 shadow-lg shadow-primary/25" 
+                    : step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index
+                    ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white scale-105"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}>
+                  {step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index ? (
+                    <CheckCircle className="w-5 h-5 animate-pulse" />
+                  ) : (
+                    <span className="animate-pulse">{index + 1}</span>
+                  )}
+                  {/* Active step indicator */}
+                  {step === stepName && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-primary to-purple-600 rounded-full animate-ping" />
+                  )}
+                </div>
+                {index < 4 && (
+                  <div className={`w-16 h-1 mx-3 rounded-full transition-all duration-700 ${
+                    step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index
+                      ? "bg-gradient-to-r from-green-500 to-emerald-600"
+                      : "bg-gray-200"
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {step === "upload" && (
+          <UploadStep
+            onFileUpload={handleFileUpload}
+            onFigmaUrl={handleFigmaUrl}
+            isProcessingFile={isProcessingFile}
+            setIsProcessingFile={setIsProcessingFile}
+            uploadFile={uploadFile}
+            isProcessing={isProcessing}
+            progress={processingProgress}
+            pdfAnalysis={pdfAnalysis}
+            figmaAnalysis={figmaAnalysis}
+            onPDFAnalysisComplete={handlePDFAnalysisComplete}
+            onPDFAnalysisError={handlePDFAnalysisError}
+            onFigmaAnalysisComplete={handleFigmaAnalysisComplete}
+            onFigmaAnalysisError={handleFigmaAnalysisError}
+          />
+        )}
+
+        {step === "sections-review" && (
+          <SectionsReviewStep
+            pdfAnalysis={pdfAnalysis}
+            figmaAnalysis={figmaAnalysis}
+            onBack={() => setStep("upload")}
+            onNext={() => {
+              // User must manually click to proceed to business details
+              setStep("business-details")
+            }}
+          />
+        )}
+
+        {step === "business-details" && (
+          <BusinessDetailsForm
+            onSubmit={(details) => {
+              // User must manually click to proceed to preview step
+              handleBusinessDetailsSubmit(details)
+            }}
+            onBack={() => setStep("sections-review")}
+            extractedSections={uploadFile?.type === 'figma' ? extractedFigmaSections : extractedSections}
+          />
+        )}
+
+        {step === "preview" && (
+          <PreviewStep 
+            onBack={() => setStep("business-details")}
+            onNext={() => setStep("sections-view")}
+          />
+        )}
+
+        {step === "sections-view" && (
+          <SectionsViewStep 
+            onBack={() => setStep("preview")}
+            onNext={() => setStep("complete")}
+          />
+        )}
+
+        {step === "complete" && (
+          <CompleteStep 
+            onClose={handleClose}
+            onComplete={onSuccess}
+            completionData={(() => {
+              // Get the latest landing page data from localStorage
+              const savedData = localStorage.getItem('latestLandingPage')
+              return savedData ? JSON.parse(savedData) : null
+            })()}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function UploadStep({ 
+  onFileUpload, 
+  onFigmaUrl,
+  isProcessingFile,
+  setIsProcessingFile,
+  uploadFile,
+  isProcessing,
+  progress,
+  pdfAnalysis,
+  figmaAnalysis,
+  onPDFAnalysisComplete,
+  onPDFAnalysisError,
+  onFigmaAnalysisComplete,
+  onFigmaAnalysisError,
+}: { 
+  onFileUpload: (file: File) => void
+  onFigmaUrl: (url: string) => void
+  isProcessingFile: boolean
+  setIsProcessingFile: (isProcessing: boolean) => void
+  uploadFile: UploadFile | null
+  isProcessing: boolean
+  progress: number
+  pdfAnalysis?: PDFAnalysisResult | null
+  figmaAnalysis?: FigmaAnalysisResult | null
+  onPDFAnalysisComplete: (result: PDFAnalysisResult) => void
+  onPDFAnalysisError: (error: string) => void
+  onFigmaAnalysisComplete: (result: FigmaAnalysisResult) => void
+  onFigmaAnalysisError: (error: string) => void
+}) {
+  const [dragActive, setDragActive] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [figmaUrl, setFigmaUrl] = useState('')
+  const [processingStage, setProcessingStage] = React.useState<'upload' | 'ai-processing' | 'finalizing'>('upload')
+  const [stageProgress, setStageProgress] = React.useState(0)
+  const [currentStep, setCurrentStep] = React.useState('Initializing...')
+
+  React.useEffect(() => {
+    if (isProcessing && uploadFile) {
+      // Real processing stages with actual timing - same for PDF and Figma
+      const stages = [
+        { name: 'upload', duration: 2000, step: 'Uploading file...' },
+        { name: 'ai-processing', duration: 4000, step: 'AI analyzing design...' },
+        { name: 'finalizing', duration: 2000, step: 'Finalizing sections...' }
+      ]
+
+      let currentStageIndex = 0
+      const startStage = (stageIndex: number) => {
+        if (stageIndex >= stages.length) return
+        
+        const stage = stages[stageIndex]
+        setProcessingStage(stage.name as any)
+        setCurrentStep(stage.step)
+        setStageProgress(0)
+        
+        const interval = setInterval(() => {
+          setStageProgress(prev => {
+            if (prev >= 100) {
+              clearInterval(interval)
+              if (stageIndex < stages.length - 1) {
+                startStage(stageIndex + 1)
+              }
+              return 100
+            }
+            return prev + 2 // Consistent progress increment
+          })
+        }, stage.duration / 50) // Consistent timing
+      }
+
+      startStage(0)
+    }
+  }, [isProcessing, uploadFile])
+
+  // Calculate real overall progress based on actual processing stages - same for PDF and Figma
+  const overallProgress = React.useMemo(() => {
+    if (!isProcessing) return 0
+    
+    const stageWeights = { upload: 0.25, 'ai-processing': 0.55, finalizing: 0.20 }
+    const currentStageIndex = Object.keys(stageWeights).indexOf(processingStage)
+    
+    if (currentStageIndex === 0) {
+      // Upload stage: 0-25%
+      return (stageProgress / 100) * 25
+    } else if (currentStageIndex === 1) {
+      // AI Processing stage: 25-80%
+      return 25 + (stageProgress / 100) * 55
+    } else if (currentStageIndex === 2) {
+      // Finalizing stage: 80-100%
+      return 80 + (stageProgress / 100) * 20
+    }
+    
+    return 0
+  }, [isProcessing, processingStage, stageProgress])
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0]
+      // Accept any file for now, let the processor handle it
+      setSelectedFile(file)
+    }
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setSelectedFile(file)
+    }
+  }
+
+  const handleFileSubmit = async () => {
+    if (selectedFile) {
+      setIsProcessingFile(true)
+      try {
+        await onFileUpload(selectedFile)
+        // Auto-progress to processing step is handled by onFileUpload
+      } catch (error) {
+        // Don't break the flow, just reset the processing state
+        setIsProcessingFile(false)
+      }
+    }
+  }
+
+  const handleFigmaSubmit = () => {
+    if (figmaUrl.trim()) {
+      onFigmaUrl(figmaUrl.trim())
+      // Auto-progress to processing step is handled by onFigmaUrl
+    }
+  }
+
+  // Show processing UI when processing is active
+  if (isProcessing) {
+    // Check if analysis is complete but still in processing step
+    const isAnalysisComplete = (pdfAnalysis && uploadFile?.type === 'pdf') || (figmaAnalysis && uploadFile?.type === 'figma')
+    
+    if (isAnalysisComplete) {
+      // Check if any sections were actually extracted
+      const hasSections = uploadFile?.type === 'pdf' 
+        ? (pdfAnalysis?.sections && pdfAnalysis.sections.length > 0)
+        : (figmaAnalysis?.sections && figmaAnalysis.sections.length > 0)
+      
+      if (hasSections) {
+        // Show compact success state when sections were extracted
+        return (
+          <div className="px-6 pb-6">
+            <Card className="max-w-lg mx-auto bg-gradient-to-br from-green-50 to-emerald-50/50 border border-green-200 shadow-lg">
+              <CardContent className="p-6">
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center shadow-lg">
+                      <CheckCircle className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        {uploadFile?.type === 'figma' ? 'Figma' : 'PDF'} Analysis Complete!
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Successfully extracted {uploadFile?.type === 'pdf' ? pdfAnalysis?.sections.length : figmaAnalysis?.sections.length} sections
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-white/40">
+                    <p className="text-sm text-gray-700">
+                      Ready to review extracted sections and continue to the next step.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      } else {
+        // Show compact warning state when no sections were extracted
+        return (
+          <div className="px-6 pb-6">
+            <Card className="max-w-lg mx-auto bg-gradient-to-br from-yellow-50 to-orange-50/50 border border-yellow-200 shadow-lg">
+              <CardContent className="p-6">
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-orange-200 rounded-full flex items-center justify-center shadow-lg">
+                      <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        No Content Found
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        No sections extracted from {uploadFile?.type === 'figma' ? 'Figma design' : 'PDF'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-white/40">
+                    <p className="text-sm text-gray-700">
+                      The file might be empty, contain only images, or have text that couldn't be extracted. You can still continue.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+    }
+    
+    // Show compact processing state
+    return (
+      <div className="px-6 pb-6">
+        <Card className="max-w-lg mx-auto bg-gradient-to-br from-blue-50 to-purple-50/50 border border-blue-200 shadow-lg">
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              {/* Compact Processing Header */}
+              <div className="flex items-center justify-center space-x-3">
+                <div className="relative w-12 h-12">
+                  <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-spin" style={{ animationDuration: '2s' }} />
+                  <div className="absolute inset-1 border-2 border-purple-300 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
+                  <div className="absolute inset-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    {uploadFile?.type === 'figma' ? (
+                      <Figma className="w-4 h-4 text-white" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                </div>
+                <div className="text-left">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Processing {uploadFile?.type === 'figma' ? 'Figma' : 'PDF'} Design
+                  </h3>
+                  <p className="text-sm text-gray-600">{currentStep}</p>
+                </div>
+              </div>
+              
+              {/* Compact Progress Bar */}
+              <div className="space-y-2">
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${overallProgress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>{Math.round(overallProgress)}% Complete</span>
+                  <span className="capitalize">{processingStage.replace('-', ' ')}</span>
+                </div>
+              </div>
+              
+              {/* File Info */}
+              <div className="bg-white/60 rounded-lg p-3 border border-white/40">
+                <div className="flex items-center space-x-2 text-sm">
+                  {uploadFile?.type === 'figma' ? (
+                    <Figma className="w-4 h-4 text-blue-600" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-blue-600" />
+                  )}
+                  <span className="text-gray-700 font-medium">
+                    {uploadFile?.type === 'figma' ? uploadFile.url : uploadFile?.file?.name}
+                  </span>
+                  {uploadFile?.file && (
+                    <span className="text-gray-500">({(uploadFile.file.size / 1024 / 1024).toFixed(1)} MB)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Hidden Processors - Handle actual processing without visual interference */}
+        {isProcessing && uploadFile && (
+          <div className="hidden">
+            {uploadFile.type === "figma" && uploadFile.url && (
+              <FigmaProcessor
+                figmaUrl={uploadFile.url}
+                onAnalysisComplete={onFigmaAnalysisComplete}
+                onError={onFigmaAnalysisError}
+              />
+            )}
+            
+            {uploadFile.type === "pdf" && uploadFile.file && (
+              <PDFProcessor
+                file={uploadFile.file}
+                onAnalysisComplete={onPDFAnalysisComplete}
+                onError={onPDFAnalysisError}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 px-6 pb-6">
+      {/* Figma URL Input */}
+      <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
+        <CardHeader className="text-center pb-3">
+          <div className="mx-auto w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+            <Figma className="w-5 h-5 text-primary" />
+          </div>
+          <CardTitle className="text-lg font-semibold text-gray-800">Figma Design URL</CardTitle>
+          <CardDescription className="text-gray-600">
+            Import your Figma design to extract layout and design elements
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex space-x-3">
+            <Input
+              type="url"
+              placeholder="https://www.figma.com/file/..."
+              value={figmaUrl}
+              onChange={(e) => setFigmaUrl(e.target.value)}
+              className="flex-1 text-base border-2 border-gray-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
+            />
+            <Button 
+              onClick={handleFigmaSubmit}
+              disabled={!figmaUrl.trim()}
+              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            >
+              <Link className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-gray-500 bg-blue-50/50 rounded-lg p-3">
+            <Sparkles className="w-4 h-4 text-blue-500" />
+            <span>Our AI will analyze your design and extract the layout structure</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Enhanced Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-white px-6 text-sm font-semibold text-gray-500 uppercase tracking-wider">Or</span>
+        </div>
+      </div>
+
+      {/* File Upload */}
+      <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
+        <CardHeader className="text-center pb-3">
+          <div className="mx-auto w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+            <FileImage className="w-5 h-5 text-primary" />
+          </div>
+          <CardTitle className="text-lg font-semibold text-gray-800">Upload PDF File</CardTitle>
+          <CardDescription className="text-gray-600">
+            Drag and drop your PDF or browse to upload
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            className={`border-2 border-dashed rounded-xl p-4 text-center transition-all duration-300 ${
+              dragActive 
+                ? "border-primary bg-gradient-to-r from-primary/5 to-purple-500/5 scale-105 shadow-lg shadow-primary/25" 
+                : selectedFile 
+                ? "border-green-500 bg-gradient-to-r from-green-50 to-emerald-50/50 shadow-md" 
+                : "border-gray-300 hover:border-primary/40 hover:bg-gray-50/50"
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            {selectedFile ? (
+              <div className="space-y-3">
+                <div className="mx-auto w-12 h-12 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <p className="text-base font-semibold text-gray-800">
+                      {selectedFile.name}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedFile(null)}
+                      className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1 h-6 w-6"
+                      disabled={isProcessingFile}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3 bg-green-100 rounded-full px-3 py-1 inline-block">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <Button 
+                    onClick={handleFileSubmit}
+                    disabled={isProcessingFile}
+                    className={`relative overflow-hidden bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
+                      isProcessingFile ? 'cursor-not-allowed opacity-90' : ''
+                    }`}
+                  >
+                    {/* Animated background for processing state */}
+                    {isProcessingFile && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-600/20 animate-pulse" />
+                    )}
+                    
+                    {/* Button content with loading state */}
+                    <div className="relative flex items-center">
+                      {isProcessingFile ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ArrowRight className="h-4 w-4 mr-2" />
+                          <span>Process File</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Ripple effect on click */}
+                    {isProcessingFile && (
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 to-purple-600/10 animate-ping" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mx-auto w-12 h-12 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+                  <Upload className="h-6 w-6 text-gray-500" />
+                </div>
+                <p className="text-base text-gray-700 mb-2 font-medium">
+                  Drag and drop your PDF here, or{" "}
+                  <label className="text-primary cursor-pointer hover:underline font-semibold">
+                    browse files
+                    <input
+                      type="file"
+                      accept="*/*"
+                      onChange={handleFileInput}
+                      className="hidden"
+                    />
+                  </label>
+                </p>
+                <p className="text-sm text-gray-500 bg-gray-100 rounded-full px-3 py-1 inline-block">
+                  Supports PDF files up to 10MB
+                </p>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+
+function SectionsReviewStep({
+  pdfAnalysis,
+  figmaAnalysis,
+  onBack,
+  onNext
+}: {
+  pdfAnalysis?: PDFAnalysisResult | null;
+  figmaAnalysis?: FigmaAnalysisResult | null;
+  onBack: () => void;
+  onNext: () => void;
+}): JSX.Element {
+  return (
+    <div className="py-6 px-6">
+      <div className="text-center mb-6">
+        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+          Review Extracted Sections
+        </h3>
+        <p className="text-gray-600 text-base max-w-lg mx-auto mb-4">
+          Review all the sections extracted from your design file before proceeding to the next step.
+        </p>
+      </div>
+
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* PDF Analysis Results */}
+        {pdfAnalysis && (
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-xl font-semibold text-gray-800 flex items-center">
+                <FileText className="w-6 h-6 mr-3 text-green-600" />
+                PDF Analysis Results
+              </h4>
+              <Badge className="bg-green-100 text-green-800 border-green-200">
+                {pdfAnalysis.sections.length} Sections
+              </Badge>
+            </div>
+
+            {/* All Sections List */}
+            <div className="space-y-3">
+              <h5 className="text-lg font-semibold text-gray-700 mb-3">All Extracted Sections</h5>
+              {pdfAnalysis.sections.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No sections extracted from PDF</p>
+                  <p className="text-sm text-gray-400">The AI couldn't identify any sections in this file</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {pdfAnalysis.sections.map((section, index) => (
+                    <div key={section.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-all duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h6 className="text-base font-semibold text-gray-800 mb-2">{section.title}</h6>
+                          {section.content && (
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                              {section.content}
+                            </p>
+                          )}
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span className="flex items-center">
+                              <FileText className="w-3 h-3 mr-1" />
+                              Page {section.pageNumber}
+                            </span>
+                            <span className="flex items-center">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full mr-1" />
+                              Section: {section.order}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Figma Analysis Results */}
+        {figmaAnalysis && (
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Figma className="w-6 h-6 mr-3 text-blue-600" />
+                Figma Analysis Results
+              </h4>
+              <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                {figmaAnalysis.sections.length} Sections
+              </Badge>
+            </div>
+
+            {/* All Sections List */}
+            <div className="space-y-3">
+              <h5 className="text-lg font-semibold text-gray-700 mb-3">All Extracted Sections</h5>
+              {figmaAnalysis.sections.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <Figma className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No sections extracted from Figma</p>
+                  <p className="text-sm text-gray-400">The AI couldn't identify any sections in this design</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {figmaAnalysis.sections.map((section, index) => (
+                    <div key={section.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-all duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h6 className="text-base font-semibold text-gray-800 mb-2">{section.title}</h6>
+                          {section.content && (
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                              {section.content}
+                            </p>
+                          )}
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span className="flex items-center">
+                              <div className="w-2 h-2 bg-blue-400 rounded-full mr-1" />
+                              Depth: {section.depth}
+                            </span>
+                            <span className="flex items-center">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full mr-1" />
+                              Section: {section.order || index + 1}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* No Analysis Results */}
+        {!pdfAnalysis && !figmaAnalysis && (
+          <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-gray-500" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-2">No Analysis Results</h4>
+              <p className="text-gray-600 mb-4">No design analysis results are available at the moment.</p>
+              <p className="text-sm text-gray-500">You can still proceed to the next step to continue with your landing page creation.</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="mt-8 flex justify-center space-x-4">
+        <Button 
+          variant="outline" 
+          onClick={onBack} 
+          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+        >
+          ← Back to Upload
+        </Button>
+        <Button 
+          onClick={onNext} 
+          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
+        >
+          Go to Next Step →
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
+
+const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isPreviewing, setIsPreviewing] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [generatedLandingPage, setGeneratedLandingPage] = useState<any>(null)
+  const [generationComplete, setGenerationComplete] = useState(false)
+
+  const handleGenerateLandingPage = async () => {
+    setIsGenerating(true)
+    try {
+      // Get business details and extracted data from the modal context
+      const businessDetails = (window as any).modalBusinessDetails || {}
+      const extractedData = (window as any).modalExtractedData || {}
+      const designType = (window as any).modalDesignType || 'unknown'
+      
+      // Get extracted design structure from localStorage if available
+      const extractedDesignStructure = localStorage.getItem('extractedDesignStructure')
+      if (extractedDesignStructure) {
+        try {
+          const designStructure = JSON.parse(extractedDesignStructure)
+          // Merge the design structure with extracted data
+          extractedData.sections = designStructure.sections
+          extractedData.sectionTypes = designStructure.sectionTypes
+        } catch (error) {
+          console.error('Error parsing extracted design structure:', error)
+        }
+      }
+
+
+      const response = await fetch(api('/ai/generate-dynamic-landing-page'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessInfo: businessDetails,
+          extractedData: extractedData,
+          designType: designType
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        setGeneratedLandingPage(result.data.landingPageContent)
+        setGenerationComplete(true)
+        // Automatically save to localStorage for immediate access
+        const previewData = {
+          id: result.data.id || 'generated-landing-page', // Use the actual database ID
+          title: result.data.landingPageContent.meta?.title || 'Generated Landing Page',
+          businessName: (window as any).modalBusinessDetails?.businessName || 'Your Business',
+          businessOverview: (window as any).modalBusinessDetails?.businessOverview || 'Professional services',
+          targetAudience: (window as any).modalBusinessDetails?.targetAudience || 'General customers',
+          brandTone: (window as any).modalBusinessDetails?.brandTone || 'Professional',
+          sections: result.data.landingPageContent.sections || [],
+          customCSS: result.data.landingPageContent.css || '',
+          customJS: result.data.landingPageContent.js || '',
+          meta: result.data.landingPageContent.meta || {},
+          generatedAt: new Date().toISOString(),
+          model: 'gemini-pro',
+          completeHTML: result.data.landingPageContent.html || '',
+          lastUpdated: Date.now()
+        }
+        
+        localStorage.setItem('latestLandingPage', JSON.stringify(previewData))
+      } else {
+        throw new Error(result.error || 'Generation failed')
+      }
+    } catch (error) {
+      alert('Failed to generate landing page. Please try again.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handlePreview = async () => {
+    if (!generatedLandingPage) {
+      alert('Please generate the landing page first!')
+      return
+    }
+
+    setIsPreviewing(true)
+    try {
+      // Save the generated landing page to localStorage for preview
+      const previewData = {
+        id: 'generated-landing-page',
+        title: generatedLandingPage.meta?.title || 'Generated Landing Page',
+        businessName: (window as any).modalBusinessDetails?.businessName || 'Your Business',
+        businessOverview: (window as any).modalBusinessDetails?.businessOverview || 'Professional services',
+        targetAudience: (window as any).modalBusinessDetails?.targetAudience || 'General customers',
+        brandTone: (window as any).modalBusinessDetails?.brandTone || 'Professional',
+        sections: generatedLandingPage.sections || [],
+        customCSS: generatedLandingPage.css || '',
+        customJS: generatedLandingPage.js || '',
+        meta: generatedLandingPage.meta || {},
+        generatedAt: new Date().toISOString(),
+        model: 'gemini-pro',
+        // Store the complete HTML for preview
+        completeHTML: generatedLandingPage.html || '',
+        // Add timestamp to ensure fresh data
+        lastUpdated: Date.now()
+      }
+
+      localStorage.setItem('latestLandingPage', JSON.stringify(previewData))
+      setPreviewUrl('/preview/landing-page')
+    } catch (error) {
+      console.error('Preview generation failed:', error)
+    } finally {
+      setIsPreviewing(false)
+    }
+  }
+
+
+  return (
+    <div className="text-center py-6 px-6">
+      <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mb-4 shadow-lg">
+        <Eye className="w-8 h-8 text-blue-600" />
+      </div>
+      
+      <h3 className="text-2xl font-bold text-gray-800 mb-3">
+        Generate & Preview Your Landing Page
+      </h3>
+      
+      <p className="text-gray-600 mb-6 text-base max-w-lg mx-auto leading-relaxed">
+        Generate a dynamic landing page using AI, then preview it before downloading.
+      </p>
+
+      <div className="max-w-md mx-auto space-y-4">
+        {!generationComplete ? (
+          <Button 
+            onClick={handleGenerateLandingPage}
+            disabled={isGenerating}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating with AI...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Landing Page
+              </>
+            )}
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center justify-center space-x-2 text-green-700 mb-3">
+                <CheckCircle className="w-5 h-5" />
+                <span className="text-sm font-medium">Landing Page Generated!</span>
+              </div>
+              <p className="text-sm text-green-600 mb-3">
+                Your dynamic landing page has been created using AI.
+              </p>
+            </div>
+          </div>
+        )}
+
+        </div>
+
+      {/* Navigation Buttons */}
+      <div className="mt-8 flex justify-center space-x-4">
+        <Button 
+          variant="outline" 
+          onClick={onBack}
+          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+        >
+          ← Back to Business Details
+        </Button>
+        <Button 
+          onClick={onNext}
+          disabled={!generationComplete}
+          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Eye className="h-4 w-4 mr-2" />
+          Get Preview
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
+  const [generatedLandingPage, setGeneratedLandingPage] = useState<any>(null)
+  const [showSectionsModal, setShowSectionsModal] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadFormat, setDownloadFormat] = useState<'html' | 'zip'>('html')
+
+
+  useEffect(() => {
+    // Get the generated landing page data from localStorage
+    const savedData = localStorage.getItem('latestLandingPage')
+    if (savedData) {
+      try {
+        const landingPageData = JSON.parse(savedData)
+        
+        // Validate that we have the correct data structure
+        if (landingPageData.sections && Array.isArray(landingPageData.sections)) {
+          // Check if data is fresh (less than 1 hour old)
+          const dataAge = Date.now() - (landingPageData.lastUpdated || 0)
+          const oneHour = 60 * 60 * 1000
+          
+          if (dataAge > oneHour) {
+            localStorage.removeItem('latestLandingPage')
+            return
+          }
+          
+          setGeneratedLandingPage(landingPageData)
+        } else {
+          localStorage.removeItem('latestLandingPage')
+        }
+      } catch (error) {
+        // Clear corrupted data
+        localStorage.removeItem('latestLandingPage')
+      }
+    }
+  }, [])
+
+  const handleSectionsSave = async (editedSections: any[]) => {
+    if (!generatedLandingPage) return
+
+    // Update the generated landing page with edited sections
+    const updatedLandingPage = {
+      ...generatedLandingPage,
+      sections: editedSections
+    }
+
+    setGeneratedLandingPage(updatedLandingPage)
+
+    // Update localStorage with the edited sections
+    localStorage.setItem('latestLandingPage', JSON.stringify({
+      ...updatedLandingPage,
+      lastUpdated: Date.now()
+    }))
+  }
+
+  const handleDownload = async () => {
+    setIsDownloading(true)
+    try {
+      // Get the generated landing page data from localStorage
+      const savedData = localStorage.getItem('latestLandingPage')
+      if (!savedData) {
+        throw new Error('No generated landing page found')
+      }
+
+      const landingPageData = JSON.parse(savedData)
+      
+      // Create HTML content
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${landingPageData.title || 'Landing Page'}</title>
+    <meta name="description" content="${landingPageData.businessOverview || ''}">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            background: white;
+            margin: 20px 0;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .section p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 60px 30px;
+        }
+        .hero h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .hero p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section hero">
+            <h1>${landingPageData.businessName || 'Your Business'}</h1>
+            <p>${landingPageData.businessOverview || 'Professional services for your needs'}</p>
+        </div>
+        
+        ${landingPageData.sections?.map((section: any) => `
+            <div class="section">
+                <h2>${section.title || 'Section'}</h2>
+                <p>${section.content || 'Content for this section'}</p>
+            </div>
+        `).join('') || ''}
+        
+        <div class="section">
+            <h2>Contact Us</h2>
+            <p>Ready to get started? Contact us today!</p>
+            ${landingPageData.websiteUrl ? `<p>Visit us at: <a href="${landingPageData.websiteUrl}" target="_blank">${landingPageData.websiteUrl}</a></p>` : ''}
+        </div>
+    </div>
+</body>
+</html>`
+
+      // Create blob and download
+      const blob = new Blob([htmlContent], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${(landingPageData.businessName || 'landing-page').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-landing-page.html`
+      document.body.appendChild(link)
+      link.click()
+      
+      // Cleanup
+      URL.revokeObjectURL(url)
+      document.body.removeChild(link)
+      
+    } catch (error) {
+      console.error('Download failed:', error)
+      alert('Download failed. Please try again.')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const getSectionIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'hero':
+        return '🎯'
+      case 'features':
+        return '⭐'
+      case 'about':
+        return 'ℹ️'
+      case 'testimonials':
+        return '💬'
+      case 'cta':
+        return '🚀'
+      case 'contact':
+        return '📞'
+      case 'footer':
+        return '📄'
+      case 'header':
+        return '📋'
+      default:
+        return '📝'
+    }
+  }
+
+  const getSectionColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'hero':
+        return 'bg-gradient-to-r from-blue-500 to-purple-600'
+      case 'features':
+        return 'bg-gradient-to-r from-green-500 to-teal-600'
+      case 'about':
+        return 'bg-gradient-to-r from-orange-500 to-red-600'
+      case 'testimonials':
+        return 'bg-gradient-to-r from-purple-500 to-pink-600'
+      case 'cta':
+        return 'bg-gradient-to-r from-red-500 to-orange-600'
+      case 'contact':
+        return 'bg-gradient-to-r from-indigo-500 to-blue-600'
+      case 'footer':
+        return 'bg-gradient-to-r from-gray-500 to-gray-700'
+      case 'header':
+        return 'bg-gradient-to-r from-slate-500 to-gray-600'
+      default:
+        return 'bg-gradient-to-r from-gray-400 to-gray-600'
+    }
+  }
+
+  return (
+    <div className="text-center py-6 px-6">
+      <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mb-4 shadow-lg">
+        <FileText className="w-8 h-8 text-purple-600" />
+      </div>
+      
+      <h3 className="text-2xl font-bold text-gray-800 mb-3">
+        View Generated Sections
+      </h3>
+      
+      <p className="text-gray-600 mb-6 text-base max-w-lg mx-auto leading-relaxed">
+        Review all the AI-generated content for your landing page sections. Each section has been customized for your business.
+      </p>
+
+
+      {generatedLandingPage && generatedLandingPage.sections && generatedLandingPage.sections.length > 0 ? (
+        <div className="max-w-4xl mx-auto space-y-4">
+          {/* Section Preview Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
+            {generatedLandingPage.sections.slice(0, 8).map((section: any, index: number) => (
+              <Card 
+                key={section.id || index} 
+                className="group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border-l-4"
+                style={{ borderLeftColor: getSectionColor(section.type).includes('blue') ? '#3B82F6' : 
+                                                getSectionColor(section.type).includes('green') ? '#10B981' :
+                                                getSectionColor(section.type).includes('red') ? '#EF4444' :
+                                                getSectionColor(section.type).includes('purple') ? '#8B5CF6' :
+                                                getSectionColor(section.type).includes('pink') ? '#EC4899' :
+                                                getSectionColor(section.type).includes('indigo') ? '#6366F1' : '#6B7280' }}
+              >
+                <CardContent className="p-4">
+                  {/* Header with Icon and Badge */}
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div 
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm shadow-sm"
+                      style={{ 
+                        backgroundColor: getSectionColor(section.type).includes('blue') ? '#3B82F6' : 
+                                        getSectionColor(section.type).includes('green') ? '#10B981' :
+                                        getSectionColor(section.type).includes('red') ? '#EF4444' :
+                                        getSectionColor(section.type).includes('purple') ? '#8B5CF6' :
+                                        getSectionColor(section.type).includes('pink') ? '#EC4899' :
+                                        getSectionColor(section.type).includes('indigo') ? '#6366F1' : '#6B7280'
+                      }}
+                    >
+                      {getSectionIcon(section.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            section.type === 'hero' ? 'bg-blue-100 text-blue-700' :
+                            section.type === 'features' ? 'bg-green-100 text-green-700' :
+                            section.type === 'cta' ? 'bg-red-100 text-red-700' :
+                            section.type === 'benefits' ? 'bg-purple-100 text-purple-700' :
+                            section.type === 'testimonials' ? 'bg-pink-100 text-pink-700' :
+                            section.type === 'contact' ? 'bg-indigo-100 text-indigo-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {section.type}
+                        </Badge>
+                        <span className="text-xs text-gray-500 font-medium">#{index + 1}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Title */}
+                  <h4 className="font-semibold text-gray-900 text-sm mb-2 leading-tight line-clamp-2">
+                    {section.title || `Section ${index + 1}`}
+                  </h4>
+
+                  {/* Section Content Preview */}
+                  <div className="relative">
+                    <p className="text-xs text-gray-700 leading-relaxed line-clamp-3">
+                      {section.content?.substring(0, 80) || 'Content will be generated here...'}
+                      {section.content && section.content.length > 80 && '...'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+          </div>
+
+          {/* View All Sections and Download Buttons - Side by Side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            {/* View All Sections Button */}
+            <div className="relative">
+              <Button 
+                onClick={() => setShowSectionsModal(true)}
+                className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 hover:from-purple-700 hover:via-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <span>View All {generatedLandingPage.sections.length} Sections</span>
+                  <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </Button>
+              
+              {/* Button Glow Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 rounded-xl blur-md opacity-25 -z-10"></div>
+            </div>
+
+            {/* Download Button */}
+            <div className="relative">
+              <Button 
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Preparing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Landing Page
+                  </>
+                )}
+              </Button>
+              
+              {/* Button Glow Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-700 rounded-xl blur-md opacity-25 -z-10"></div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-md mx-auto">
+          <div className="p-6 bg-yellow-50 rounded-lg border border-yellow-200">
+            <AlertTriangle className="w-8 h-8 text-yellow-600 mx-auto mb-3" />
+            <h4 className="font-semibold text-yellow-800 mb-2">No Sections Found</h4>
+            <p className="text-sm text-yellow-700">
+              No generated sections were found. Please go back and generate the landing page first.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      <div className="mt-6 flex justify-center space-x-4">
+        <Button 
+          variant="outline" 
+          onClick={onBack}
+          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+        >
+          ← Back to Preview
+        </Button>
+        <Button 
+          onClick={async () => {
+            // Ensure we're using the latest edited sections from localStorage
+            const savedData = localStorage.getItem('latestLandingPage')
+            if (savedData) {
+              try {
+                const latestData = JSON.parse(savedData)
+                if (latestData.sections && Array.isArray(latestData.sections) && latestData.id) {
+                  setGeneratedLandingPage(latestData)
+                  
+                  // Update the database with edited sections before proceeding
+                  
+                  const response = await fetch(api(`/landing-pages/${latestData.id}`), {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      sections: latestData.sections
+                    })
+                  })
+
+                  if (response.ok) {
+                    // Database updated successfully with edited sections
+                  } else {
+                    const errorData = await response.json()
+                    // Failed to update database with edited sections
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to load latest sections from localStorage:', error)
+              }
+            }
+            onNext()
+          }}
+          disabled={!generatedLandingPage || !generatedLandingPage.sections || generatedLandingPage.sections.length === 0}
+          className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Complete
+        </Button>
+      </div>
+
+      {/* Sections Modal */}
+      {/* Generated Sections Modal */}
+      <GeneratedSectionsModal
+        isOpen={showSectionsModal}
+        onClose={() => setShowSectionsModal(false)}
+        landingPage={generatedLandingPage}
+        businessInfo={{
+          businessName: generatedLandingPage?.businessName || 'Your Business',
+          businessOverview: generatedLandingPage?.businessOverview || '',
+          targetAudience: generatedLandingPage?.targetAudience || '',
+          brandTone: generatedLandingPage?.brandTone || 'professional',
+          websiteUrl: generatedLandingPage?.websiteUrl || ''
+        }}
+        isEditable={true}
+        onSave={handleSectionsSave}
+      />
+    </div>
+  )
+}
+
+const DownloadStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
+  const [isPreparing, setIsPreparing] = useState(false)
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+  const [downloadFormat, setDownloadFormat] = useState<'html' | 'zip'>('html')
+  const [downloadComplete, setDownloadComplete] = useState(false)
+
+  const handleDownload = async () => {
+    setIsPreparing(true)
+    try {
+      // Get the generated landing page data
+      const savedData = localStorage.getItem('latestLandingPage')
+      if (!savedData) {
+        throw new Error('No generated landing page found')
+      }
+
+      const landingPageData = JSON.parse(savedData)
+      
+      if (downloadFormat === 'html') {
+        // Create HTML file with embedded CSS and JS
+        const htmlContent = landingPageData.completeHTML || `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${landingPageData.meta?.title || landingPageData.title || 'Landing Page'}</title>
+    <meta name="description" content="${landingPageData.meta?.description || ''}">
+    <meta name="keywords" content="${landingPageData.meta?.keywords || ''}">
+    <style>
+        ${landingPageData.customCSS || ''}
+    </style>
+</head>
+<body>
+    ${landingPageData.sections?.map((section: any) => section.content).join('\n') || `
+    <div class="container">
+        <h1>${landingPageData.businessName || 'Your Business'}</h1>
+        <p>${landingPageData.businessOverview || 'Professional services'}</p>
+          </div>
+    `}
+    <script>
+        ${landingPageData.customJS || ''}
+    </script>
+</body>
+</html>`
+
+        // Create blob and download
+        const blob = new Blob([htmlContent], { type: 'text/html' })
+        const url = URL.createObjectURL(blob)
+        
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${(landingPageData.meta?.title || landingPageData.businessName || 'landing-page').toLowerCase().replace(/\s+/g, '-')}.html`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        
+        setDownloadUrl(url)
+        setDownloadComplete(true)
+      } else {
+        // For ZIP format, we would need to create a zip file with HTML, CSS, and JS files
+        // For now, just download the HTML file
+        alert('ZIP download not yet implemented. Downloading HTML file instead.')
+        handleDownload()
+        return
+      }
+    } catch (error) {
+      console.error('Download preparation failed:', error)
+      alert('Failed to prepare download. Please try again.')
+    } finally {
+      setIsPreparing(false)
+    }
+  }
+
+  const handleDownloadFile = () => {
+    if (downloadUrl) {
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = `landing-page.${downloadFormat}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }
+  }
+
+  return (
+    <div className="text-center py-8 px-6">
+      <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 rounded-full flex items-center justify-center mb-6 shadow-xl">
+        <Download className="w-10 h-10 text-blue-600" />
+        </div>
+      
+      <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+        Download Your Landing Page
+      </h3>
+      
+      <p className="text-gray-600 mb-8 text-lg max-w-2xl mx-auto leading-relaxed">
+        Your professional landing page is ready! Choose your preferred format and download it to use on your website.
+      </p>
+
+      <div className="max-w-lg mx-auto space-y-6">
+        {/* Format Selection */}
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Choose Download Format</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              variant={downloadFormat === 'html' ? 'default' : 'outline'}
+              onClick={() => setDownloadFormat('html')}
+              className={`h-12 ${downloadFormat === 'html' ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700' : ''}`}
+            >
+              <div className="text-center">
+                <div className="font-semibold">HTML</div>
+                <div className="text-xs opacity-75">Single file</div>
+              </div>
+            </Button>
+            <Button 
+              variant={downloadFormat === 'zip' ? 'default' : 'outline'}
+              onClick={() => setDownloadFormat('zip')}
+              className={`h-12 ${downloadFormat === 'zip' ? 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700' : ''}`}
+            >
+              <div className="text-center">
+                <div className="font-semibold">ZIP</div>
+                <div className="text-xs opacity-75">Multiple files</div>
+              </div>
+            </Button>
+          </div>
+        </div>
+
+        <Button 
+          onClick={handleDownload}
+          disabled={isPreparing}
+          className="w-full h-14 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-lg font-semibold"
+        >
+          {isPreparing ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+              Preparing Download...
+            </>
+          ) : (
+            <>
+              <Download className="h-5 w-5 mr-3" />
+              Download Landing Page
+            </>
+          )}
+        </Button>
+
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="mt-8 flex justify-center space-x-4">
+        <Button 
+          variant="outline" 
+          onClick={onBack}
+          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+        >
+          ← Back to Preview
+        </Button>
+        <Button 
+          onClick={onNext}
+          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
+        >
+          Complete →
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+const CompleteStep = ({ onClose, onComplete, completionData }: { onClose: () => void; onComplete?: (data: any) => void; completionData?: any }) => {
+  const [progress, setProgress] = useState(0)
+  const [isGenerating, setIsGenerating] = useState(true)
+  const [currentStage, setCurrentStage] = useState('Finalizing Landing Page...')
+  const [completionTime, setCompletionTime] = useState<Date | null>(null)
+
+  useEffect(() => {
+    // Simple completion animation since database update is handled in SectionsViewStep
+    const stages = [
+      { name: 'Finalizing landing page...', duration: 2000 },
+      { name: 'Landing page ready!', duration: 1000 }
+    ]
+
+    const startStage = (stageIndex: number) => {
+      if (stageIndex >= stages.length) {
+        setIsGenerating(false)
+        setCurrentStage('Complete!')
+        setCompletionTime(new Date())
+        // Call onComplete callback to trigger data refresh
+        if (onComplete) {
+          onComplete(completionData)
+        }
+        // Wait a moment then close
+        setTimeout(() => {
+          onClose()
+        }, 1000)
+        return
+      }
+      
+      const stage = stages[stageIndex]
+      setCurrentStage(stage.name)
+      
+      const stageProgress = 100 / stages.length
+      const increment = stageProgress / (stage.duration / 50)
+      
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          const newProgress = Math.min(prev + increment, (stageIndex + 1) * stageProgress)
+          if (newProgress >= (stageIndex + 1) * stageProgress) {
+            clearInterval(interval)
+            startStage(stageIndex + 1)
+            return newProgress
+          }
+          return newProgress
+        })
+      }, 50)
+    }
+
+    startStage(0)
+  }, [])
+
+  return (
+    <div className="text-center py-8">
+      {/* Icon */}
+      <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-6 shadow-lg">
+        {isGenerating ? (
+          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        ) : (
+        <CheckCircle className="w-12 h-12 text-green-600" />
+        )}
+      </div>
+      
+      {/* Message */}
+      <h3 className="text-2xl font-bold text-gray-800 mb-3">
+        {isGenerating ? 'Creating Your Landing Page' : 'Landing Page Created Successfully!'}
+      </h3>
+      
+      <p className="text-gray-600 mb-6">
+        {isGenerating ? currentStage : 'Your landing page has been generated and saved successfully!'}
+      </p>
+      
+      {/* Progress Bar */}
+      <div className="mt-6 max-w-md mx-auto">
+        <div className="w-full bg-gray-200 rounded-full h-3 mb-3 overflow-hidden">
+          <div 
+            className="bg-gradient-to-r from-primary to-purple-600 h-3 rounded-full transition-all duration-100 ease-out shadow-sm"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-sm text-gray-600">
+          {isGenerating ? `${Math.round(progress)}% complete` : 'Complete!'}
+        </p>
+      </div>
+
+    </div>
+  )
+}
+

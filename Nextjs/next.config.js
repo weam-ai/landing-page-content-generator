@@ -1,0 +1,14 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // App Router is now stable and enabled by default in Next.js 14+
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '/ai-landing-page-app',
+  assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || '/ai-landing-page-app',
+  // Ensure trailing slash is handled properly
+  trailingSlash: false,
+  // Enable experimental features if needed
+  experimental: {
+    // Add any experimental features here
+  },
+}
+
+module.exports = nextConfig
