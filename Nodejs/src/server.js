@@ -60,9 +60,11 @@ if (config.nodeEnv === 'development') {
 }
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
+app.get('/ai-landing-page-generator-api/health', (req, res) => {
+  const statusCode = 200;
+  res.status(statusCode).json({
+    status: statusCode,
+    message: 'AI Landing Page Backend Server is Live 🚀',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: config.nodeEnv
@@ -99,7 +101,7 @@ app.use(errorHandler);
 // Start server
 const server = app.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT} in ${config.nodeEnv} mode`);
-  logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
+  logger.info(`📊 Health check available at http://localhost:${PORT}/ai-landing-page-generator-api/health`);
   console.log('🔐 [Server] Session management system initialized');
   console.log('🔐 [Server] Iron session middleware ready');
   console.log('🔐 [Server] getAccessToken helper function available');
