@@ -83,11 +83,6 @@ const config: Config = {
       );
     }
 
-    console.log('✅ Frontend configuration loaded');
-    console.log(`📊 Environment: ${this.environment}`);
-    console.log(`🌐 API URL: ${this.apiUrl}`);
-    console.log(`🔗 Backend URL: ${this.backendUrl}`);
-
     return true;
   },
 };

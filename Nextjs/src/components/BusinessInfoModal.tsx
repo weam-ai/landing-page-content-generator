@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { api } from "@/lib/api"
+import { api } from "@/lib/utils"
 
 interface BusinessInfo {
   businessName: string
