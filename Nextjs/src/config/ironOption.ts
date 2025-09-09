@@ -1,4 +1,4 @@
-import config from './credencial_config';
+import config from './frontend-config';
 
 const ironOptions = {
     cookieName: config.cookieName,

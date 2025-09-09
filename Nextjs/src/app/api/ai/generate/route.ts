@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '../../../../config/credencial_config'
+import config from '../../../../config/frontend-config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 seconds timeout
 
-    const backendResponse = await fetch(`${config.backendUrl}/api/ai/generate`, {
+    const backendResponse = await fetch(`${config.apiUrl}/ai/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

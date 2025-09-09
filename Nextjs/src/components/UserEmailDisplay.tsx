@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { ArrowLeft, Home, Grid3X3, Layout, ArrowLeftCircle, RotateCcw } from "lucide-react"
-import config from '../config/credencial_config'
+import config from '../config/frontend-config'
 
 interface UserObject {
   id: string

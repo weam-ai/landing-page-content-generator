@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserFromSession } from '@/utils/userSession'
-import config from '../../../../config/credencial_config'
+import config from '../../../../config/frontend-config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,8 +10,7 @@ export async function POST(request: NextRequest) {
     // Get user from session
     const user = await getUserFromSession()
     // Call the Node.js backend API
-    const backendUrl = config.backendUrl
-    const response = await fetch(`${backendUrl}/api/ai/generate-dynamic-landing-page`, {
+    const response = await fetch(`${config.apiUrl}/ai/generate-dynamic-landing-page`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

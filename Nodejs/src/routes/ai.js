@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const config = require('../config/credencial_config');
+const config = require('../config/backend-config');
 
 // Utility function for making fetch requests with timeout and retry
 async function fetchWithTimeout(url, options = {}, timeoutMs = 50000, maxRetries = 2) {
@@ -72,8 +72,8 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 50000, maxRetries
 const router = express.Router();
 
 // Initialize Google Generative AI at the top
-const GEMINI_API_KEY = config.apiKeys.geminiApiKey;
-const GEMINI_API_URL = config.apiKeys.geminiApiUrl;
+const GEMINI_API_KEY = config.geminiApiKey;
+const GEMINI_API_URL = config.geminiApiUrl;
 
 // Initialize Google Generative AI
 let genAI = null;
@@ -370,7 +370,7 @@ router.post('/extract-figma', async (req, res) => {
     }
 
     // Check if Figma access token is configured
-    if (!config.apiKeys.figmaAccessToken) {
+    if (!config.figmaAccessToken) {
       return res.status(500).json({
         success: false,
         error: 'Figma access token not configured. Please set FIGMA_ACCESS_TOKEN in your environment variables.'
@@ -379,7 +379,7 @@ router.post('/extract-figma', async (req, res) => {
 
     // Initialize Figma API
     const FigmaAPI = require('../utils/figmaApi');
-    const figmaApi = new FigmaAPI(config.apiKeys.figmaAccessToken);
+    const figmaApi = new FigmaAPI(config.figmaAccessToken);
 
     // Extract file key from URL
     const fileKey = figmaApi.extractFileKey(figmaUrl);

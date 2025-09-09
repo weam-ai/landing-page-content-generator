@@ -1,6 +1,6 @@
 const logger = require('../utils/logger');
 
-const config = require('../config/credencial_config');
+const config = require('../config/backend-config');
 
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
@@ -63,7 +63,7 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     error: message,
-    ...(config.nodeEnv === 'development' && { stack: err.stack })
+    ...(config.isDevelopment && { stack: err.stack })
   });
 };
 

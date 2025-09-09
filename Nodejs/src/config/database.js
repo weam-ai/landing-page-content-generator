@@ -1,19 +1,19 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
-const config = require('./credencial_config');
+const config = require('./backend-config');
 
 const connectDB = async () => {
   try {
     let mongoURI;
 
     // First try to get MONGODB_URI
-    if (config.nodeEnv === 'production') {
-      mongoURI = config.database.mongodbUriProd;
+    if (config.isProduction) {
+      mongoURI = config.mongodbUri;
       if (mongoURI) {
         logger.info('🔗 Using MONGODB_URI_PROD for production connection');
       }
     } else {
-      mongoURI = config.database.mongodbUri;
+      mongoURI = config.mongodbUri;
       if (mongoURI) {
         logger.info('🔗 Using MONGODB_URI for development connection');
       }
@@ -23,12 +23,12 @@ const connectDB = async () => {
     if (!mongoURI) {
       logger.info('📝 MONGODB_URI not found, constructing URI from individual database variables...');
       
-      const dbConnection = config.database.connection;
-      const dbHost = config.database.host;
-      const dbDatabase = config.database.database;
-      const dbUsername = config.database.username;
-      const dbPassword = config.database.password;
-      const dbPort = config.database.port;
+      const dbConnection = process.env.DB_CONNECTION || 'mongodb';
+      const dbHost = process.env.DB_HOST || 'localhost:27017';
+      const dbDatabase = process.env.DB_DATABASE || 'landing-page-generator';
+      const dbUsername = process.env.DB_USERNAME;
+      const dbPassword = process.env.DB_PASSWORD;
+      const dbPort = process.env.DB_PORT;
 
       logger.info(`📊 Database Configuration:`, {
         connection: dbConnection,

@@ -1,5 +1,5 @@
 import { api } from './utils';
-import config from '../config/credencial_config';
+import config from '../config/frontend-config';
 
 class ApiService {
   private async request(endpoint: string, options: RequestInit = {}) {
