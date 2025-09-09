@@ -349,10 +349,6 @@ export default function SolutionsPage() {
         <div className="absolute top-0 right-1/4 w-40 h-40 bg-gradient-to-r from-purple-500/20 to-primary/20 rounded-full blur-3xl opacity-30" />
         
         <div className="container mx-auto px-6 py-6 relative">
-          {/* User Email Display - Top Right */}
-          <div className="absolute top-4 right-6 z-20">
-            <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
-          </div>
           
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -371,33 +367,37 @@ export default function SolutionsPage() {
                 
                 <div>
                   <h1 className="text-4xl font-black bg-gradient-to-r from-gray-900 via-primary to-purple-700 bg-clip-text text-transparent leading-tight">
-                    Solutions
+                    AI Landing Page Generator
                   </h1>
                   <div className="flex items-center space-x-2 mt-1">
                     <div className="w-2 h-2 bg-gradient-to-r from-primary to-purple-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">AI-Powered Platform</span>
+                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Weam AI-Powered Platform</span>
                   </div>
                 </div>
               </div>
               
               {/* Enhanced Subtitle */}
-              <div className="max-w-xl">
+              <div className="max-w-2xl">
                 <p className="text-lg text-gray-600 leading-relaxed font-medium">
                   Transform your designs into stunning landing pages with 
                   <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent font-semibold"> AI-powered content generation</span>
                 </p>
-                <div className="flex items-center space-x-4 mt-3">
+                <div className="flex items-center space-x-4 mt-4">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span className="text-sm text-gray-500 font-medium">Instant Generation</span>
+                    <span className="text-sm text-gray-500 font-medium">Import Designs</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                    <span className="text-sm text-gray-500 font-medium">Professional Quality</span>
+                    <span className="text-sm text-gray-500 font-medium">AI Generation</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full" />
-                    <span className="text-sm text-gray-500 font-medium">Customizable</span>
+                    <span className="text-sm text-gray-500 font-medium">Customize Content</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                    <span className="text-sm text-gray-500 font-medium">Live Preview</span>
                   </div>
                 </div>
               </div>
@@ -435,7 +435,7 @@ export default function SolutionsPage() {
                 
                 {/* Floating notification badge */}
                 <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-r from-primary via-purple-600 to-purple-700 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30 border-2 border-white animate-pulse">
-                  <span className="text-sm text-white font-bold">{landingPages.length}</span>
+                  <span className="text-sm text-white font-bold">{totalCount}</span>
                 </div>
               </div>
             </div>
@@ -488,50 +488,41 @@ export default function SolutionsPage() {
               <EmptyState onAddNew={() => setIsUploadModalOpen(true)} />
             ) : (
               <div className="space-y-6">
-                {/* Stats Section */}
-                                {/* Stats Section - Tiny Beautiful Design */}
+                {/* Stats Section with Back to App */}
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                   <div className="flex items-center justify-between">
-                    {/* Total Pages */}
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border border-primary/20">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
-                        <p className="text-xs text-gray-500">Total Pages</p>
-                      </div>
+                    {/* Left Side - Back to App */}
+                    <div className="flex items-center">
+                      <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
                     </div>
 
-                    {/* Divider */}
-                    <div className="w-px h-12 bg-gray-200" />
-
-                    {/* Updated This Week */}
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
-                        <Zap className="h-5 w-5 text-green-600" />
+                    {/* Right Side - Stats */}
+                    <div className="flex items-center space-x-6">
+                      {/* Total Pages */}
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border border-primary/20">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                          <p className="text-xs text-gray-500">Total Pages</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {landingPages.filter(p => p.updatedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
-                        </p>
-                        <p className="text-xs text-gray-500">Updated This Week</p>
-                      </div>
-                    </div>
 
-                    {/* Divider */}
-                    <div className="w-px h-12 bg-gray-200" />
+                      {/* Divider */}
+                      <div className="w-px h-12 bg-gray-200" />
 
-                    {/* Professional Tone */}
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200">
-                        <Users className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {landingPages.filter(p => p.brandTone && p.brandTone.toLowerCase() === "professional").length}
-                        </p>
-                        <p className="text-xs text-gray-500">Professional Tone</p>
+                      {/* Updated This Week */}
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+                          <Zap className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {landingPages.filter(p => p.updatedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
+                          </p>
+                          <p className="text-xs text-gray-500">Updated This Week</p>
+                        </div>
                       </div>
                     </div>
                   </div>
