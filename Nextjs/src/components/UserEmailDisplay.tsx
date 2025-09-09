@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { ArrowLeft } from "lucide-react"
+import config from '../config/credencial_config'
 
 interface UserObject {
   id: string
@@ -15,7 +16,7 @@ interface UserEmailDisplayProps {
 
 // Environment URL mapper
 const getEnvironmentUrl = (): string => {
-  const environment = process.env.NEXT_PUBLIC_ENVIRONMENT
+  const environment = config.environment
   
   switch (environment) {
     case 'development':
@@ -41,7 +42,7 @@ export function UserEmailDisplay({ className = "" }: UserEmailDisplayProps) {
         setLoading(true)
         setError(null)
         
-        const response = await fetch('/ai-landing-page-app/api/user/session')
+        const response = await fetch(`${config.basePath}/api/user/session`)
         const result = await response.json()
         
         if (result.success) {

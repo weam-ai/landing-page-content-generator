@@ -5,6 +5,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { protect } = require('../middleware/auth');
 const logger = require('../utils/logger');
+const config = require('../config/credencial_config');
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024, // 50MB default for portfolio PDFs
+    fileSize: config.upload.maxFileSize,
     files: 1
   },
   fileFilter: fileFilter

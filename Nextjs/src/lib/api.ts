@@ -1,10 +1,11 @@
 import { api } from './utils';
+import config from '../config/credencial_config';
 
 class ApiService {
   private async request(endpoint: string, options: RequestInit = {}) {
-    const requestUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}${endpoint}`;
+    const requestUrl = `${config.apiUrl}${endpoint}`;
     
-    const config: RequestInit = {
+    const requestConfig: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -13,7 +14,16 @@ class ApiService {
     };
 
     try {
-      const response = await fetch(requestUrl, config);
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for AI operations
+      
+      const response = await fetch(requestUrl, {
+        ...requestConfig,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         // Handle specific HTTP status codes
@@ -35,6 +45,16 @@ class ApiService {
       return await response.json();
     } catch (error) {
       console.error('API request failed:', error);
+      
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout. The server may be unavailable.');
+        } else if (error.message.includes('fetch')) {
+          throw new Error('Network error. Please check your connection and ensure the backend server is running.');
+        }
+      }
+      
       throw error;
     }
   }
@@ -88,7 +108,7 @@ class ApiService {
 
   // Upload API
   async uploadDesign(formData: FormData) {
-    const requestUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/upload/design`;
+    const requestUrl = `${config.apiUrl}/upload/design`;
     
     const response = await fetch(requestUrl, {
       method: 'POST',
@@ -201,7 +221,7 @@ class ApiService {
   // User Session API
   async getUserSession() {
     // Call the Next.js API route directly with the correct basePath
-    const response = await fetch('/ai-landing-page-app/api/user/session', {
+    const response = await fetch(`${config.basePath}/api/user/session`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

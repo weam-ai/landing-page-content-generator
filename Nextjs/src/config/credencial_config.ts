@@ -1,32 +1,33 @@
 /**
  * Frontend Configuration (TypeScript)
  * Loads environment variables from the global .env file at the project root
- * This file provides access to ONLY NEXT_PUBLIC_* variables for the Next.js frontend
+ * Only exposes NEXT_PUBLIC_* variables for the Next.js frontend
  */
 
 import path from 'path';
 import dotenv from 'dotenv';
 
-// Load environment variables from the global .env file
-dotenv.config({ path: path.join(__dirname, '../../../.env') });
+// Load dotenv only on server side
+if (typeof window === 'undefined') {
+  // Load from root .env file (one level up from Nextjs directory)
+  dotenv.config({ path: path.join(process.cwd(), '..', '.env') });
+}
 
 export interface Config {
-  // General Configuration
   environment: string;
   basePath: string;
   apiUrl: string;
   backendUrl: string;
-  nodejsApiUrl: string;
-  
-  // Session Configuration
+
+  // Session
   cookieName: string;
   cookiePassword: string;
-  
-  // Environment Flags
+
+  // Flags
   isDevelopment: boolean;
   isProduction: boolean;
   isTest: boolean;
-  
+
   // API Endpoints
   endpoints: {
     auth: string;
@@ -35,82 +36,64 @@ export interface Config {
     upload: string;
     businessInfo: string;
   };
-  
-  // Validation
+
   validate(): boolean;
 }
 
-const config: Config = {
-  // ==============================================
-  // GENERAL CONFIGURATION
-  // ==============================================
-  environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '/ai-landing-page-app',
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
-  backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000',
-  nodejsApiUrl: process.env.NODEJS_API_URL || 'http://localhost:5000',
+const baseApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-  // ==============================================
-  // SESSION CONFIGURATION
-  // ==============================================
+const config: Config = {
+  // General
+  environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '/ai-landing-page-generator',
+  apiUrl: baseApiUrl,
+  backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000',
+
+  // Session
   cookieName: process.env.NEXT_PUBLIC_COOKIE_NAME || 'weam',
   cookiePassword: process.env.NEXT_PUBLIC_COOKIE_PASSWORD || 'YczgOhDJQj0RRDR3ASnvOVoQUBV0PtSz',
 
-  // ==============================================
-  // ENVIRONMENT FLAGS
-  // ==============================================
+  // Flags
   isDevelopment: process.env.NEXT_PUBLIC_ENVIRONMENT === 'development',
   isProduction: process.env.NEXT_PUBLIC_ENVIRONMENT === 'production',
   isTest: process.env.NEXT_PUBLIC_ENVIRONMENT === 'test',
 
-  // ==============================================
-  // API ENDPOINTS
-  // ==============================================
+  // Endpoints
   endpoints: {
-    auth: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth`,
-    landingPages: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/landing-pages`,
-    ai: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/ai`,
-    upload: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/upload`,
-    businessInfo: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/business-info`,
+    auth: `${baseApiUrl}/auth`,
+    landingPages: `${baseApiUrl}/landing-pages`,
+    ai: `${baseApiUrl}/ai`,
+    upload: `${baseApiUrl}/upload`,
+    businessInfo: `${baseApiUrl}/business-info`,
   },
 
-  // ==============================================
-  // VALIDATION
-  // ==============================================
+  // Validation
   validate(): boolean {
-    const required = [
+    const requiredVars = [
       'NEXT_PUBLIC_ENVIRONMENT',
       'NEXT_PUBLIC_API_URL',
+      'NEXT_PUBLIC_BACKEND_URL',
+      'NEXT_PUBLIC_COOKIE_PASSWORD',
     ];
 
-    const missing = required.filter(key => !process.env[key]);
-    
+    const missing = requiredVars.filter((v) => !process.env[v]);
     if (missing.length > 0) {
-      throw new Error(`Missing required NEXT_PUBLIC environment variables: ${missing.join(', ')}`);
+      console.warn(
+        `⚠️ Missing environment variables: ${missing.join(', ')}`
+      );
     }
 
-    // Warn about missing optional but important variables
-    const warnings = [];
-    if (!process.env.NEXT_PUBLIC_BACKEND_URL) warnings.push('NEXT_PUBLIC_BACKEND_URL');
-    if (!process.env.NODEJS_API_URL) warnings.push('NODEJS_API_URL');
-    if (!process.env.NEXT_PUBLIC_COOKIE_PASSWORD) warnings.push('NEXT_PUBLIC_COOKIE_PASSWORD');
-    
-    if (warnings.length > 0) {
-      console.warn(`⚠️  Warning: Missing optional environment variables: ${warnings.join(', ')}`);
-    }
-
-    // Log successful configuration
-    console.log('✅ Frontend Configuration loaded successfully');
-    console.log(`📊 Environment: ${config.environment}`);
-    console.log(`🌐 API URL: ${config.apiUrl}`);
-    console.log(`🔗 Backend URL: ${config.backendUrl}`);
+    console.log('✅ Frontend configuration loaded');
+    console.log(`📊 Environment: ${this.environment}`);
+    console.log(`🌐 API URL: ${this.apiUrl}`);
+    console.log(`🔗 Backend URL: ${this.backendUrl}`);
 
     return true;
-  }
+  },
 };
 
-// Validate configuration on load
-if (typeof window === 'undefined') { // Only validate on server side
+// Run validation only on server side
+if (typeof window === 'undefined') {
   config.validate();
 }
 

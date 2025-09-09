@@ -1,5 +1,6 @@
 const winston = require('winston');
 const path = require('path');
+const config = require('../config/credencial_config');
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -27,7 +28,7 @@ const consoleFormat = winston.format.combine(
 
 // Create logger instance
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: config.logging.level,
   format: logFormat,
   defaultMeta: { service: 'landing-page-generator' },
   transports: [
@@ -54,7 +55,7 @@ const logger = winston.createLogger({
 });
 
 // If we're not in production, log to console as well
-if (process.env.NODE_ENV !== 'production') {
+if (config.nodeEnv !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.simple()
   }));

@@ -671,12 +671,14 @@ export default function SolutionsPage() {
         isOpen={isUploadModalOpen}
         onClose={async () => {
           setIsUploadModalOpen(false)
-          // Refresh data when modal is closed to show any new landing pages
-          try {
-            await refreshData()
-          } catch (error) {
-            console.error('Failed to refresh data on modal close:', error)
-          }
+          // Defer the refresh to avoid setState during render
+          setTimeout(async () => {
+            try {
+              await refreshData()
+            } catch (error) {
+              console.error('Failed to refresh data on modal close:', error)
+            }
+          }, 0)
         }}
         onSuccess={async (newPage) => {
           try {
@@ -687,8 +689,14 @@ export default function SolutionsPage() {
             // Note: Landing page is already created by the API in PreviewStep
             // No need to call createPage() again to avoid duplicate records
             
-            // Refresh the data to show the new landing page in the list
-            await refreshData()
+            // Defer the refresh to avoid setState during render
+            setTimeout(async () => {
+              try {
+                await refreshData()
+              } catch (error) {
+                console.error('Failed to refresh data:', error)
+              }
+            }, 0)
             
             setIsUploadModalOpen(false)
           } catch (error) {

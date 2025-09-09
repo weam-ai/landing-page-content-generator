@@ -71,8 +71,26 @@ export const useLandingPages = (): UseLandingPagesReturn => {
         throw new Error(response.error || 'Failed to fetch landing pages');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching landing pages:', err);
+      // Handle backend connection errors gracefully
+      if (err instanceof Error && (
+        err.message.includes('fetch') || 
+        err.message.includes('Network') || 
+        err.message.includes('Connection') ||
+        err.message.includes('ECONNREFUSED') ||
+        err.message.includes('Failed to fetch') ||
+        err.message.includes('timeout') ||
+        err.message.includes('Request timeout') ||
+        err.message.includes('server may be unavailable')
+      )) {
+        console.warn('Backend server is not running. Showing empty state.');
+        setError('Backend server is not running. Please start the Node.js backend server.');
+        setLandingPages([]);
+        setTotalCount(0);
+        setTotalPages(0);
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching landing pages:', err);
+      }
     } finally {
       setLoading(false);
     }

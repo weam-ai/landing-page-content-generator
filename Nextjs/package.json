@@ -16,6 +16,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "dotenv": "^16.3.1",
     "iron-session": "^8.0.2",
     "lucide-react": "^0.294.0",
     "mongodb": "^6.19.0",

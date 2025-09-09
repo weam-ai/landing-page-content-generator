@@ -1972,9 +1972,11 @@ const CompleteStep = ({ onClose, onComplete, completionData }: { onClose: () => 
         setIsGenerating(false)
         setCurrentStage('Complete!')
         setCompletionTime(new Date())
-        // Call onComplete callback to trigger data refresh
+        // Defer onComplete callback to avoid setState during render
         if (onComplete) {
-          onComplete(completionData)
+          setTimeout(() => {
+            onComplete(completionData)
+          }, 0)
         }
         // Wait a moment then close
         setTimeout(() => {
