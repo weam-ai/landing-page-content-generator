@@ -1,10 +1,11 @@
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const logger = require('./logger');
+const config = require('../config/credencial_config');
 
 class WebsiteScraper {
   constructor() {
-    this.gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.gemini = new GoogleGenerativeAI(config.apiKeys.geminiApiKey);
     
     // Use the working model from our test
     try {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import config from '../../../../config/credencial_config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 seconds timeout
 
-    const backendResponse = await fetch(`${process.env.NODEJS_API_URL || 'http://localhost:5000'}/api/ai/generate-landing-page`, {
+    const backendResponse = await fetch(`${config.backendUrl}/api/ai/generate-landing-page`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

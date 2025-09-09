@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import config from '../../../../config/credencial_config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the Node.js backend API
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'
+    const backendUrl = config.backendUrl
     const response = await fetch(`${backendUrl}/api/ai/extract-design-structure`, {
       method: 'POST',
       headers: {

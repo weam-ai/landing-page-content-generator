@@ -2,14 +2,14 @@ const mongoose = require('mongoose');
 const User = require('../../models/User');
 const LandingPage = require('../../models/LandingPage');
 const logger = require('../../utils/logger');
-require('dotenv').config();
+const config = require('../../config/credencial_config');
 
 const seedData = async () => {
   try {
     // Connect to database
-    const mongoURI = process.env.NODE_ENV === 'production' 
-      ? process.env.MONGODB_URI_PROD 
-      : process.env.MONGODB_URI;
+    const mongoURI = config.nodeEnv === 'production' 
+      ? config.database.mongodbUriProd 
+      : config.database.mongodbUri;
 
     if (!mongoURI) {
       throw new Error('MongoDB URI is not defined in environment variables');

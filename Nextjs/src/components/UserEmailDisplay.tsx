@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Home, Grid3X3, Layout, ArrowLeftCircle, RotateCcw } from "lucide-react"
+import config from '../config/credencial_config'
 
 interface UserObject {
   id: string
@@ -15,7 +16,7 @@ interface UserEmailDisplayProps {
 
 // Environment URL mapper
 const getEnvironmentUrl = (): string => {
-  const environment = process.env.NEXT_PUBLIC_ENVIRONMENT
+  const environment = config.environment
   
   switch (environment) {
     case 'development':
@@ -41,7 +42,7 @@ export function UserEmailDisplay({ className = "" }: UserEmailDisplayProps) {
         setLoading(true)
         setError(null)
         
-        const response = await fetch('/ai-landing-page-app/api/user/session')
+        const response = await fetch(`${config.basePath}/api/user/session`)
         const result = await response.json()
         
         if (result.success) {
@@ -94,8 +95,8 @@ export function UserEmailDisplay({ className = "" }: UserEmailDisplayProps) {
         onClick={handleBackToApp}
         className={`flex items-center space-x-2 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg px-3 py-2 hover:from-primary/20 hover:to-purple-500/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 group cursor-pointer ${className}`}
       >
-        <ArrowLeft className="w-4 h-4 text-primary group-hover:animate-bounce transition-all duration-300" />
-        <span className="text-sm font-medium text-gray-600 group-hover:text-primary transition-colors duration-300">back to app</span>
+        <ArrowLeftCircle className="w-4 h-4 text-primary group-hover:animate-bounce transition-all duration-300" />
+        <span className="text-sm font-medium text-gray-600 group-hover:text-primary transition-colors duration-300">Back to App</span>
       </button>
     )
   }
@@ -105,9 +106,9 @@ export function UserEmailDisplay({ className = "" }: UserEmailDisplayProps) {
       onClick={handleBackToApp}
       className={`flex items-center space-x-2 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg px-3 py-2 hover:from-primary/20 hover:to-purple-500/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 group cursor-pointer ${className}`}
     >
-      <ArrowLeft className="w-4 h-4 text-primary group-hover:animate-bounce transition-all duration-300" />
+      <ArrowLeftCircle className="w-4 h-4 text-primary group-hover:animate-bounce transition-all duration-300" />
       <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors duration-300">
-        back to app
+        Back to App
       </span>
     </button>
   )

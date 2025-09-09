@@ -84,7 +84,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
       }
     } else if (inputMethod === 'url') {
       // Validate URL input
-      if (!formData.websiteUrl.trim()) {
+      if (!formData.websiteUrl || !formData.websiteUrl.trim()) {
         newErrors.websiteUrl = "Website URL is required"
       } else if (!isValidUrl(formData.websiteUrl)) {
         newErrors.websiteUrl = "Please enter a valid URL"
@@ -122,6 +122,12 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
     try {
       // Clear previous messages
       setAutoGenerateMessage(null)
+      
+      // Show initial progress message
+      setAutoGenerateMessage({
+        type: 'success',
+        text: '🔄 Analyzing website content... This may take up to 60 seconds.'
+      })
       
       console.log('📡 Calling API with data:', {
         websiteUrl: formData.websiteUrl,
@@ -202,8 +208,14 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
       // Show user-friendly error message
       let userFriendlyMessage = 'Failed to auto-generate business information. Please try again.'
       
-      // Check if it's a security/blocking related error
+      // Check for specific error types
       if (error.message && (
+        error.message.includes('Request timeout') ||
+        error.message.includes('timeout') ||
+        error.message.includes('AbortError')
+      )) {
+        userFriendlyMessage = 'The request timed out. The website may be slow to respond or the AI analysis is taking longer than expected. Please try again or use a different website.'
+      } else if (error.message && (
         error.message.includes('blocking automated access') ||
         error.message.includes('403 Forbidden') ||
         error.message.includes('blocked') ||
@@ -213,6 +225,11 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
         error.message.includes('status: 403')
       )) {
         userFriendlyMessage = 'Due to security restrictions on your provided URL, we were not able to generate business information automatically. Please try a different website or provide your business details manually.'
+      } else if (error.message && (
+        error.message.includes('Network error') ||
+        error.message.includes('fetch')
+      )) {
+        userFriendlyMessage = 'Network error occurred. Please check your internet connection and ensure the backend server is running.'
       }
       
       setAutoGenerateMessage({

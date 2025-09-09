@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import config from '../../../../config/credencial_config'
 
 export async function GET(
   request: NextRequest,
@@ -15,8 +16,7 @@ export async function GET(
     }
 
     // Forward to Node.js backend
-    const backendUrl = process.env.NODEJS_API_URL || 'http://localhost:5000'
-    const response = await fetch(`${backendUrl}/api/landing-pages/${id}`, {
+    const response = await fetch(`${config.backendUrl}/api/landing-pages/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -59,8 +59,7 @@ export async function PUT(
     }
 
     // Forward to Node.js backend
-    const backendUrl = process.env.NODEJS_API_URL || 'http://localhost:5000'
-    const response = await fetch(`${backendUrl}/api/landing-pages/${id}`, {
+    const response = await fetch(`${config.backendUrl}/api/landing-pages/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

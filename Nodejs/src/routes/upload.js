@@ -5,6 +5,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { protect } = require('../middleware/auth');
 const logger = require('../utils/logger');
+const config = require('../config/credencial_config');
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024, // 50MB default for portfolio PDFs
+    fileSize: config.upload.maxFileSize,
     files: 1
   },
   fileFilter: fileFilter
@@ -96,6 +97,66 @@ router.post('/public', upload.single('pdf'), async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Server error during PDF upload'
+    });
+  }
+});
+
+// @desc    Delete uploaded file by file path (public endpoint for cleanup)
+// @route   DELETE /api/upload/cleanup
+// @access  Public
+router.delete('/cleanup', async (req, res) => {
+  try {
+    const { filePath } = req.body;
+
+    if (!filePath) {
+      return res.status(400).json({
+        success: false,
+        error: 'File path is required'
+      });
+    }
+
+    // Validate that the file path is within the uploads directory for security
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    const normalizedFilePath = path.normalize(filePath);
+    const normalizedUploadsDir = path.normalize(uploadsDir);
+
+    if (!normalizedFilePath.startsWith(normalizedUploadsDir)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid file path - must be within uploads directory'
+      });
+    }
+
+    if (!fs.existsSync(normalizedFilePath)) {
+      // File doesn't exist - consider this a success since the goal is achieved
+      logger.info('File already deleted or not found during cleanup', {
+        filePath: normalizedFilePath,
+        originalPath: filePath
+      });
+
+      return res.json({
+        success: true,
+        message: 'File already deleted or not found - cleanup complete'
+      });
+    }
+
+    // Delete file
+    fs.unlinkSync(normalizedFilePath);
+
+    logger.info('Uploaded file cleaned up successfully', {
+      filePath: normalizedFilePath,
+      originalPath: filePath
+    });
+
+    res.json({
+      success: true,
+      message: 'File cleaned up successfully'
+    });
+  } catch (error) {
+    logger.error('File cleanup failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error during file cleanup'
     });
   }
 });

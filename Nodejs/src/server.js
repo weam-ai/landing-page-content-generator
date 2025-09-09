@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const config = require('./config/credencial_config');
 
 const connectDB = require('./config/database');
 const logger = require('./utils/logger');
@@ -19,7 +19,7 @@ const aiRoutes = require('./routes/ai');
 const businessInfoRoutes = require('./routes/businessInfo');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = config.port;
 
 // Connect to MongoDB
 connectDB();
@@ -29,7 +29,7 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
+  origin: config.nodeEnv === 'production' 
     ? ['https://yourdomain.com'] 
     : ['http://localhost:3000',"http://localhost:8081"],
   credentials: true
@@ -37,8 +37,8 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.maxRequests,
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
@@ -53,19 +53,21 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 
 // Logging middleware
-if (process.env.NODE_ENV === 'development') {
+if (config.nodeEnv === 'development') {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 }
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
+app.get('/ai-landing-page-generator-api/health', (req, res) => {
+  const statusCode = 200;
+  res.status(statusCode).json({
+    status: statusCode,
+    message: 'AI Landing Page Backend Server is Live 🚀',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV
+    environment: config.nodeEnv
   });
 });
 
@@ -74,11 +76,11 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: config.nodeEnv,
     services: {
       mongodb: 'connected', // You can enhance this to check actual DB connection
-      figma: process.env.FIGMA_ACCESS_TOKEN ? 'configured' : 'not configured',
-      gemini: process.env.GEMINI_API_KEY ? 'configured' : 'not configured'
+      figma: config.apiKeys.figmaAccessToken ? 'configured' : 'not configured',
+      gemini: config.apiKeys.geminiApiKey ? 'configured' : 'not configured'
     }
   });
 });
@@ -98,8 +100,8 @@ app.use(errorHandler);
 
 // Start server
 const server = app.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-  logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
+  logger.info(`🚀 Server running on port ${PORT} in ${config.nodeEnv} mode`);
+  logger.info(`📊 Health check available at http://localhost:${PORT}/ai-landing-page-generator-api/health`);
   console.log('🔐 [Server] Session management system initialized');
   console.log('🔐 [Server] Iron session middleware ready');
   console.log('🔐 [Server] getAccessToken helper function available');
