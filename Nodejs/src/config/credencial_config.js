@@ -18,7 +18,30 @@ const config = {
   // DATABASE CONFIGURATION
   // ==============================================
   database: {
-    mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/landing-page-generator',
+    // PRIORITY 1: Use MONGODB_URI if present (highest priority)
+    // PRIORITY 2: Build from individual DB_* environment variables
+    // PRIORITY 3: Use fallback default URI
+    mongodbUri: (() => {
+      // FIRST PRIORITY: Direct MONGODB_URI
+      if (process.env.MONGODB_URI) {
+        console.log('🔗 Using MONGODB_URI (Priority 1)');
+        return process.env.MONGODB_URI;
+      }
+      
+      // SECOND PRIORITY: Build from individual components
+      console.log('🔧 Building MongoDB URI from individual components (Priority 2)');
+      const connection = process.env.DB_CONNECTION || 'mongodb';
+      const host = process.env.DB_HOST || 'localhost:27017';
+      const database = process.env.DB_DATABASE || 'landing-page-generator';
+      const username = process.env.DB_USERNAME;
+      const password = process.env.DB_PASSWORD;
+      
+      if (username && password) {
+        return `${connection}://${username}:${password}@${host}/${database}`;
+      } else {
+        return `${connection}://${host}/${database}`;
+      }
+    })(),
     mongodbUriProd: process.env.MONGODB_URI_PROD || process.env.MONGODB_URI || 'mongodb://localhost:27017/landing-page-generator',
   },
 
@@ -73,7 +96,8 @@ const config = {
   // CONFIGURATION VALIDATION
   // ==============================================
   validate() {
-    const required = ['MONGODB_URI'];
+    // No required environment variables since we have fallbacks for all critical configs
+    const required = [];
     const missing = required.filter(key => !process.env[key]);
     
     if (missing.length > 0) {
@@ -95,6 +119,18 @@ const config = {
     console.log(`📊 Environment: ${this.nodeEnv}`);
     console.log(`🚀 Server Port: ${this.port}`);
     console.log(`🗄️  Database: ${this.database.mongodbUri ? 'Configured' : 'Not configured'}`);
+    if (this.database.mongodbUri) {
+      // Mask password in URI for security
+      const maskedUri = this.database.mongodbUri.replace(/:([^:@]+)@/, ':***@');
+      console.log(`🔗 MongoDB URI: ${maskedUri}`);
+      
+      // Show which method was used to generate the URI
+      if (process.env.MONGODB_URI) {
+        console.log('📋 URI Source: Direct MONGODB_URI environment variable');
+      } else {
+        console.log('📋 URI Source: Built from individual DB_* environment variables');
+      }
+    }
     console.log(`🤖 Gemini API: ${this.apiKeys.geminiApiKey ? 'Configured' : 'Not configured'}`);
     console.log(`🎨 Figma API: ${this.apiKeys.figmaAccessToken ? 'Configured' : 'Not configured'}`);
 
