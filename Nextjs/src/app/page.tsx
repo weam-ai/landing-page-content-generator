@@ -37,6 +37,8 @@ export default function SolutionsPage() {
   const [sectionType, setSectionType] = useState('hero')
   const [isBusinessInfoModalOpen, setIsBusinessInfoModalOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [isSectionModalOpen, setIsSectionModalOpen] = useState(false)
+  const [selectedSection, setSelectedSection] = useState<any>(null)
   // Remove local pagination variables since we're using backend pagination
   const itemsPerPage = 15 // Updated to 15 pages per page
 
@@ -186,6 +188,11 @@ export default function SolutionsPage() {
     
     setIsEditModalOpen(true)
     setExpandedCard(null) // Close the expanded card
+  }
+
+  const handleSectionClick = (section: any) => {
+    setSelectedSection(section)
+    setIsSectionModalOpen(true)
   }
 
   const handleEditFieldSave = async () => {
@@ -815,7 +822,8 @@ export default function SolutionsPage() {
                         </div>
                         <div className={`${selectedPage.sections.length > 6 ? 'grid grid-cols-2 gap-3' : 'space-y-2'}`}>
                           {selectedPage.sections.map((section, index) => (
-                            <div key={section.id} className={`bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 p-3 hover:shadow-md transition-all duration-200 ${selectedPage.sections.length > 6 ? 'min-h-[120px]' : ''}`}>
+                            <div key={section.id} className={`bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 p-3 hover:shadow-md transition-all duration-200 cursor-pointer ${selectedPage.sections.length > 6 ? 'min-h-[120px]' : ''}`}
+                              onClick={() => handleSectionClick(section)}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center space-x-3 flex-1">
                                   <div className="w-8 h-8 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm">
@@ -824,9 +832,6 @@ export default function SolutionsPage() {
                                   <div className="flex-1 min-w-0">
                                     <h4 className="text-sm font-semibold text-foreground mb-1 truncate">{section.title}</h4>
                                     <div className="flex items-center space-x-2 mb-2">
-                                      <Badge variant="outline" className="capitalize bg-green-50 border-green-200 text-green-700 px-2 py-0.5 text-xs">
-                                        {section.type}
-                                      </Badge>
                                       <span className="text-xs text-muted-foreground">Order: {section.order}</span>
                                     </div>
                                     <p className="text-xs text-foreground leading-relaxed line-clamp-2">
@@ -835,10 +840,18 @@ export default function SolutionsPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-1 ml-2">
+                                  <Tooltip content="View Full Content">
+                                    <Button size="sm" 
+                                      onClick={(e) => { e.stopPropagation(); handleSectionClick(section); }}
+                                      variant="ghost"
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-transparent p-1">
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                  </Tooltip>
                                   <Tooltip content="Edit Section">
                                     <Button 
                                       size="sm" 
-                                      onClick={() => handleEditField('editSection', JSON.stringify(section))}
+                                      onClick={(e) => { e.stopPropagation(); handleEditField('editSection', JSON.stringify(section)); }}
                                       variant="ghost"
                                       className="text-green-600 hover:text-green-700 hover:bg-transparent p-1"
                                     >
@@ -848,7 +861,7 @@ export default function SolutionsPage() {
                                   <Tooltip content="Delete Section">
                                     <Button 
                                       size="sm" 
-                                      onClick={() => handleEditField('deleteSection', JSON.stringify(section))}
+                                      onClick={(e) => { e.stopPropagation(); handleEditField('deleteSection', JSON.stringify(section)); }}
                                       variant="ghost"
                                       className="text-red-600 hover:text-red-700 hover:bg-transparent p-1"
                                     >
@@ -1169,6 +1182,50 @@ export default function SolutionsPage() {
         />
       )}
       
+      {/* Section Content Modal */}
+      <Dialog open={isSectionModalOpen} onOpenChange={setIsSectionModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          {selectedSection && (
+            <div className="h-full overflow-hidden">
+              <DialogHeader className="border-b border-gray-200/50 pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                      {selectedSection.title ? selectedSection.title.charAt(0).toUpperCase() : 'S'}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                        {selectedSection.title || 'Section Title'}
+                      </DialogTitle>
+                      <DialogDescription className="text-gray-600 mt-1">
+                        Section content and details
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="overflow-y-auto max-h-[60vh] pr-2 py-6">
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200/50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Content</h3>
+                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {selectedSection.content || selectedSection.description || selectedSection.text || 'No content available for this section.'}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">Section ID</h4>
+                    <p className="text-sm text-gray-600 font-mono">
+                      {selectedSection.id || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
@@ -1256,547 +1313,1048 @@ function LandingPageCard({
       }
       
       // Create HTML content from the latest landing page data
-      const htmlContent = `
-<!DOCTYPE html>
+      const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${latestPage.title || latestPage.businessName || 'Landing Page'}</title>
-    <meta name="description" content="${latestPage.businessOverview || latestPage.description || ''}">
-    <meta name="keywords" content="${latestPage.keywords || ''}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
-        :root {
-            --primary-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
-            --secondary-gradient: linear-gradient(135deg, #6637ec 0%, #5050f6 100%);
-            --accent-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            --dark-gradient: linear-gradient(135deg, #6637ec 0%, #5050f6 100%);
-            --glass-bg: rgba(255, 255, 255, 0.9);
-            --glass-border: rgba(102, 55, 236, 0.1);
-            --text-primary: #262626;
-            --text-secondary: #404040;
-            --text-light: #737373;
-            --shadow-soft: 0 20px 40px rgba(102, 55, 236, 0.08);
-            --shadow-medium: 0 25px 50px rgba(102, 55, 236, 0.12);
-            --shadow-strong: 0 30px 60px rgba(102, 55, 236, 0.15);
-        }
-        
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', sans-serif;
             line-height: 1.6;
-            color: var(--text-primary);
-            background: var(--primary-gradient);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            color: #333;
+            margin: 0;
+            padding: 0;
             overflow-x: hidden;
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 24px;
+
+        .main-container {
+            width: 100vw;
+            min-height: 100vh;
+            background: white;
+            display: flex;
+            flex-direction: column;
         }
-        
-        /* Animated Background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
-            animation: backgroundShift 20s ease-in-out infinite;
-            z-index: -1;
-        }
-        
-        @keyframes backgroundShift {
-            0%, 100% { transform: translateX(0) translateY(0); }
-            25% { transform: translateX(-20px) translateY(-10px); }
-            50% { transform: translateX(20px) translateY(10px); }
-            75% { transform: translateX(-10px) translateY(20px); }
-        }
-        
-        /* Hero Section */
-        .hero {
-            min-height: 40vh;
+
+        /* Header Styles */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 2rem;
+            position: relative;
+            overflow: hidden;
+            flex: 0 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
-            background: var(--primary-gradient);
-            overflow: hidden;
-            padding: 60px 0 40px;
         }
-        
-        .hero::before {
+
+        header::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: 
-                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
             opacity: 0.3;
-            animation: gridMove 30s linear infinite;
         }
-        
-        @keyframes gridMove {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(10px, 10px); }
-        }
-        
-        .hero-content {
+
+        .business-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            letter-spacing: -0.01em;
+            line-height: 1.2;
             text-align: center;
             position: relative;
             z-index: 2;
-            max-width: 600px;
-            padding: 0 20px;
         }
-        
-        .hero h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: clamp(2rem, 4.5vw, 3rem);
-            font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -0.02em;
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            animation: titleGlow 3s ease-in-out infinite alternate;
+
+        /* Business Details Section */
+        .business-details-section {
+            margin-bottom: 3rem;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
         }
-        
-        @keyframes titleGlow {
-            0% { filter: brightness(1); }
-            100% { filter: brightness(1.1); }
-        }
-        
-        .hero p {
-            font-size: clamp(0.95rem, 1.8vw, 1.1rem);
-            color: #334155;
-            max-width: 500px;
-            margin: 0 auto 20px;
-            font-weight: 400;
-            line-height: 1.5;
-        }
-        
-        /* Floating Elements */
-        .floating-elements {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        .floating-element {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        .floating-element:nth-child(1) {
-            width: 80px;
-            height: 80px;
-            top: 20%;
-            left: 10%;
-            animation-delay: 0s;
-        }
-        
-        .floating-element:nth-child(2) {
-            width: 120px;
-            height: 120px;
-            top: 60%;
-            right: 15%;
-            animation-delay: 2s;
-        }
-        
-        .floating-element:nth-child(3) {
-            width: 60px;
-            height: 60px;
-            bottom: 30%;
-            left: 20%;
-            animation-delay: 4s;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-20px) rotate(180deg); }
-        }
-        
-        /* Sections Container */
-        .sections-container {
-            background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
-            backdrop-filter: blur(20px);
-            padding: 120px 0;
-            position: relative;
-        }
-        
-        .sections-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.3), transparent);
-        }
-        
-        /* Glassmorphism Sections */
-        .section {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            margin: 0 auto 60px;
-            padding: 60px 50px;
-            border-radius: 32px;
-            box-shadow: var(--shadow-soft);
+
+        .business-details-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(102, 126, 234, 0.1);
             position: relative;
             overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
-        .section::before {
+
+        .business-details-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 6px;
-            background: var(--primary-gradient);
-            border-radius: 32px 32px 0 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
         }
-        
-        .section::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            pointer-events: none;
+
+        .business-details-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f1f5f9;
         }
-        
-        .section:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: var(--shadow-strong);
-            border-color: rgba(102, 126, 234, 0.2);
+
+        .business-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3);
         }
-        
-        .section:hover::after {
-            opacity: 1;
-        }
-        
-        .section h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            background: linear-gradient(135deg, #6637ec 0%, #8d3ce2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-size: clamp(1.8rem, 4vw, 2.5rem);
+
+        .business-details-title {
+            font-size: 1.4rem;
             font-weight: 700;
-            margin-bottom: 32px;
-            position: relative;
-            padding-bottom: 20px;
+            color: #2d3748;
+            margin: 0;
         }
-        
-        .section h2::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 80px;
-            height: 6px;
-            background: linear-gradient(135deg, #6637ec 0%, #8d3ce2 100%);
-            border-radius: 3px;
+
+        .business-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
         }
-        
-        .section p, .section div {
-            color: var(--text-secondary);
-            font-size: 1.15rem;
-            line-height: 1.8;
-            margin-bottom: 20px;
-            font-weight: 400;
-        }
-        
-        .section p:last-child, .section div:last-child {
-            margin-bottom: 0;
-        }
-        
-        /* Contact Section Special Styling */
-        .contact-info {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            padding: 40px;
-            border-radius: 24px;
-            border: 1px solid rgba(102, 55, 236, 0.1);
-            margin-top: 32px;
-            box-shadow: var(--shadow-soft);
-        }
-        
-        .contact-info h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            color: var(--text-primary);
-            font-size: 1.6rem;
-            font-weight: 600;
-            margin-bottom: 24px;
-        }
-        
-        .contact-info p {
-            margin-bottom: 16px;
-            font-size: 1.05rem;
-        }
-        
-        .contact-info a {
-            color: #6637ec;
-            text-decoration: none;
-            font-weight: 500;
+
+        .info-item {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
             transition: all 0.3s ease;
             position: relative;
-        }
-        
-        .contact-info a::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: linear-gradient(135deg, #6637ec 0%, #8d3ce2 100%);
-            transition: width 0.3s ease;
-        }
-        
-        .contact-info a:hover::after {
-            width: 100%;
-        }
-        
-        /* Premium Footer */
-        .footer {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            color: #64748b;
-            text-align: center;
-            padding: 60px 20px;
-            position: relative;
             overflow: hidden;
-            border-top: 1px solid rgba(102, 55, 236, 0.1);
         }
-        
-        .footer::before {
+
+        .info-item::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.5), transparent);
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
         }
-        
-        .footer p {
+
+        .info-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .info-item:hover::before {
+            transform: scaleX(1);
+        }
+
+        .info-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #2d3748;
+            line-height: 1.5;
+        }
+
+        .info-value.brand-tone {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .info-item.clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 80px;
+        }
+
+        .info-item.clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        .info-item.clickable:hover::before {
+            transform: scaleX(1);
+        }
+
+        .info-item.clickable .info-label {
             font-size: 1rem;
-            opacity: 0.8;
-            font-weight: 400;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
         }
-        
-        /* Responsive Design */
-        @media (max-width: 1024px) {
-            .container {
-                padding: 0 20px;
-            }
-            
-            .section {
-                padding: 50px 40px;
-                margin-bottom: 50px;
-            }
+
+        .click-hint {
+            font-size: 0.75rem;
+            color: #667eea;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
         }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 16px;
-            }
-            
-            .hero {
-                min-height: 35vh;
-                padding: 40px 0 30px;
-            }
-            
-            .section {
-                padding: 40px 30px;
-                margin-bottom: 40px;
-                border-radius: 24px;
-            }
-            
-            .sections-container {
-                padding: 80px 0;
-            }
-            
-            .contact-info {
-                padding: 30px 24px;
-            }
+
+        .click-hint::before {
+            content: '👆';
+            font-size: 0.875rem;
         }
-        
-        @media (max-width: 480px) {
-            .section {
-                padding: 32px 24px;
-                border-radius: 20px;
-            }
-            
-            .contact-info {
-                padding: 24px 20px;
-            }
+
+        .info-item.clickable:hover .click-hint {
+            opacity: 1;
         }
-        
-        /* Smooth scrolling */
-        html {
-            scroll-behavior: smooth;
+
+        /* Main Content */
+        .content-section {
+            padding: 6rem 3rem;
+            background: #fafbfc;
+            flex: 1;
+            min-height: 50vh;
         }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 12px;
+
+        .sections-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            animation: gridFadeIn 1s ease-out;
         }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-gradient);
-            border-radius: 6px;
-            border: 2px solid transparent;
-            background-clip: content-box;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5a67d8, #6b46c1, #e879f9);
-            background-clip: content-box;
-        }
-        
-        /* Loading Animation */
-        @keyframes fadeInUp {
-            from {
+
+        @keyframes gridFadeIn {
+            0% {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(20px);
             }
-            to {
+            100% {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
-        .section {
-            animation: fadeInUp 0.6s ease-out;
+
+        /* Card Styles */
+        .section-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.2);
+            position: relative;
+            overflow: hidden;
+            animation: cardSlideIn 0.8s ease-out forwards;
+            opacity: 0;
+            transform: translateY(40px) scale(0.95);
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            text-align: center;
         }
-        
-        .section:nth-child(1) { animation-delay: 0.1s; }
-        .section:nth-child(2) { animation-delay: 0.2s; }
-        .section:nth-child(3) { animation-delay: 0.3s; }
-        .section:nth-child(4) { animation-delay: 0.4s; }
-        .section:nth-child(5) { animation-delay: 0.5s; }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .section-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+
+        /* Shimmer effect for loading state */
+        .section-card.loading::before {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            height: 100%;
+            transform: scaleX(1);
+        }
+
+        .section-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+            background: linear-gradient(135deg, #f8fafc, #ffffff);
+        }
+
+        .section-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .section-card:hover::after {
+            opacity: 1;
+        }
+
+        .section-card:active {
+            transform: translateY(-4px) scale(0.98);
+            transition: all 0.1s ease;
+        }
+
+        @keyframes cardSlideIn {
+            0% {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95) rotateX(10deg);
+            }
+            50% {
+                opacity: 0.7;
+                transform: translateY(20px) scale(0.98) rotateX(5deg);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1) rotateX(0deg);
+            }
+        }
+
+        @keyframes iconPulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        /* Icon Styles */
+        .section-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        .section-icon::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 22px;
+            z-index: -1;
+            opacity: 0.2;
+            filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover .section-icon {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            animation: none;
+        }
+
+        .section-card:hover .section-icon::after {
+            opacity: 0.4;
+            filter: blur(12px);
+        }
+
+        /* Typography */
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .section-card:hover .section-title {
+            color: #667eea;
+            transform: translateY(-2px);
+        }
+
+
+        /* Section Content Modal Styles */
+        .section-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 2rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .section-modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 800px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            position: relative;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .section-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .section-modal-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-modal-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .close-button {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+
+        .close-button:hover {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .section-modal-body {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #4a5568;
+            margin-bottom: 2rem;
+        }
+
+        .section-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1.5rem;
+            border-top: 2px solid #f1f5f9;
+        }
+
+        .copy-button {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #64748b;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .copy-button:hover {
+            background: #e2e8f0;
+            color: #475569;
+            transform: translateY(-1px);
+        }
+
+        .copy-button.copied {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .copy-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 6rem 3rem;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .empty-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e0);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2.5rem;
+            font-size: 3rem;
+            color: #a0aec0;
+        }
+
+        .empty-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+        }
+
+        .empty-description {
+            font-size: 1.2rem;
+            color: #718096;
+            max-width: 500px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .sections-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.5rem;
+                max-width: 1000px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1.5rem 1.5rem;
+            }
+            
+            .business-name {
+                font-size: 2rem;
+            }
+            
+            .content-section {
+                padding: 4rem 2rem;
+            }
+
+            .business-details-section {
+                margin-bottom: 2rem;
+            }
+
+            .business-details-card {
+                padding: 1.25rem;
+            }
+
+            .business-details-title {
+                font-size: 1.25rem;
+            }
+
+            .business-info-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .info-item {
+                padding: 0.875rem;
+            }
+            
+            .sections-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+            
+            .section-card {
+                padding: 1.5rem;
+                min-height: 140px;
+            }
+            
+            .section-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+            }
+            
+            .section-title {
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .business-name {
+                font-size: 1.8rem;
+            }
+            
+            .content-section {
+                padding: 3rem 1.5rem;
+            }
+
+            .business-details-card {
+                padding: 1rem;
+            }
+
+            .business-details-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
+
+            .business-details-title {
+                font-size: 1.1rem;
+            }
+
+            .info-item {
+                padding: 0.75rem;
+            }
+
+            .info-label {
+                font-size: 0.75rem;
+            }
+
+            .info-value {
+                font-size: 1rem;
+            }
+            
+            .sections-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .section-card {
+                padding: 1.5rem;
+                min-height: 120px;
+            }
+            
+            .section-icon {
+                width: 45px;
+                height: 45px;
+                font-size: 1.2rem;
+            }
+            
+            .section-title {
+                font-size: 1rem;
+            }
+        }
+
+        /* Animation delays for staggered effect */
+        .section-card:nth-child(1) { animation-delay: 0.1s; }
+        .section-card:nth-child(2) { animation-delay: 0.2s; }
+        .section-card:nth-child(3) { animation-delay: 0.3s; }
+        .section-card:nth-child(4) { animation-delay: 0.4s; }
+        .section-card:nth-child(5) { animation-delay: 0.5s; }
+        .section-card:nth-child(6) { animation-delay: 0.6s; }
+        .section-card:nth-child(7) { animation-delay: 0.7s; }
+        .section-card:nth-child(8) { animation-delay: 0.8s; }
+        .section-card:nth-child(9) { animation-delay: 0.9s; }
+        .section-card:nth-child(10) { animation-delay: 1.0s; }
+        .section-card:nth-child(11) { animation-delay: 1.1s; }
+        .section-card:nth-child(12) { animation-delay: 1.2s; }
+
+        /* Special hover effects for different card positions */
+        .section-card:nth-child(odd):hover {
+            transform: translateY(-8px) scale(1.02) rotate(1deg);
+        }
+
+        .section-card:nth-child(even):hover {
+            transform: translateY(-8px) scale(1.02) rotate(-1deg);
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="hero">
-            <div class="floating-elements">
-                <div class="floating-element"></div>
-                <div class="floating-element"></div>
-                <div class="floating-element"></div>
+    <div class="main-container">
+        <header>
+            <h1 class="business-name">${latestPage.businessName || 'Business Name'}</h1>
+        </header>
+
+        <div class="content-section">
+            <!-- Business Information Section -->
+            <div class="business-details-section">
+                <div class="business-details-card">
+                    <div class="business-details-header">
+                        <div class="business-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 21h18"></path>
+                                <path d="M5 21V7l8-4v18"></path>
+                                <path d="M19 21V11l-6-4"></path>
+                            </svg>
+                        </div>
+                        <h2 class="business-details-title">Business Information</h2>
+                    </div>
+                    <div class="business-details-content">
+                        <div class="business-info-grid">
+                            ${latestPage.businessOverview ? `
+                            <div class="info-item clickable" onclick="openBusinessModal('Business Overview', '${latestPage.businessOverview.replace(/'/g, "\\'")}')">
+                                <div class="info-label">Business Overview</div>
+                                <div class="click-hint">Click to view content</div>
+                            </div>
+                            ` : ''}
+                            ${latestPage.targetAudience ? `
+                            <div class="info-item clickable" onclick="openBusinessModal('Target Audience', '${latestPage.targetAudience.replace(/'/g, "\\'")}')">
+                                <div class="info-label">Target Audience</div>
+                                <div class="click-hint">Click to view content</div>
+                            </div>
+                            ` : ''}
+                            ${latestPage.brandTone ? `
+                            <div class="info-item">
+                                <div class="info-label">Brand Tone</div>
+                                <div class="info-value brand-tone">${latestPage.brandTone}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="hero-content">
-                <h1>${latestPage.businessName || 'Your Business'}</h1>
-                <p>${latestPage.businessOverview || 'Professional services for your needs'}</p>
+
+            <!-- Sections Grid -->
+            <div class="sections-grid">
+                ${latestPage.sections && latestPage.sections.length > 0 ? latestPage.sections.map((section: any, index: number) => {
+                    let icon = section.title ? section.title.charAt(0).toUpperCase() : 'S';
+                    let sectionType = section.type || 'section';
+                    
+                    return `
+                    <div class="section-card" onclick="openSectionModal(${JSON.stringify(section).replace(/"/g, '&quot;')})">
+                        <div class="section-icon">${icon}</div>
+                        <h2 class="section-title">${section.title || 'Section Title'}</h2>
+                        <div class="section-content">${section.content ? section.content.substring(0, 100) + (section.content.length > 100 ? '...' : '') : 'Click to view content'}</div>
+                    </div>
+                    `;
+                }).join('') : `
+                    <div class="empty-state">
+                        <div class="empty-icon">📄</div>
+                        <h2 class="empty-title">No Sections Available</h2>
+                        <p class="empty-description">This landing page doesn't have any sections yet. Add sections to showcase your services and content.</p>
+                    </div>
+                `}
             </div>
-        </div>
-        
-        <div class="sections-container">
-            <div class="container">
-                ${latestPage.sections && latestPage.sections.length > 0 ? latestPage.sections.map((section: any) => {
-          // Debug each section content
-          console.log(`🔍 Rendering section "${section.title}":`, {
-            content: section.content,
-            contentType: typeof section.content,
-            contentLength: section.content?.length || 0,
-            isEmpty: !section.content || section.content.trim() === ''
-          })
-          
-          // Handle different content formats - prioritize real content
-          let sectionContent = section.content || section.description || section.text || ''
-          
-          // Clean up the content
-          if (sectionContent) {
-            sectionContent = sectionContent.trim()
-          }
-          
-          // Only use fallback if absolutely no content exists or content is just placeholder text
-          const isPlaceholder = sectionContent && (
-            sectionContent.includes('[Welcome Content - Customize as needed]') ||
-            sectionContent.includes('This section contains important information about') ||
-            sectionContent === 'undefined' ||
-            sectionContent === 'null'
-          )
-          
-          if (!sectionContent || sectionContent === '' || isPlaceholder) {
-            console.log(`⚠️ Section "${section.title}" has no real content (${sectionContent}), using fallback`)
-            switch (section.type?.toLowerCase()) {
-              case 'hero':
-                sectionContent = `Welcome to ${latestPage.businessName || 'our business'}. We provide exceptional services to help you achieve your goals.`
-                break
-              case 'features':
-                sectionContent = `Discover our key features and benefits that set us apart from the competition.`
-                break
-              case 'about':
-                sectionContent = `Learn more about our company, our mission, and the values that drive us forward.`
-                break
-              case 'testimonials':
-                sectionContent = `Hear what our satisfied customers have to say about their experience with us.`
-                break
-              case 'contact':
-                sectionContent = `Get in touch with us today. We're here to help and answer any questions you may have.`
-                break
-              default:
-                sectionContent = `This section contains important information about ${section.title?.toLowerCase() || 'our services'}.`
-            }
-          } else {
-            console.log(`✅ Section "${section.title}" has real content (${sectionContent.length} chars):`, sectionContent.substring(0, 100) + '...')
-          }
-          
-          return `
-            <div class="section">
-                <h2>${section.title || 'Section'}</h2>
-                <div>${sectionContent}</div>
-            </div>
-          `
-        }).join('') : ''}
-        
-        
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} ${latestPage.businessName || 'Your Business'}. All rights reserved.</p>
         </div>
     </div>
+
+    <!-- Section Content Modal -->
+    <div id="sectionModal" class="section-modal" style="display: none;">
+        <div class="section-modal-content">
+            <div class="section-modal-header">
+                <div class="section-modal-title">
+                    <div class="section-modal-icon" id="modalIcon">S</div>
+                    <span id="modalTitle">Section Title</span>
+                </div>
+                <button class="close-button" onclick="closeSectionModal()">×</button>
+            </div>
+            <div class="section-modal-body" id="modalContent">
+                Section content will appear here...
+            </div>
+            <div class="section-modal-footer">
+                <span style="color: #64748b; font-size: 0.9rem;">Click outside or press Escape to close</span>
+                <button class="copy-button" onclick="copySectionContent()">
+                    <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="copy-text">Copy Content</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Details Modal -->
+    <div id="businessModal" class="section-modal" style="display: none;">
+        <div class="section-modal-content">
+            <div class="section-modal-header">
+                <div class="section-modal-title">
+                    <div class="section-modal-icon" id="businessModalIcon">🏢</div>
+                    <span id="businessModalTitle">Business Details</span>
+                </div>
+                <button class="close-button" onclick="closeBusinessModal()">×</button>
+            </div>
+            <div class="section-modal-body" id="businessModalContent">
+                Business content will appear here...
+            </div>
+            <div class="section-modal-footer">
+                <span style="color: #64748b; font-size: 0.9rem;">Click outside or press Escape to close</span>
+                <button class="copy-button" onclick="copyBusinessContent()">
+                    <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="copy-text">Copy Content</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openSectionModal(section) {
+            const modal = document.getElementById('sectionModal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+            
+            // Set modal content
+            modalIcon.textContent = section.title ? section.title.charAt(0).toUpperCase() : 'S';
+            modalTitle.textContent = section.title || 'Section Title';
+            modalContent.textContent = section.content || section.description || section.text || 'No content available for this section.';
+            
+            // Show modal
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeSectionModal() {
+            const modal = document.getElementById('sectionModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        function copySectionContent() {
+            const modalContent = document.getElementById('modalContent');
+            const copyButton = document.querySelector('.copy-button');
+            const copyText = document.querySelector('.copy-text');
+            
+            if (modalContent && copyButton && copyText) {
+                const content = modalContent.textContent || modalContent.innerText;
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(content).then(() => {
+                    // Show success state
+                    copyButton.classList.add('copied');
+                    copyText.textContent = 'Copied!';
+                    
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        copyButton.classList.remove('copied');
+                        copyText.textContent = 'Copy Content';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy content: ', err);
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = content;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        copyButton.classList.add('copied');
+                        copyText.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyButton.classList.remove('copied');
+                            copyText.textContent = 'Copy Content';
+                        }, 2000);
+                    } catch (fallbackErr) {
+                        console.error('Fallback copy failed: ', fallbackErr);
+                        copyText.textContent = 'Copy Failed';
+                        setTimeout(() => {
+                            copyText.textContent = 'Copy Content';
+                        }, 2000);
+                    }
+                    document.body.removeChild(textArea);
+                });
+            }
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('sectionModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSectionModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeSectionModal();
+                closeBusinessModal();
+            }
+        });
+
+        // Business Modal Functions
+        function openBusinessModal(title, content) {
+            const modal = document.getElementById('businessModal');
+            const modalIcon = document.getElementById('businessModalIcon');
+            const modalTitle = document.getElementById('businessModalTitle');
+            const modalContent = document.getElementById('businessModalContent');
+            
+            // Set modal content
+            modalIcon.textContent = title === 'Business Overview' ? '📋' : '🎯';
+            modalTitle.textContent = title;
+            modalContent.textContent = content;
+            
+            // Show modal
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeBusinessModal() {
+            const modal = document.getElementById('businessModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        function copyBusinessContent() {
+            const modalContent = document.getElementById('businessModalContent');
+            const copyButton = document.querySelector('#businessModal .copy-button');
+            const copyText = document.querySelector('#businessModal .copy-text');
+            
+            if (modalContent && copyButton && copyText) {
+                const content = modalContent.textContent || modalContent.innerText;
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(content).then(() => {
+                    // Show success state
+                    copyButton.classList.add('copied');
+                    copyText.textContent = 'Copied!';
+                    
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        copyButton.classList.remove('copied');
+                        copyText.textContent = 'Copy Content';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy content: ', err);
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = content;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        copyButton.classList.add('copied');
+                        copyText.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyButton.classList.remove('copied');
+                            copyText.textContent = 'Copy Content';
+                        }, 2000);
+                    } catch (fallbackErr) {
+                        console.error('Fallback copy failed: ', fallbackErr);
+                        copyText.textContent = 'Copy Failed';
+                        setTimeout(() => {
+                            copyText.textContent = 'Copy Content';
+                        }, 2000);
+                    }
+                    document.body.removeChild(textArea);
+                });
+            }
+        }
+        
+        // Close business modal when clicking outside
+        document.getElementById('businessModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBusinessModal();
+            }
+        });
+    </script>
 </body>
 </html>`
 

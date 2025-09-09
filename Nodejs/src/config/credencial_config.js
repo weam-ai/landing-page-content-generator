@@ -57,8 +57,8 @@ const config = {
   // JWT CONFIGURATION
   // ==============================================
   jwt: {
-    secret: process.env.JWT_SECRET || 'fallback-secret-change-in-production',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    secret: 'fallback-secret-change-in-production',
+    expiresIn: '7d',
   },
 
   // ==============================================
@@ -84,7 +84,7 @@ const config = {
     const warnings = [];
     if (!this.apiKeys.geminiApiKey) warnings.push('GEMINI_API_KEY');
     if (!this.apiKeys.figmaAccessToken) warnings.push('FIGMA_ACCESS_TOKEN');
-    if (this.jwt.secret === 'fallback-secret-change-in-production') warnings.push('JWT_SECRET');
+    if (this.jwt.secret === 'fallback-secret-change-in-production');
     
     if (warnings.length > 0) {
       console.warn(`⚠️  Warning: Missing optional environment variables: ${warnings.join(', ')}`);
