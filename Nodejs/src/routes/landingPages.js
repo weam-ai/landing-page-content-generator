@@ -274,12 +274,6 @@ router.put('/:id', [
 
     // No ownership check required for public access
 
-    // Log the update data for debugging
-    logger.info('Updating landing page with data:', { 
-      landingPageId: req.params.id, 
-      updateData: req.body 
-    });
-
     landingPage = await LandingPage.findByIdAndUpdate(
       req.params.id,
       req.body,
