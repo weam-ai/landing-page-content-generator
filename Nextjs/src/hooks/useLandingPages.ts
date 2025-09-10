@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LandingPage } from '@/types';
 import apiService from '@/lib/api';
+import { getSessionData } from '@/actions/session';
 
 interface UseLandingPagesReturn {
   landingPages: LandingPage[];
@@ -32,8 +33,8 @@ export const useLandingPages = (): UseLandingPagesReturn => {
       // Get user from session to filter landing pages by companyId
       let companyId: string | undefined;
       try {
-        const userResponse = await apiService.getUserSession();
-        if (userResponse.success) {
+        const userResponse = await getSessionData();
+        if (userResponse.success && userResponse.data) {
           companyId = userResponse.data.companyId;
         }
       } catch (error) {

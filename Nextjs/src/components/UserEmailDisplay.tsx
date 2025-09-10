@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { ArrowLeft, Home, Grid3X3, Layout, ArrowLeftCircle, RotateCcw } from "lucide-react"
-import config from '../config/credencial_config'
+import config from '../config/frontend-config'
+import { getSessionData } from '@/actions/session'
 
 interface UserObject {
   id: string
@@ -42,11 +43,13 @@ export function UserEmailDisplay({ className = "" }: UserEmailDisplayProps) {
         setLoading(true)
         setError(null)
         
-        const response = await fetch(`${config.basePath}/api/user/session`)
-        const result = await response.json()
-        
-        if (result.success) {
-          setUser(result.data)
+        const result = await getSessionData()
+        if (result.success && result.data) {
+          setUser({
+            id: result.data.id,
+            email: result.data.email,
+            companyId: result.data.companyId || "507f1f77bcf86cd799439012"
+          })
         } else {
           setError('Failed to load user data')
           // Set fallback user data

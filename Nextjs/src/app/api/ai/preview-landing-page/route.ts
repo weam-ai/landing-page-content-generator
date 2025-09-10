@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '../../../../config/credencial_config'
+import config from '../../../../config/frontend-config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the Node.js backend API
-    const backendResponse = await fetch(`${config.backendUrl}/api/ai/preview-landing-page`, {
+    const backendResponse = await fetch(`${config.apiUrl}/ai/preview-landing-page`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

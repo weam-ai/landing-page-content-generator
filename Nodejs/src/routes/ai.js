@@ -1,13 +1,13 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { protect } = require('../middleware/auth');
+// const { protect } = require('../middleware/auth'); // Removed protect middleware
 const axios = require('axios');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const config = require('../config/credencial_config');
+const config = require('../config/backend-config');
 
 // Utility function for making fetch requests with timeout and retry
 async function fetchWithTimeout(url, options = {}, timeoutMs = 50000, maxRetries = 2) {
@@ -72,8 +72,8 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 50000, maxRetries
 const router = express.Router();
 
 // Initialize Google Generative AI at the top
-const GEMINI_API_KEY = config.apiKeys.geminiApiKey;
-const GEMINI_API_URL = config.apiKeys.geminiApiUrl;
+const GEMINI_API_KEY = config.geminiApiKey;
+const GEMINI_API_URL = config.geminiApiUrl;
 
 // Initialize Google Generative AI
 let genAI = null;
@@ -95,10 +95,22 @@ if (GEMINI_API_KEY) {
 // Public PDF processing route (no authentication required)
 router.post('/extract-pdf', async (req, res) => {
   try {
+    logger.info('=== PDF EXTRACTION API CALLED ===');
+    logger.info('Request body received:', {
+      hasFilePath: !!req.body.filePath,
+      filePath: req.body.filePath,
+      bodyKeys: Object.keys(req.body || {}),
+      requestHeaders: {
+        'content-type': req.get('content-type'),
+        'user-agent': req.get('user-agent'),
+        'authorization': req.get('authorization') ? 'present' : 'not present'
+      }
+    });
     
     const { filePath } = req.body;
 
     if (!filePath) {
+      logger.error('PDF extraction failed: No file path provided');
       return res.status(400).json({
         success: false,
         error: 'File path is required'
@@ -106,6 +118,7 @@ router.post('/extract-pdf', async (req, res) => {
     }
 
     if (!model) {
+      logger.error('PDF extraction failed: Gemini AI model not initialized');
       return res.status(500).json({
         success: false,
         error: 'Gemini AI model not initialized. Please check your API key configuration.'
@@ -113,21 +126,66 @@ router.post('/extract-pdf', async (req, res) => {
     }
 
 
+    // Log file information before processing
+    const filename = path.basename(filePath);
+    const directory = path.dirname(filePath);
+    const uploadsDir = config.uploadDir;
+    
+    logger.info('PDF extraction request received:', {
+      requestedFilePath: filePath,
+      filename: filename,
+      directory: directory,
+      uploadsDirectory: uploadsDir,
+      fileExists: fs.existsSync(filePath),
+      uploadsDirExists: fs.existsSync(uploadsDir),
+      currentWorkingDirectory: process.cwd()
+    });
+
+    // Log file path details
+    logger.info('File path details:', {
+      filePath: filePath,
+      filename: filename,
+      uploadsDir: uploadsDir
+    });
+
     // Read PDF file
+    logger.info('Attempting to read PDF file:', {
+      filePath: filePath,
+      fileExists: fs.existsSync(filePath),
+      fileSize: fs.existsSync(filePath) ? fs.statSync(filePath).size : 'unknown'
+    });
+    
     const dataBuffer = fs.readFileSync(filePath);
+    logger.info('PDF file read successfully:', {
+      bufferSize: dataBuffer.length,
+      filePath: filePath
+    });
     
     let pdfData, pdfText;
     
     try {
+      logger.info('Starting PDF parsing...');
       pdfData = await pdfParse(dataBuffer);
       pdfText = pdfData.text;
       
+      logger.info('PDF parsing completed:', {
+        pages: pdfData.numpages,
+        textLength: pdfText ? pdfText.length : 0,
+        hasText: !!pdfText,
+        info: pdfData.info,
+        metadata: pdfData.metadata
+      });
       
       // Log PDF text status (OCR will handle content extraction)
       if (!pdfText || pdfText.trim().length === 0) {
+        logger.warn('PDF has no extractable text, will rely on OCR');
         pdfText = '';
       }
     } catch (parseError) {
+      logger.error('PDF parsing failed, using fallback:', {
+        error: parseError.message,
+        filePath: filePath
+      });
       pdfText = '';
       
       pdfData = {
@@ -154,8 +212,15 @@ If a section doesn't have a clear section name, use a short descriptive name bas
 Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive section name", "title": "main title/heading text"}]}.
 `;
     
+    logger.info('Starting Gemini AI processing:', {
+      filePath: filePath,
+      instructionLength: SECTION_TITLES_INSTRUCTIONS.length,
+      pdfBufferSize: dataBuffer.length,
+      base64Size: Buffer.from(dataBuffer).toString("base64").length
+    });
 
     try {
+      logger.info('Calling Gemini AI model...');
       const result = await model.generateContent([
         SECTION_TITLES_INSTRUCTIONS,
         {
@@ -168,13 +233,27 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
       const response = await result.response;
       const text = response.text();
       
+      logger.info('Gemini AI response received:', {
+        responseLength: text.length,
+        filePath: filePath,
+        responsePreview: text.substring(0, 200) + '...'
+      });
+      
       
       // Parse Gemini AI OCR response
       let parsedResponse;
       try {
+        logger.info('Parsing Gemini AI JSON response...');
         
         // Clean JSON response
         let cleaned = text.trim();
+        logger.info('Raw response cleaning:', {
+          originalLength: text.length,
+          cleanedLength: cleaned.length,
+          startsWithJson: cleaned.startsWith("```json"),
+          endsWithBackticks: cleaned.endsWith("```")
+        });
+        
         if (cleaned.startsWith("```json")) {
           cleaned = cleaned.slice(7);
         }
@@ -183,7 +262,18 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
         }
         cleaned = cleaned.trim();
         
+        logger.info('Attempting to parse JSON:', {
+          cleanedLength: cleaned.length,
+          filePath: filePath,
+          jsonPreview: cleaned.substring(0, 100) + '...'
+        });
+        
         parsedResponse = JSON.parse(cleaned);
+        logger.info('JSON parsing successful:', {
+          hasSections: !!parsedResponse.sections_with_titles,
+          sectionsCount: parsedResponse.sections_with_titles ? parsedResponse.sections_with_titles.length : 0,
+          filePath: filePath
+        });
         
         // Transform OCR response to match existing format
         if (parsedResponse.sections_with_titles && Array.isArray(parsedResponse.sections_with_titles)) {
@@ -198,11 +288,23 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
         
         
       } catch (parseError) {
-        logger.warn('Failed to parse Gemini AI response as JSON, using fallback:', parseError);
+        logger.warn('Failed to parse Gemini AI response as JSON, using fallback:', {
+          error: parseError.message,
+          filePath: filePath,
+          responseText: text.substring(0, 500)
+        });
         
         // Create comprehensive fallback analysis from PDF content
+        logger.info('Creating fallback analysis from PDF text...');
         const fallbackSections = createFallbackSections(pdfText);
         const fallbackAnalysis = createComprehensiveFallbackAnalysis(pdfText, fallbackSections);
+        
+        logger.info('Fallback analysis created:', {
+          sectionsCount: fallbackSections.length,
+          filePath: filePath,
+          hasVisualElements: !!fallbackAnalysis.visualElements,
+          hasContentMapping: !!fallbackAnalysis.contentMapping
+        });
         
         parsedResponse = {
           sections: fallbackSections,
@@ -301,7 +403,21 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
       logger.info('PDF analysis completed successfully', {
         filePath,
         sections: enhancedSections.length,
-        designType: analysisResult.designType
+        designType: analysisResult.designType,
+        totalPages: analysisResult.totalPages,
+        extractedTextLength: analysisResult.extractedText ? analysisResult.extractedText.length : 0
+      });
+
+      logger.info('=== PDF EXTRACTION COMPLETED SUCCESSFULLY ===', {
+        filePath: filePath,
+        responseData: {
+          sectionsCount: analysisResult.sections.length,
+          designType: analysisResult.designType,
+          totalPages: analysisResult.totalPages,
+          hasMetadata: !!analysisResult.metadata,
+          hasVisualElements: !!analysisResult.visualElements,
+          hasContentMapping: !!analysisResult.contentMapping
+        }
       });
 
       res.json({
@@ -310,10 +426,21 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
       });
 
     } catch (geminiError) {
-      logger.error('OCR processing failed, using fallback:', geminiError);
+      logger.error('OCR processing failed, using fallback:', {
+        error: geminiError.message,
+        errorCode: geminiError.code,
+        filePath: filePath,
+        stack: geminiError.stack
+      });
       
       // Fallback: create basic sections from text chunks
+      logger.info('Creating fallback analysis due to Gemini error...');
       const fallbackSections = createFallbackSections(pdfText);
+      
+      logger.info('Fallback analysis created for Gemini error:', {
+        sectionsCount: fallbackSections.length,
+        filePath: filePath
+      });
       
       const analysisResult = {
         sections: fallbackSections,
@@ -340,6 +467,16 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
         }
       };
 
+      logger.info('=== PDF EXTRACTION COMPLETED WITH FALLBACK ===', {
+        filePath: filePath,
+        reason: 'Gemini AI error',
+        responseData: {
+          sectionsCount: analysisResult.sections.length,
+          designType: analysisResult.designType,
+          totalPages: analysisResult.totalPages
+        }
+      });
+
       res.json({
         success: true,
         data: analysisResult
@@ -347,6 +484,25 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
     }
 
   } catch (error) {
+    // Enhanced error logging for file-related issues
+    const { filePath } = req.body || {};
+    const filename = filePath ? path.basename(filePath) : 'unknown';
+    const directory = filePath ? path.dirname(filePath) : 'unknown';
+    
+    logger.error('PDF extraction failed - detailed error information:', {
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorType: error.name,
+      requestedFilePath: filePath,
+      filename: filename,
+      directory: directory,
+      uploadsDirectory: config.uploadDir,
+      currentWorkingDirectory: process.cwd(),
+      fileExists: filePath ? fs.existsSync(filePath) : false,
+      uploadsDirExists: fs.existsSync(config.uploadDir),
+      stack: error.stack
+    });
+    
     logger.error('PDF extraction failed:', error);
     res.status(500).json({
       success: false,
@@ -370,7 +526,7 @@ router.post('/extract-figma', async (req, res) => {
     }
 
     // Check if Figma access token is configured
-    if (!config.apiKeys.figmaAccessToken) {
+    if (!config.figmaAccessToken) {
       return res.status(500).json({
         success: false,
         error: 'Figma access token not configured. Please set FIGMA_ACCESS_TOKEN in your environment variables.'
@@ -379,7 +535,7 @@ router.post('/extract-figma', async (req, res) => {
 
     // Initialize Figma API
     const FigmaAPI = require('../utils/figmaApi');
-    const figmaApi = new FigmaAPI(config.apiKeys.figmaAccessToken);
+    const figmaApi = new FigmaAPI(config.figmaAccessToken);
 
     // Extract file key from URL
     const fileKey = figmaApi.extractFileKey(figmaUrl);
@@ -2261,8 +2417,8 @@ router.post('/extract-design-structure', async (req, res) => {
   }
 });
 
-// Apply authentication to all other routes
-router.use(protect);
+// Apply authentication to all other routes - REMOVED
+// router.use(protect); // Removed protect middleware
 
 // Helper function to extract and parse JSON from Gemini response
 function extractAndParseJSON(response) {

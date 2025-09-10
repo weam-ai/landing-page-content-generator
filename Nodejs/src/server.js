@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const config = require('./config/credencial_config');
+const config = require('./config/backend-config');
 
 const connectDB = require('./config/database');
 const logger = require('./utils/logger');
@@ -27,18 +27,16 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - Allow all origins
 app.use(cors({
-  origin: config.nodeEnv === 'production' 
-    ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000',"http://localhost:8081"],
+  origin: "*",
   credentials: true
 }));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
@@ -53,7 +51,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 
 // Logging middleware
-if (config.nodeEnv === 'development') {
+if (config.isDevelopment) {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
@@ -67,7 +65,7 @@ app.get('/ai-landing-page-generator-api/health', (req, res) => {
     message: 'AI Landing Page Backend Server is Live 🚀',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: config.nodeEnv
+    environment: config.environment
   });
 });
 
@@ -76,21 +74,21 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    environment: config.nodeEnv,
+    environment: config.environment,
     services: {
       mongodb: 'connected', // You can enhance this to check actual DB connection
-      figma: config.apiKeys.figmaAccessToken ? 'configured' : 'not configured',
-      gemini: config.apiKeys.geminiApiKey ? 'configured' : 'not configured'
+      figma: config.figmaAccessToken ? 'configured' : 'not configured',
+      gemini: config.geminiApiKey ? 'configured' : 'not configured'
     }
   });
 });
 
 // API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/landing-pages', landingPageRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/business-info', businessInfoRoutes);
+app.use('/ai-landing-page-generator-api/auth', authRoutes);
+app.use('/ai-landing-page-generator-api/landing-pages', landingPageRoutes);
+app.use('/ai-landing-page-generator-api/upload', uploadRoutes);
+app.use('/ai-landing-page-generator-api/ai', aiRoutes);
+app.use('/ai-landing-page-generator-api/business-info', businessInfoRoutes);
 
 // 404 handler
 app.use(notFound);
@@ -100,7 +98,7 @@ app.use(errorHandler);
 
 // Start server
 const server = app.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT} in ${config.nodeEnv} mode`);
+  logger.info(`🚀 Server running on port ${PORT} in ${config.environment} mode`);
   logger.info(`📊 Health check available at http://localhost:${PORT}/ai-landing-page-generator-api/health`);
   console.log('🔐 [Server] Session management system initialized');
   console.log('🔐 [Server] Iron session middleware ready');

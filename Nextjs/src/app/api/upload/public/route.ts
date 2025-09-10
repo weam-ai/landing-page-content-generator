@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import config from '../../../../config/credencial_config';
+import config from '../../../../config/frontend-config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     backendFormData.append('pdf', new Blob([buffer], { type: 'application/pdf' }), file.name);
 
     // Forward to Node.js backend
-    const fullUrl = `${config.backendUrl}/api/upload/public`;
+    const fullUrl = `${config.apiUrl}/upload/public`;
     
     const response = await fetch(fullUrl, {
       method: 'POST',

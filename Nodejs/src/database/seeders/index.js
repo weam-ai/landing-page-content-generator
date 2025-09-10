@@ -2,14 +2,12 @@ const mongoose = require('mongoose');
 const User = require('../../models/User');
 const LandingPage = require('../../models/LandingPage');
 const logger = require('../../utils/logger');
-const config = require('../../config/credencial_config');
+const config = require('../../config/backend-config');
 
 const seedData = async () => {
   try {
     // Connect to database
-    const mongoURI = config.nodeEnv === 'production' 
-      ? config.database.mongodbUriProd 
-      : config.database.mongodbUri;
+    const mongoURI = config.mongodbUri;
 
     if (!mongoURI) {
       throw new Error('MongoDB URI is not defined in environment variables');

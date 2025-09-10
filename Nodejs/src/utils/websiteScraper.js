@@ -1,11 +1,11 @@
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const logger = require('./logger');
-const config = require('../config/credencial_config');
+const config = require('../config/backend-config');
 
 class WebsiteScraper {
   constructor() {
-    this.gemini = new GoogleGenerativeAI(config.apiKeys.geminiApiKey);
+    this.gemini = new GoogleGenerativeAI(config.geminiApiKey);
     
     // Use the working model from our test
     try {
@@ -58,10 +58,10 @@ class WebsiteScraper {
       try {
         logger.info(`Scraping attempt ${attempt}/${maxRetries} for: ${url}`);
         
-        // Validate URL before making request
-        this.validateUrl(url);
+        // Validate URL before making request and get normalized URL
+        const normalizedUrl = this.validateUrl(url);
         
-        const response = await axios.get(url, {
+        const response = await axios.get(normalizedUrl, {
           timeout: 50000, // 50 seconds timeout
           maxRedirects: 5,
           headers: {
@@ -82,7 +82,7 @@ class WebsiteScraper {
           throw new Error('Website content is too short or empty');
         }
         
-        logger.info(`Successfully scraped website: ${url} (${textContent.length} characters)`);
+        logger.info(`Successfully scraped website: ${normalizedUrl} (${textContent.length} characters)`);
         return textContent;
         
       } catch (error) {
@@ -122,10 +122,17 @@ class WebsiteScraper {
   /**
    * Validate URL for security and format
    * @param {string} url - URL to validate
+   * @returns {string} - Normalized URL
    */
   validateUrl(url) {
     try {
-      const urlObj = new URL(url);
+      // Normalize URL by adding protocol if missing
+      let normalizedUrl = url.trim();
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+      
+      const urlObj = new URL(normalizedUrl);
       
       // Check protocol
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
@@ -147,15 +154,18 @@ class WebsiteScraper {
       ];
       
       for (const pattern of suspiciousPatterns) {
-        if (pattern.test(url)) {
+        if (pattern.test(normalizedUrl)) {
           throw new Error('The provided URL is not allowed due to security restrictions');
         }
       }
       
       // Check URL length
-      if (url.length > 2048) {
+      if (normalizedUrl.length > 2048) {
         throw new Error('URL is too long');
       }
+      
+      // Return the normalized URL for use
+      return normalizedUrl;
       
     } catch (error) {
       if (error instanceof TypeError) {

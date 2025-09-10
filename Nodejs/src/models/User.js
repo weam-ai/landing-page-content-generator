@@ -67,9 +67,9 @@ UserSchema.pre('save', async function(next) {
 
 // Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function() {
-  const config = require('../config/credencial_config');
-  return jwt.sign({ id: this._id }, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn
+  const config = require('../config/backend-config');
+  return jwt.sign({ id: this._id }, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn
   });
 };
 
