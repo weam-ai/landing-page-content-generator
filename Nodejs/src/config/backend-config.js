@@ -16,7 +16,7 @@ const backendConfig = {
   isTest: process.env.NODE_ENV === 'test',
 
   // Database
-  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/landing-page-generator',
+  mongodbUri: process.env.MONGODB_URI || null, // Don't use fallback, let database.js handle individual variables
 
   // API Keys
   geminiApiKey: process.env.GEMINI_API_KEY || '',

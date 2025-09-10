@@ -6,22 +6,26 @@ const connectDB = async () => {
   try {
     let mongoURI;
 
-    // First try to get MONGODB_URI
+    // First try to get MONGODB_URI (check for both null and empty string)
     if (config.isProduction) {
       mongoURI = config.mongodbUri;
-      if (mongoURI) {
-        logger.info('🔗 Using MONGODB_URI_PROD for production connection');
+      if (mongoURI && mongoURI.trim() !== '') {
+        logger.info('Using MONGODB_URI for production connection');
+      } else {
+        logger.warn('MONGODB_URI not found in production mode, will construct from individual variables');
       }
     } else {
       mongoURI = config.mongodbUri;
-      if (mongoURI) {
-        logger.info('🔗 Using MONGODB_URI for development connection');
+      if (mongoURI && mongoURI.trim() !== '') {
+        logger.info('Using MONGODB_URI for development connection');
+      } else {
+        logger.info('MONGODB_URI not provided, constructing from individual variables');
       }
     }
 
-    // If MONGODB_URI is not available, construct it from individual DB variables
-    if (!mongoURI) {
-      logger.info('📝 MONGODB_URI not found, constructing URI from individual database variables...');
+    // If MONGODB_URI is not available or empty, construct it from individual DB variables
+    if (!mongoURI || mongoURI.trim() === '') {
+      logger.info('Constructing MongoDB URI from individual environment variables');
       
       const dbConnection = process.env.DB_CONNECTION || 'mongodb';
       const dbHost = process.env.DB_HOST || 'localhost:27017';
@@ -29,15 +33,6 @@ const connectDB = async () => {
       const dbUsername = process.env.DB_USERNAME;
       const dbPassword = process.env.DB_PASSWORD;
       const dbPort = process.env.DB_PORT;
-
-      logger.info(`📊 Database Configuration:`, {
-        connection: dbConnection,
-        host: dbHost,
-        database: dbDatabase,
-        username: dbUsername ? `${dbUsername.substring(0, 3)}***` : 'not provided',
-        port: dbPort || 'default',
-        hasPassword: !!dbPassword
-      });
 
       if (!dbHost || !dbDatabase) {
         throw new Error('Either MONGODB_URI or DB_HOST and DB_DATABASE must be defined in environment variables');
@@ -50,18 +45,14 @@ const connectDB = async () => {
           throw new Error('DB_USERNAME and DB_PASSWORD are required for mongodb+srv connection');
         }
         mongoURI = `${dbConnection}://${dbUsername}:${dbPassword}@${dbHost}/${dbDatabase}?retryWrites=true&w=majority`;
-        logger.info('☁️  Generated MongoDB Atlas URI (mongodb+srv)');
+        logger.info('Generated MongoDB Atlas URI');
       } else {
         // For local MongoDB
         const port = dbPort ? `:${dbPort}` : '';
         const auth = dbUsername && dbPassword ? `${dbUsername}:${dbPassword}@` : '';
         mongoURI = `${dbConnection}://${auth}${dbHost}${port}/${dbDatabase}`;
-        logger.info('🏠 Generated local MongoDB URI (mongodb)');
+        logger.info('Generated local MongoDB URI');
       }
-
-      logger.info('✅ Successfully constructed MongoDB URI from individual database variables');
-    } else {
-      logger.info('✅ Using provided MONGODB_URI directly');
     }
 
     const conn = await mongoose.connect(mongoURI, {
@@ -72,9 +63,8 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
     });
 
-    logger.info(`✅ MongoDB Connected Successfully: ${conn.connection.host}`);
-    logger.info(`📋 Database Name: ${conn.connection.name}`);
-    logger.info(`🔌 Connection State: ${conn.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
+    logger.info(`MongoDB Connected: ${conn.connection.host}`);
+    logger.info(`Database: ${conn.connection.name}`);
 
     // Handle connection events
     mongoose.connection.on('error', (err) => {
@@ -93,7 +83,7 @@ const connectDB = async () => {
     process.on('SIGINT', async () => {
       try {
         await mongoose.connection.close();
-        logger.info('MongoDB connection closed through app termination');
+        logger.info('MongoDB connection closed');
         process.exit(0);
       } catch (err) {
         logger.error('Error during MongoDB connection closure:', err);

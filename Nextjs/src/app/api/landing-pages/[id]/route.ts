@@ -16,7 +16,7 @@ export async function GET(
     }
 
     // Forward to Node.js backend
-    const response = await fetch(`${config.apiUrl}/api/landing-pages/${id}`, {
+    const response = await fetch(`${config.apiUrl}/landing-pages/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ export async function PUT(
     }
 
     // Forward to Node.js backend
-    const response = await fetch(`${config.apiUrl}/api/landing-pages/${id}`, {
+    const response = await fetch(`${config.apiUrl}/landing-pages/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
