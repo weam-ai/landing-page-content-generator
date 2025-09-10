@@ -76,7 +76,8 @@ router.post('/public', upload.single('pdf'), async (req, res) => {
 
     logger.info('Public PDF file uploaded successfully', {
       filename: req.file.filename,
-      fileSize: req.file.size
+      fileSize: req.file.size,
+      uploadedPath: req.file.path
     });
 
     

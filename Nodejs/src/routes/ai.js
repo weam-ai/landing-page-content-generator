@@ -141,6 +141,13 @@ router.post('/extract-pdf', async (req, res) => {
       currentWorkingDirectory: process.cwd()
     });
 
+    // Log file path details
+    logger.info('File path details:', {
+      filePath: filePath,
+      filename: filename,
+      uploadsDir: uploadsDir
+    });
+
     // Read PDF file
     logger.info('Attempting to read PDF file:', {
       filePath: filePath,
