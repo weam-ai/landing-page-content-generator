@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const BusinessInfo = require('../models/BusinessInfo');
 const WebsiteScraper = require('../utils/websiteScraper');
-const { protect } = require('../middleware/auth');
+// const { protect } = require('../middleware/auth'); // Removed protect middleware
 const { body, validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 
@@ -14,7 +14,7 @@ const websiteScraper = new WebsiteScraper();
  * @desc    Get all business information for authenticated user
  * @access  Private
  */
-router.get('/', protect, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const businessInfo = await BusinessInfo.find({ user: req.user.id })
       .sort({ createdAt: -1 });
@@ -38,7 +38,7 @@ router.get('/', protect, async (req, res) => {
  * @desc    Get specific business information by ID
  * @access  Private
  */
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const businessInfo = await BusinessInfo.findById(req.params.id);
 
@@ -76,7 +76,6 @@ router.get('/:id', protect, async (req, res) => {
  * @access  Private
  */
 router.post('/', [
-  protect,
   [
     body('businessName', 'Business name is required').notEmpty().trim(),
     body('businessOverview', 'Business overview is required').notEmpty().trim(),
@@ -132,16 +131,12 @@ router.post('/', [
 /**
  * @route   POST /api/business-info/auto-generate
  * @desc    Auto-generate business information from website URL
- * @access  Private
  */
 router.post('/auto-generate', [
-  protect,
-  [
-    body('websiteUrl', 'Website URL is required').isURL().withMessage('Please provide a valid URL'),
-    body('businessName', 'Business name is required').notEmpty().trim(),
-    body('businessOverview', 'Business overview is required').notEmpty().trim(),
-    body('targetAudience', 'Target audience is required').notEmpty().trim()
-  ]
+  body('websiteUrl', 'Website URL is required').isURL().withMessage('Please provide a valid URL'),
+  body('businessName', 'Business name is required').notEmpty().trim(),
+  body('businessOverview', 'Business overview is required').notEmpty().trim(),
+  body('targetAudience', 'Target audience is required').notEmpty().trim()
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -347,7 +342,6 @@ router.post('/auto-generate-public', [
  * @access  Private
  */
 router.put('/:id', [
-  protect,
   [
     body('businessName').optional().notEmpty().trim(),
     body('businessOverview').optional().notEmpty().trim(),
@@ -416,7 +410,6 @@ router.put('/:id', [
  * @access  Private
  */
 router.put('/:id/manual-override', [
-  protect,
   [
     body('manualOverrides').isObject().withMessage('Manual overrides must be an object')
   ]
@@ -474,7 +467,7 @@ router.put('/:id/manual-override', [
  * @desc    Delete business information
  * @access  Private
  */
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const businessInfo = await BusinessInfo.findById(req.params.id);
 
@@ -513,7 +506,7 @@ router.delete('/:id', protect, async (req, res) => {
  * @desc    Regenerate auto-generated content from website URL
  * @access  Private
  */
-router.post('/:id/regenerate', protect, async (req, res) => {
+router.post('/:id/regenerate', async (req, res) => {
   try {
     const businessInfo = await BusinessInfo.findById(req.params.id);
 

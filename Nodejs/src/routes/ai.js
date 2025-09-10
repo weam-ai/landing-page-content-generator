@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { protect } = require('../middleware/auth');
+// const { protect } = require('../middleware/auth'); // Removed protect middleware
 const axios = require('axios');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
@@ -2261,8 +2261,8 @@ router.post('/extract-design-structure', async (req, res) => {
   }
 });
 
-// Apply authentication to all other routes
-router.use(protect);
+// Apply authentication to all other routes - REMOVED
+// router.use(protect); // Removed protect middleware
 
 // Helper function to extract and parse JSON from Gemini response
 function extractAndParseJSON(response) {

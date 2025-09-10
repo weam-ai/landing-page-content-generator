@@ -25,6 +25,7 @@ const backendConfig = {
 
   // File Upload
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 10485760, // 10MB
+  uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), // Configurable upload directory
 
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',

@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { protect, authorize } = require('../middleware/auth');
+// const { protect, authorize } = require('../middleware/auth');
 const LandingPage = require('../models/LandingPage');
 const logger = require('../utils/logger');
 
