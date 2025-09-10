@@ -27,11 +27,9 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - Allow all origins
 app.use(cors({
-  origin: config.isProduction 
-    ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000',"http://localhost:8081"],
+  origin: "*",
   credentials: true
 }));
 
