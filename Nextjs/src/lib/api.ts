@@ -218,34 +218,6 @@ class ApiService {
     });
   }
 
-  // User Session API
-  async getUserSession() {
-    // Call the Next.js API route directly with the correct basePath
-    const response = await fetch(`${config.basePath}/api/user/session`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
-      } else if (response.status === 401) {
-        throw new Error('Authentication required. Please log in again.');
-      } else if (response.status === 403) {
-        throw new Error('Access forbidden. You do not have permission to perform this action.');
-      } else if (response.status === 404) {
-        throw new Error('Resource not found.');
-      } else if (response.status >= 500) {
-        throw new Error('Server error. Please try again later.');
-      } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    }
-
-    return response.json();
-  }
 }
 
 export const apiService = new ApiService();
