@@ -32,7 +32,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessDetails, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [autoGenerateMessage, setAutoGenerateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [inputMethod, setInputMethod] = useState<'manual' | 'url'>('manual')
+  const [inputMethod, setInputMethod] = useState<'manual' | 'url'>('url')
 
   const handleInputChange = (field: keyof BusinessDetails, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -632,26 +632,41 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
           )}
         </div>
 
-        {/* Submit Button */}
+        {/* Action Buttons */}
         <div className="pt-6">
-          <Button
-            type="submit"
-            disabled={!isFormValid || isSubmitting}
-            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
-            size="lg"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                Generating Landing Page...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 mr-2" />
-                Generate Landing Page
-              </>
-            )}
-          </Button>
+          <div className="flex space-x-4">
+            {/* Back Button - 30% width */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBack}
+              className="w-[30%] border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+              size="lg"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Back
+            </Button>
+            
+            {/* Generate Landing Page Button - 70% width */}
+            <Button
+              type="submit"
+              disabled={!isFormValid || isSubmitting}
+              className="w-[70%] bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
+              size="lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                  Generating Landing Page...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Generate Landing Page
+                </>
+              )}
+            </Button>
+          </div>
           
           {!isFormValid && (
             <p className="text-sm text-muted-foreground text-center mt-3">

@@ -393,7 +393,6 @@ export default function SolutionsPage() {
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Figma URL | Upload Design</span>
                 </div>
                 
-                <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full flex-shrink-0"></div>
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
                   <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
@@ -402,7 +401,6 @@ export default function SolutionsPage() {
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">AI Content Analysis</span>
                 </div>
                 
-                <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full flex-shrink-0"></div>
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
                   <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
@@ -410,8 +408,6 @@ export default function SolutionsPage() {
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Customize Content</span>
                 </div>
-                
-                <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full flex-shrink-0"></div>
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
                   <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
@@ -555,24 +551,31 @@ export default function SolutionsPage() {
                       <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Your Landing Pages</h2>
                     </div>
                     
-                    {/* Search Bar */}
-                    <div className="relative max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search landing pages..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 placeholder-gray-400"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery('')}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
+                    {/* Modern Search Bar */}
+                    <div className="relative max-w-sm group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/15 to-purple-600/15 rounded-xl blur-sm group-hover:blur-md transition-all duration-300"></div>
+                      <div className="relative bg-white/95 backdrop-blur-sm rounded-xl shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/15 transition-all duration-300 group-hover:scale-[1.01] border border-white/40 ring-1 ring-primary/20 group-hover:ring-primary/30">
+                        <div className="flex items-center px-3 py-2">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-r from-primary/15 to-purple-600/15 mr-2 group-hover:from-primary/25 group-hover:to-purple-600/25 transition-all duration-300 ring-1 ring-primary/10 group-hover:ring-primary/20">
+                            <Search className="h-3.5 w-3.5 text-primary group-hover:text-primary/90 transition-colors duration-300" />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Search pages"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="flex-1 bg-transparent text-gray-700 placeholder-gray-500 focus:outline-none text-sm font-medium"
+                          />
+                          {searchQuery && (
+                            <button
+                              onClick={() => setSearchQuery('')}
+                              className="flex items-center justify-center w-5 h-5 rounded-md bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-500 hover:text-gray-700 transition-all duration-200 ml-2 group-hover:scale-105 ring-1 ring-gray-200 hover:ring-gray-300"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
@@ -608,18 +611,38 @@ export default function SolutionsPage() {
                     ) : (
                       <div className="col-span-full text-center py-12">
                         <div className="max-w-md mx-auto">
-                          <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">No landing pages found</h3>
-                          <p className="text-gray-500 mb-4">
-                            {searchQuery ? `No results found for "${searchQuery}". Try a different search term.` : 'No landing pages available.'}
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-xl flex items-center justify-center ring-1 ring-primary/20">
+                            <Search className="h-8 w-8 text-primary/70" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 mb-2">
+                            {searchQuery ? 'No Results Found' : 'No Landing Pages'}
+                          </h3>
+                          <p className="text-gray-600 mb-4">
+                            {searchQuery ? (
+                              <>
+                                No results found for <span className="font-semibold text-primary">"{searchQuery}"</span>. 
+                                Try a different search term.
+                              </>
+                            ) : (
+                              'You haven\'t created any landing pages yet.'
+                            )}
                           </p>
-                          {searchQuery && (
+                          {searchQuery ? (
                             <Button
                               onClick={() => setSearchQuery('')}
                               variant="outline"
-                              className="mx-auto"
+                              className="bg-white/90 backdrop-blur-sm border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/30 px-6 py-2 rounded-lg shadow-md shadow-primary/5 hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 ring-1 ring-primary/10 hover:ring-primary/20"
                             >
+                              <X className="h-4 w-4 mr-2" />
                               Clear Search
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => setIsUploadModalOpen(true)}
+                              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create First Page
                             </Button>
                           )}
                         </div>
@@ -627,53 +650,68 @@ export default function SolutionsPage() {
                     )}
                   </div>
                   
-                  {/* Pagination */}
+                  {/* Pill-Shaped Pagination */}
                   {totalCount > 15 && ( // Updated to 15 pages per page
-                    <div className="flex items-center justify-center space-x-2 mt-8">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                      >
-                        Previous
-                      </button>
-                      
-                      <div className="flex items-center space-x-1">
-                        {Array.from({ length: totalPages }, (_, i) => {
-                          const pageNum = i + 1
-                          const isCurrentPage = pageNum === currentPage
-                          const isNearCurrent = Math.abs(pageNum - currentPage) <= 1
-                          const isFirstPage = pageNum === 1
-                          const isLastPage = pageNum === totalPages
+                    <div className="flex items-center justify-center mt-8">
+                      <div className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-md shadow-primary/5 border border-white/30">
+                        <div className="flex items-center space-x-2">
+                          {/* First Page Arrow (Double Chevron Left) */}
+                          <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="p-1 text-gray-500 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+                            title="First page"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                            </svg>
+                          </button>
                           
-                          if (isFirstPage || isLastPage || isNearCurrent) {
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => setCurrentPage(pageNum)}
-                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                                  isCurrentPage
-                                    ? 'bg-primary text-white shadow-lg'
-                                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            )
-                          } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                            return <span key={pageNum} className="px-2 text-gray-400">...</span>
-                          }
-                          return null
-                        })}
+                          {/* Page Numbers */}
+                          <div className="flex items-center space-x-1.5">
+                            {Array.from({ length: totalPages }, (_, i) => {
+                              const pageNum = i + 1
+                              const isCurrentPage = pageNum === currentPage
+                              const isNearCurrent = Math.abs(pageNum - currentPage) <= 1
+                              const isFirstPage = pageNum === 1
+                              const isLastPage = pageNum === totalPages
+                              
+                              if (isFirstPage || isLastPage || isNearCurrent) {
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`w-6 h-6 flex items-center justify-center text-xs font-semibold rounded-full transition-all duration-200 ${
+                                      isCurrentPage
+                                        ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-sm'
+                                        : 'text-gray-600 hover:text-primary hover:bg-primary/10'
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                )
+                              } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                                return (
+                                  <span key={pageNum} className="text-gray-400 text-xs">...</span>
+                                )
+                              }
+                              return null
+                            })}
+                          </div>
+                          
+                          {/* Last Page Arrow (Double Chevron Right) */}
+                          <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="p-1 text-gray-500 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+                            title="Last page"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7m-8-14l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      
-                      <button
-                        onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                      >
-                        Next
-                      </button>
                     </div>
                   )}
                 </div>
@@ -1155,20 +1193,12 @@ export default function SolutionsPage() {
                 ...updatedInfo
               }
               
-              console.log('Saving business info:', {
-                landingPageId: selectedPage?.id,
-                updatedInfo,
-                fullUpdatedPage: updatedPage
-              })
               
               // Call the API to update the landing page
               if (selectedPage?.id) {
                 await updatePage(selectedPage.id, updatedPage)
                 
-                // Refresh the data from the database to ensure we have the latest
-                await refreshData()
-                
-                // Update the selected page state with the refreshed data
+                // Update the selected page state with the updated data
                 setSelectedPage(updatedPage)
               }
               
