@@ -797,21 +797,15 @@ export default function SolutionsPage() {
                     className="bg-gradient-to-r from-indigo-50 via-blue-50 to-cyan-50 p-6 rounded-xl border border-indigo-200/50 shadow-md backdrop-blur-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
                     onClick={() => setIsBusinessInfoModalOpen(true)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-blue-700 rounded-lg flex items-center justify-center mr-4 shadow-lg">
-                          <Building2 className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-primary">Business Information & Overview</h2>
-                          <p className="text-sm text-muted-foreground mt-1">Click to view and edit all business details</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <Edit className="h-4 w-4" />
-                        <span>Edit</span>
-                      </div>
-                    </div>
+                     <div className="flex items-center">
+                       <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-blue-700 rounded-lg flex items-center justify-center mr-4 shadow-lg">
+                         <Building2 className="h-6 w-6 text-white" />
+                       </div>
+                       <div>
+                         <h2 className="text-xl font-bold text-primary">Business Information & Overview</h2>
+                         <p className="text-sm text-muted-foreground mt-1">Click to view and edit all business details</p>
+                       </div>
+                     </div>
                   </div>
 
 
@@ -2490,5 +2484,6 @@ function LandingPageCard({
     </Card>
   )
 }
+
 
 
