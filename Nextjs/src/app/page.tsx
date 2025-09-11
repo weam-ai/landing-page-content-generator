@@ -382,40 +382,42 @@ export default function SolutionsPage() {
                   Transform your designs into stunning landing pages with 
                   <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent font-semibold"> AI-powered content generation</span>
                 </p>
-                <div className="flex items-center justify-center space-x-6 mt-6">
-                  <div className="flex items-center space-x-2 group">
-                    <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                      <span className="text-white text-xs font-bold">I</span>
-                    </div>
-                    <span className="text-sm text-gray-600 font-medium">Import Designs</span>
+              </div>
+              
+              {/* Four Step Process - Centered */}
+              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-2 lg:gap-6 mt-6">
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-white text-xs font-bold">I</span>
                   </div>
-                  
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                  
-                  <div className="flex items-center space-x-2 group">
-                    <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                      <span className="text-white text-xs font-bold">II</span>
-                    </div>
-                    <span className="text-sm text-gray-600 font-medium">AI Generation</span>
+                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Figma URL | Upload Design</span>
+                </div>
+                
+                <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full flex-shrink-0"></div>
+                
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-white text-xs font-bold">II</span>
                   </div>
-                  
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                  
-                  <div className="flex items-center space-x-2 group">
-                    <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                      <span className="text-white text-xs font-bold">III</span>
-                    </div>
-                    <span className="text-sm text-gray-600 font-medium">Customize</span>
+                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">AI Content Analysis</span>
+                </div>
+                
+                <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full flex-shrink-0"></div>
+                
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-white text-xs font-bold">III</span>
                   </div>
-                  
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                  
-                  <div className="flex items-center space-x-2 group">
-                    <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                      <span className="text-white text-xs font-bold">IV</span>
-                    </div>
-                    <span className="text-sm text-gray-600 font-medium">Generate</span>
+                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Customize Content</span>
+                </div>
+                
+                <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full flex-shrink-0"></div>
+                
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-white text-xs font-bold">IV</span>
                   </div>
+                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Landing Page Craft</span>
                 </div>
               </div>
             </div>
