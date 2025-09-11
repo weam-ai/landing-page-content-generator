@@ -499,49 +499,50 @@ export default function SolutionsPage() {
         {/* Content */}
         {!loading && !error && (
           <>
+            {/* Stats Section with Back to App - Always show */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
+              <div className="flex items-center justify-between">
+                {/* Left Side - Back to App */}
+                <div className="flex items-center">
+                  <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
+                </div>
+
+                {/* Right Side - Stats */}
+                <div className="flex items-center space-x-6">
+                  {/* Total Pages */}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border border-primary/20">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                      <p className="text-xs text-gray-500">Total Pages</p>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-px h-12 bg-gray-200" />
+
+                  {/* Updated This Week */}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+                      <Zap className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {landingPages.filter(p => p.updatedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
+                      </p>
+                      <p className="text-xs text-gray-500">Updated This Week</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {landingPages.length === 0 ? (
               <EmptyState onAddNew={() => setIsUploadModalOpen(true)} />
             ) : (
               <div className="space-y-6">
-                {/* Stats Section with Back to App */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                  <div className="flex items-center justify-between">
-                    {/* Left Side - Back to App */}
-                    <div className="flex items-center">
-                      <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
-                    </div>
-
-                    {/* Right Side - Stats */}
-                    <div className="flex items-center space-x-6">
-                      {/* Total Pages */}
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border border-primary/20">
-                          <FileText className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
-                          <p className="text-xs text-gray-500">Total Pages</p>
-                        </div>
-                      </div>
-
-                      {/* Divider */}
-                      <div className="w-px h-12 bg-gray-200" />
-
-                      {/* Updated This Week */}
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
-                          <Zap className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {landingPages.filter(p => p.updatedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
-                          </p>
-                          <p className="text-xs text-gray-500">Updated This Week</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Landing Pages Grid */}
                 <div>
