@@ -118,22 +118,30 @@ export const useLandingPages = (): UseLandingPagesReturn => {
 
   const updatePage = useCallback(async (id: string, data: Partial<LandingPage>): Promise<LandingPage> => {
     try {
-      // If we're updating sections, use the sections endpoint
-      if (data.sections && Array.isArray(data.sections)) {
+      // Check if this is a sections-only update (no other fields being updated)
+      const hasBusinessFields = data.businessName || data.businessOverview || data.targetAudience || 
+                               data.brandTone || data.websiteUrl || data.title;
+      // If we're updating sections AND no business fields, use the sections endpoint
+      if (data.sections && Array.isArray(data.sections) && !hasBusinessFields) {
         const response = await apiService.updateLandingPageSections(id, data.sections);
         
         if (response.success) {
-          await refreshData(); // Refresh the list
+          await refreshData(); // Refresh the list for sections updates
           return response.data;
         } else {
           throw new Error(response.error || 'Failed to update landing page sections');
         }
       } else {
-        // For non-section updates, use the regular endpoint
+        // For business info updates, use the regular endpoint without refreshing
         const response = await apiService.updateLandingPage(id, data);
         
         if (response.success) {
-          await refreshData(); // Refresh the list
+          // Update local state directly for business info updates (faster)
+          setLandingPages(prevPages => 
+            prevPages.map(page => 
+              page.id === id ? { ...page, ...data } : page
+            )
+          );
           return response.data;
         } else {
           throw new Error(response.error || 'Failed to update landing page');
