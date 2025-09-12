@@ -373,7 +373,7 @@ export default function SolutionsPage() {
                 </div>
                 
                 <div>
-                  <h1 className="text-4xl font-black bg-gradient-to-r from-gray-900 via-primary to-purple-700 bg-clip-text text-transparent leading-tight">
+                  <h1 className="text-4xl font-black text-primary leading-tight">
                     AI Landing Page Generator
                   </h1>
                   <div className="flex items-center space-x-2 mt-1">
@@ -387,7 +387,7 @@ export default function SolutionsPage() {
               <div className="max-w-2xl">
                 <p className="text-lg text-gray-600 leading-relaxed font-medium">
                   Transform your designs into stunning landing pages with 
-                  <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent font-semibold"> AI-powered content generation</span>
+                  <span className="text-primary/70 font-semibold"> AI-powered content generation</span>
                 </p>
               </div>
               
