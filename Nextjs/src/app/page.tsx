@@ -12,6 +12,7 @@ import { ToastContainer, ToastProps } from "@/components/ui/toast"
 import { UploadDesignModal } from "@/components/UploadDesignModal"
 import { UserEmailDisplay } from "@/components/UserEmailDisplay"
 import { BusinessInfoModal } from "@/components/BusinessInfoModal"
+import { AuthorizationMessage } from "@/components/AuthorizationMessage"
 import { LandingPage } from "@/types"
 import { useLandingPages } from "@/hooks/useLandingPages"
 import apiService from "@/lib/api"
@@ -50,6 +51,7 @@ export default function SolutionsPage() {
     totalPages,
     totalCount, // Add total count from hook
     currentPage,
+    isAuthorized,
     refreshData,
     createPage,
     updatePage,
@@ -334,6 +336,11 @@ export default function SolutionsPage() {
       case "casual": return "casual"
       default: return "default"
     }
+  }
+
+  // Show authorization message if user is not authorized
+  if (!isAuthorized && !loading) {
+    return <AuthorizationMessage />;
   }
 
   return (
