@@ -1,0 +1,36 @@
+services:
+  # Node.js Backend API
+  backend:
+    build:
+      context: ./Nodejs
+      dockerfile: Dockerfile
+    container_name: landing-page-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FIGMA_ACCESS_TOKEN=${FIGMA_ACCESS_TOKEN}
+    networks:
+      - weamai_app-network
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./Nextjs
+      dockerfile: Dockerfile
+    container_name: landing-page-frontend
+    restart: unless-stopped
+    ports:
+      - "4001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_COOKIE_NAME=${NEXT_PUBLIC_COOKIE_NAME}
+      - NEXT_PUBLIC_COOKIE_PASSWORD=${NEXT_PUBLIC_COOKIE_PASSWORD}
+    networks:
+      - weamai_app-network
+
+networks:
+  weamai_app-network:
+    external: true
