@@ -29,8 +29,8 @@ services:
       - NEXT_PUBLIC_COOKIE_NAME=${NEXT_PUBLIC_COOKIE_NAME}
       - NEXT_PUBLIC_COOKIE_PASSWORD=${NEXT_PUBLIC_COOKIE_PASSWORD}
     networks:
-      - weamai_app-network
+      - weam_app-network
 
 networks:
-  weamai_app-network:
+  weam_app-network:
     external: true
