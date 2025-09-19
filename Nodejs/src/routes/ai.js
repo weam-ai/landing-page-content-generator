@@ -83,8 +83,8 @@ let model = null;
 if (GEMINI_API_KEY) {
   try {
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-    logger.info('Google Generative AI initialized successfully');
+    model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    logger.info('Google Generative AI initialized successfully with gemini-2.5-flash');
   } catch (error) {
     logger.error('Failed to initialize Google Generative AI:', error);
   }
@@ -125,388 +125,580 @@ router.post('/extract-pdf', async (req, res) => {
       });
     }
 
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      logger.error('PDF extraction failed: File not found', { filePath });
+      return res.status(404).json({
+        success: false,
+        error: 'File not found'
+      });
+    }
 
     // Log file information before processing
     const filename = path.basename(filePath);
-    const directory = path.dirname(filePath);
-    const uploadsDir = config.uploadDir;
+    const fileSize = fs.statSync(filePath).size;
     
     logger.info('PDF extraction request received:', {
       requestedFilePath: filePath,
       filename: filename,
-      directory: directory,
-      uploadsDirectory: uploadsDir,
-      fileExists: fs.existsSync(filePath),
-      uploadsDirExists: fs.existsSync(uploadsDir),
-      currentWorkingDirectory: process.cwd()
-    });
-
-    // Log file path details
-    logger.info('File path details:', {
-      filePath: filePath,
-      filename: filename,
-      uploadsDir: uploadsDir
+      fileSize: fileSize,
+      fileExists: true
     });
 
     // Read PDF file
-    logger.info('Attempting to read PDF file:', {
-      filePath: filePath,
-      fileExists: fs.existsSync(filePath),
-      fileSize: fs.existsSync(filePath) ? fs.statSync(filePath).size : 'unknown'
-    });
-    
-    const dataBuffer = fs.readFileSync(filePath);
+    const pdfBytes = fs.readFileSync(filePath);
     logger.info('PDF file read successfully:', {
-      bufferSize: dataBuffer.length,
+      bufferSize: pdfBytes.length,
       filePath: filePath
     });
-    
-    let pdfData, pdfText;
-    
-    try {
-      logger.info('Starting PDF parsing...');
-      pdfData = await pdfParse(dataBuffer);
-      pdfText = pdfData.text;
-      
-      logger.info('PDF parsing completed:', {
-        pages: pdfData.numpages,
-        textLength: pdfText ? pdfText.length : 0,
-        hasText: !!pdfText,
-        info: pdfData.info,
-        metadata: pdfData.metadata
-      });
-      
-      // Log PDF text status (OCR will handle content extraction)
-      if (!pdfText || pdfText.trim().length === 0) {
-        logger.warn('PDF has no extractable text, will rely on OCR');
-        pdfText = '';
-      }
-    } catch (parseError) {
-      logger.error('PDF parsing failed, using fallback:', {
-        error: parseError.message,
-        filePath: filePath
-      });
-      pdfText = '';
-      
-      pdfData = {
-        numpages: 1,
-        info: {},
-        metadata: {}
-      };
-    }
 
-    logger.info('PDF text extracted successfully', {
-      filePath,
-      pages: pdfData.numpages,
-      textLength: pdfText.length
-    });
-
-    
-    // Instructions for Gemini OCR + layout extraction
-    const SECTION_TITLES_INSTRUCTIONS = `
+    // New comprehensive prompt for design section extraction
+    const SECTION_EXTRACTION_PROMPT = `
 You are an OCR + layout extraction agent for UI/UX design PDFs. 
-Analyze the PDF and identify distinct sections. For each section, provide:
-1. A descriptive section name (like 'Hero', 'Features', 'Testimonials', 'Pricing', 'FAQ', etc.)
-2. The main title/heading text from that section.
-If a section doesn't have a clear section name, use a short descriptive name based on the content.
-Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive section name", "title": "main title/heading text"}]}.
+Analyze the PDF and identify distinct sections. For each section, detect ALL possible design elements. 
+Possible fields include (but are not limited to):
+- section_name (Hero, Features, Pricing, FAQ, etc.)
+- title (main heading)
+- subtitle (supporting heading)
+- content (paragraphs, descriptions, messages)
+- buttons (array of button labels)
+- links (array of link texts or URLs)
+- images (array of image/icon names or descriptions)
+- messages/alerts (any special notices, banners, error/info messages)
+- lists (bullet points, numbered items)
+- forms/inputs (fields, placeholders, labels)
+- CTAs (special calls-to-action)
+
+⚠️ Rules:
+- Include ONLY the fields that actually exist in the content.
+- Do NOT add placeholders, dummy data, null, or empty arrays.
+- Use arrays for multiple values (buttons, images, links, lists).
+- Keep JSON clean and valid.
+
+Return ONLY JSON with this structure:
+{
+  "sections": [
+    {
+      "section_name": "Hero",
+      "title": "Welcome to Our Service",
+      "subtitle": "Fast, Reliable, Secure",
+      "content": "Supporting text...",
+      "buttons": ["Get Started", "Learn More"],
+      "images": ["hero_banner.png"],
+      "messages": ["Limited-time offer"]
+    }
+  ]
+}
 `;
-    
-    logger.info('Starting Gemini AI processing:', {
+
+    logger.info('Starting Gemini AI processing with new prompt:', {
       filePath: filePath,
-      instructionLength: SECTION_TITLES_INSTRUCTIONS.length,
-      pdfBufferSize: dataBuffer.length,
-      base64Size: Buffer.from(dataBuffer).toString("base64").length
+      promptLength: SECTION_EXTRACTION_PROMPT.length,
+      pdfBufferSize: pdfBytes.length,
+      base64Size: Buffer.from(pdfBytes).toString("base64").length
     });
 
     try {
       logger.info('Calling Gemini AI model...');
       const result = await model.generateContent([
-        SECTION_TITLES_INSTRUCTIONS,
+        { text: SECTION_EXTRACTION_PROMPT },
         {
           inlineData: {
             mimeType: "application/pdf",
-            data: Buffer.from(dataBuffer).toString("base64"),
+            data: Buffer.from(pdfBytes).toString("base64"),
           },
         },
       ]);
+      
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
+      
+      if (!text) {
+        throw new Error("Empty response from Gemini.");
+      }
       
       logger.info('Gemini AI response received:', {
         responseLength: text.length,
         filePath: filePath,
         responsePreview: text.substring(0, 200) + '...'
       });
-      
-      
-      // Parse Gemini AI OCR response
-      let parsedResponse;
+
+      // Clean JSON (strip markdown fences if any)
+      let cleaned = text.trim();
+      if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+      if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+      cleaned = cleaned.trim();
+
+      let data;
       try {
-        logger.info('Parsing Gemini AI JSON response...');
-        
-        // Clean JSON response
-        let cleaned = text.trim();
-        logger.info('Raw response cleaning:', {
-          originalLength: text.length,
-          cleanedLength: cleaned.length,
-          startsWithJson: cleaned.startsWith("```json"),
-          endsWithBackticks: cleaned.endsWith("```")
-        });
-        
-        if (cleaned.startsWith("```json")) {
-          cleaned = cleaned.slice(7);
-        }
-        if (cleaned.endsWith("```")) {
-          cleaned = cleaned.slice(0, -3);
-        }
-        cleaned = cleaned.trim();
-        
-        logger.info('Attempting to parse JSON:', {
-          cleanedLength: cleaned.length,
-          filePath: filePath,
-          jsonPreview: cleaned.substring(0, 100) + '...'
-        });
-        
-        parsedResponse = JSON.parse(cleaned);
+        data = JSON.parse(cleaned);
         logger.info('JSON parsing successful:', {
-          hasSections: !!parsedResponse.sections_with_titles,
-          sectionsCount: parsedResponse.sections_with_titles ? parsedResponse.sections_with_titles.length : 0,
+          hasSections: !!data.sections,
+          sectionsCount: data.sections ? data.sections.length : 0,
           filePath: filePath
         });
-        
-        // Transform OCR response to match existing format
-        if (parsedResponse.sections_with_titles && Array.isArray(parsedResponse.sections_with_titles)) {
-          parsedResponse.sections = parsedResponse.sections_with_titles.map((item, index) => ({
-            id: `section-${index + 1}`,
-            name: item.section_name,
-            title: item.title,
-            type: mapSectionTypeFromName(item.section_name)
-          }));
-          delete parsedResponse.sections_with_titles; // Remove the original key
-        }
-        
-        
-      } catch (parseError) {
-        logger.warn('Failed to parse Gemini AI response as JSON, using fallback:', {
-          error: parseError.message,
-          filePath: filePath,
-          responseText: text.substring(0, 500)
-        });
-        
-        // Create comprehensive fallback analysis from PDF content
-        logger.info('Creating fallback analysis from PDF text...');
-        const fallbackSections = createFallbackSections(pdfText);
-        const fallbackAnalysis = createComprehensiveFallbackAnalysis(pdfText, fallbackSections);
-        
-        logger.info('Fallback analysis created:', {
-          sectionsCount: fallbackSections.length,
-          filePath: filePath,
-          hasVisualElements: !!fallbackAnalysis.visualElements,
-          hasContentMapping: !!fallbackAnalysis.contentMapping
-        });
-        
-        parsedResponse = {
-          sections: fallbackSections,
-          ...fallbackAnalysis
-        };
+      } catch (err) {
+        throw new Error(`Failed to parse JSON: ${err.message}\nRaw: ${cleaned}`);
       }
 
-      
-      // Check if we got valid sections from OCR
-      if (parsedResponse.sections && parsedResponse.sections.length > 0) {
+      // Filter out empty sections
+      const rawSections = Array.isArray(data.sections) ? data.sections : [];
+      const filteredSections = rawSections.filter(section =>
+        Object.values(section).some(v => (Array.isArray(v) ? v.length > 0 : !!v))
+      );
+
+      logger.info('Sections filtered and processed:', {
+        originalCount: rawSections.length,
+        filteredCount: filteredSections.length,
+        filePath: filePath
+      });
+
+      // Transform sections to match the exact format requested
+      const sections = filteredSections.map((section) => {
+        const components = {};
         
-        // Map section types to ensure they're valid for the database
-        parsedResponse.sections = parsedResponse.sections.map((section, index) => {
-          const mappedType = mapSectionType(section.type);
-          return { 
-            id: section.id || `section-${index + 1}`,
-            title: section.name,
-            type: mappedType,
-            content: `Content for ${section.name} section`,
-            order: index + 1,
-            pageNumber: 1,
-            boundingBox: {
-              x: 0,
-              y: 0,
-              width: 1200,
-              height: 200
-            }
-          };
-        });
-      } else {
-        // If no sections from OCR, create sections from comprehensive analysis
-        parsedResponse.sections = createSectionsFromAnalysis(parsedResponse, pdfText);
-      }
-        
-      // Check if we still have no sections after all processing
-      if (!parsedResponse.sections || parsedResponse.sections.length === 0) {
-        const fallbackSections = createFallbackSections(pdfText);
-        const fallbackAnalysis = createComprehensiveFallbackAnalysis(pdfText, fallbackSections);
-        
-        parsedResponse = {
-          sections: fallbackSections,
-          ...fallbackAnalysis
-        };
-      }
-      
-      // Enhance sections with metadata
-      const enhancedSections = enhanceSections(parsedResponse.sections || []);
-      
-      const analysisResult = {
-        sections: enhancedSections,
-        totalPages: pdfData.numpages,
-        designType: determineDesignType(pdfText, enhancedSections),
-        designName: parsedResponse.designName || pdfData.info?.Title || 'PDF Document',
-        extractedText: pdfText,
-        metadata: {
-          title: parsedResponse.designName || pdfData.info?.Title || 'PDF Document',
-          author: pdfData.info?.Author,
-          subject: pdfData.info?.Subject,
-          keywords: pdfData.info?.Keywords ? pdfData.info.Keywords.split(',').map(k => k.trim()) : []
-        },
-        // Comprehensive analysis data
-        visualElements: parsedResponse.visualElements || null,
-        contentMapping: parsedResponse.contentMapping || null,
-        layoutAnalysis: parsedResponse.layoutAnalysis || null,
-        designTokens: parsedResponse.designTokens || null,
-        comprehensiveAnalysis: {
-          visualElementsCount: {
-            textBlocks: parsedResponse.visualElements?.textBlocks?.length || 0,
-            images: parsedResponse.visualElements?.images?.length || 0,
-            buttons: parsedResponse.visualElements?.buttons?.length || 0,
-            forms: parsedResponse.visualElements?.forms?.length || 0
-          },
-          contentMappingCount: {
-            headlines: parsedResponse.contentMapping?.headlines?.length || 0,
-            bodyText: parsedResponse.contentMapping?.bodyText?.length || 0,
-            ctaButtons: parsedResponse.contentMapping?.ctaButtons?.length || 0,
-            navigation: parsedResponse.contentMapping?.navigation?.length || 0,
-            features: parsedResponse.contentMapping?.features?.length || 0,
-            testimonials: parsedResponse.contentMapping?.testimonials?.length || 0
-          },
-          layoutAnalysis: {
-            gridSystem: parsedResponse.layoutAnalysis?.gridSystem?.type || 'unknown',
-            responsiveBreakpoints: parsedResponse.layoutAnalysis?.responsiveBreakpoints?.length || 0,
-            alignment: parsedResponse.layoutAnalysis?.alignment?.primary || 'unknown',
-            pageStructure: parsedResponse.layoutAnalysis?.pageStructure || {}
-          },
-          designTokensCount: {
-            colors: parsedResponse.designTokens?.colors?.length || 0,
-            typography: parsedResponse.designTokens?.typography?.length || 0,
-            spacing: parsedResponse.designTokens?.spacing?.length || 0
-          }
+        // Add title if present
+        if (section.title) {
+          components.title = section.title;
         }
-      };
-      
+        
+        // Add subtitle if present
+        if (section.subtitle) {
+          components.subtitle = section.subtitle;
+        }
+        
+        // Add content if present
+        if (section.content) {
+          components.content = section.content;
+        }
+        
+        // Add buttons if present
+        if (section.buttons && section.buttons.length > 0) {
+          components.buttons = section.buttons;
+        }
+        
+        // Add images if present
+        if (section.images && section.images.length > 0) {
+          components.images = section.images;
+        }
+        
+        // Add links if present
+        if (section.links && section.links.length > 0) {
+          components.links = section.links;
+        }
+        
+        // Add messages if present
+        if (section.messages && section.messages.length > 0) {
+          components.messages = section.messages;
+        }
+        
+        // Add lists if present
+        if (section.lists && section.lists.length > 0) {
+          components.items = section.lists;
+        }
+        
+        // Add forms if present
+        if (section.forms && section.forms.length > 0) {
+          components.forms = section.forms;
+        }
+        
+        // Add CTAs if present
+        if (section.ctas && section.ctas.length > 0) {
+          components.ctas = section.ctas;
+        }
+
+        return {
+          name: section.section_name,
+          components: components
+        };
+      });
 
       logger.info('PDF analysis completed successfully', {
         filePath,
-        sections: enhancedSections.length,
-        designType: analysisResult.designType,
-        totalPages: analysisResult.totalPages,
-        extractedTextLength: analysisResult.extractedText ? analysisResult.extractedText.length : 0
+        sectionsCount: sections.length
       });
 
       logger.info('=== PDF EXTRACTION COMPLETED SUCCESSFULLY ===', {
         filePath: filePath,
-        responseData: {
-          sectionsCount: analysisResult.sections.length,
-          designType: analysisResult.designType,
-          totalPages: analysisResult.totalPages,
-          hasMetadata: !!analysisResult.metadata,
-          hasVisualElements: !!analysisResult.visualElements,
-          hasContentMapping: !!analysisResult.contentMapping
-        }
+        sectionsCount: sections.length
       });
 
       res.json({
-        success: true,
-        data: analysisResult
+        sections: sections
       });
 
     } catch (geminiError) {
-      logger.error('OCR processing failed, using fallback:', {
+      logger.error('Gemini AI processing failed:', {
         error: geminiError.message,
         errorCode: geminiError.code,
         filePath: filePath,
         stack: geminiError.stack
       });
       
-      // Fallback: create basic sections from text chunks
+      // Fallback: create basic sections
       logger.info('Creating fallback analysis due to Gemini error...');
-      const fallbackSections = createFallbackSections(pdfText);
+      const fallbackSections = createFallbackSections('');
       
-      logger.info('Fallback analysis created for Gemini error:', {
-        sectionsCount: fallbackSections.length,
-        filePath: filePath
+      // Transform fallback sections to match the exact format
+      const sections = fallbackSections.map((section) => {
+        return {
+          name: section.name || section.title || 'Unknown Section',
+          components: {
+            title: section.title || section.name || 'Section Title',
+            content: section.content || 'Section content not available'
+          }
+        };
       });
-      
-      const analysisResult = {
-        sections: fallbackSections,
-        totalPages: pdfData.numpages,
-        designType: 'unknown',
-        designName: pdfData.info?.Title || 'PDF Document',
-        extractedText: pdfText,
-        metadata: {
-          title: pdfData.info?.Title || 'PDF Document',
-          author: pdfData.info?.Author,
-          subject: pdfData.info?.Subject,
-          keywords: pdfData.info?.Keywords ? pdfData.info.Keywords.split(',').map(k => k.trim()) : []
-        },
-        // Fallback comprehensive analysis data
-        visualElements: null,
-        contentMapping: null,
-        layoutAnalysis: null,
-        designTokens: null,
-        comprehensiveAnalysis: {
-          visualElementsCount: { textBlocks: 0, images: 0, buttons: 0, forms: 0 },
-          contentMappingCount: { headlines: 0, bodyText: 0, ctaButtons: 0, navigation: 0, features: 0, testimonials: 0 },
-          layoutAnalysis: { gridSystem: 'unknown', responsiveBreakpoints: 0, alignment: 'unknown', pageStructure: {} },
-          designTokensCount: { colors: 0, typography: 0, spacing: 0 }
-        }
-      };
 
       logger.info('=== PDF EXTRACTION COMPLETED WITH FALLBACK ===', {
         filePath: filePath,
         reason: 'Gemini AI error',
-        responseData: {
-          sectionsCount: analysisResult.sections.length,
-          designType: analysisResult.designType,
-          totalPages: analysisResult.totalPages
-        }
+        sectionsCount: sections.length
       });
 
       res.json({
-        success: true,
-        data: analysisResult
+        sections: sections
       });
     }
 
   } catch (error) {
-    // Enhanced error logging for file-related issues
-    const { filePath } = req.body || {};
-    const filename = filePath ? path.basename(filePath) : 'unknown';
-    const directory = filePath ? path.dirname(filePath) : 'unknown';
-    
-    logger.error('PDF extraction failed - detailed error information:', {
-      errorMessage: error.message,
+    logger.error('PDF extraction failed:', {
+      error: error.message,
       errorCode: error.code,
       errorType: error.name,
-      requestedFilePath: filePath,
-      filename: filename,
-      directory: directory,
-      uploadsDirectory: config.uploadDir,
-      currentWorkingDirectory: process.cwd(),
-      fileExists: filePath ? fs.existsSync(filePath) : false,
-      uploadsDirExists: fs.existsSync(config.uploadDir),
+      filePath: req.body?.filePath,
       stack: error.stack
     });
     
-    logger.error('PDF extraction failed:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to extract PDF content'
+    });
+  }
+});
+
+// Public URL design extraction route (no authentication required)
+router.post('/extract-design-from-url', async (req, res) => {
+  try {
+    logger.info('=== URL DESIGN EXTRACTION API CALLED ===');
+    logger.info('Request body received:', {
+      hasUrl: !!req.body.url,
+      url: req.body.url,
+      bodyKeys: Object.keys(req.body || {}),
+      requestHeaders: {
+        'content-type': req.get('content-type'),
+        'user-agent': req.get('user-agent'),
+        'authorization': req.get('authorization') ? 'present' : 'not present'
+      }
+    });
+    
+    const { url } = req.body;
+
+    if (!url) {
+      logger.error('URL design extraction failed: No URL provided');
+      return res.status(400).json({
+        success: false,
+        error: 'URL is required'
+      });
+    }
+
+    if (!model) {
+      logger.error('URL design extraction failed: Gemini AI model not initialized');
+      return res.status(500).json({
+        success: false,
+        error: 'Gemini AI model not initialized. Please check your API key configuration.'
+      });
+    }
+
+    // Validate URL format
+    let normalizedUrl;
+    try {
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        normalizedUrl = 'https://' + url;
+      } else {
+        normalizedUrl = url;
+      }
+      new URL(normalizedUrl);
+    } catch (error) {
+      logger.error('URL design extraction failed: Invalid URL format', { url });
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid URL format'
+      });
+    }
+
+    logger.info('URL design extraction request received:', {
+      requestedUrl: url,
+      normalizedUrl: normalizedUrl
+    });
+
+    // Scrape website content
+    const WebsiteScraper = require('../utils/websiteScraper');
+    const scraper = new WebsiteScraper();
+    
+    let websiteContent;
+    try {
+      websiteContent = await scraper.scrapeWebsite(normalizedUrl);
+      logger.info('Website content scraped successfully:', {
+        url: normalizedUrl,
+        contentLength: websiteContent.length
+      });
+    } catch (scrapeError) {
+      logger.error('Website scraping failed:', {
+        error: scrapeError.message,
+        url: normalizedUrl
+      });
+      return res.status(400).json({
+        success: false,
+        error: `Failed to scrape website: ${scrapeError.message}`
+      });
+    }
+
+    // New comprehensive prompt for design section extraction from URL content
+    const SECTION_EXTRACTION_PROMPT = `
+You are a UI/UX design analysis agent for website content. 
+Analyze the provided website content and identify distinct sections. For each section, detect ALL possible design elements. 
+Possible fields include (but are not limited to):
+- section_name (Hero, Features, Pricing, FAQ, About, Contact, etc.)
+- title (main heading)
+- subtitle (supporting heading)
+- content (paragraphs, descriptions, messages)
+- buttons (array of button labels)
+- links (array of link texts or URLs)
+- images (array of image/icon names or descriptions)
+- messages/alerts (any special notices, banners, error/info messages)
+- lists (bullet points, numbered items)
+- forms/inputs (fields, placeholders, labels)
+- CTAs (special calls-to-action)
+- navigation (menu items, navigation elements)
+- testimonials (customer reviews, quotes)
+- pricing (pricing tiers, plans)
+- features (feature lists, benefits)
+
+⚠️ Rules:
+- Include ONLY the fields that actually exist in the content.
+- Do NOT add placeholders, dummy data, null, or empty arrays.
+- Use arrays for multiple values (buttons, images, links, lists).
+- Keep JSON clean and valid.
+- Focus on the main landing page sections and their design elements.
+
+Website URL: ${normalizedUrl}
+
+Website Content:
+${websiteContent.substring(0, 12000)} // Limit content length for Gemini
+
+Return ONLY JSON with this structure:
+{
+  "sections": [
+    {
+      "section_name": "Hero",
+      "title": "Welcome to Our Service",
+      "subtitle": "Fast, Reliable, Secure",
+      "content": "Supporting text...",
+      "buttons": ["Get Started", "Learn More"],
+      "images": ["hero_banner.png"],
+      "messages": ["Limited-time offer"]
+    }
+  ]
+}
+`;
+
+    logger.info('Starting Gemini AI processing with URL design extraction prompt:', {
+      url: normalizedUrl,
+      promptLength: SECTION_EXTRACTION_PROMPT.length,
+      contentLength: websiteContent.length
+    });
+
+    try {
+      logger.info('Calling Gemini AI model for URL design analysis...');
+      const result = await model.generateContent(SECTION_EXTRACTION_PROMPT);
+      
+      const response = await result.response;
+      let text = response.text();
+      
+      if (!text) {
+        throw new Error("Empty response from Gemini.");
+      }
+      
+      logger.info('Gemini AI response received for URL design analysis:', {
+        responseLength: text.length,
+        url: normalizedUrl,
+        responsePreview: text.substring(0, 200) + '...'
+      });
+
+      // Clean JSON (strip markdown fences if any)
+      let cleaned = text.trim();
+      if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+      if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+      cleaned = cleaned.trim();
+
+      let data;
+      try {
+        data = JSON.parse(cleaned);
+        logger.info('JSON parsing successful for URL design analysis:', {
+          hasSections: !!data.sections,
+          sectionsCount: data.sections ? data.sections.length : 0,
+          url: normalizedUrl
+        });
+      } catch (err) {
+        throw new Error(`Failed to parse JSON: ${err.message}\nRaw: ${cleaned}`);
+      }
+
+      // Filter out empty sections
+      const rawSections = Array.isArray(data.sections) ? data.sections : [];
+      const filteredSections = rawSections.filter(section =>
+        Object.values(section).some(v => (Array.isArray(v) ? v.length > 0 : !!v))
+      );
+
+      logger.info('Sections filtered and processed for URL design analysis:', {
+        originalCount: rawSections.length,
+        filteredCount: filteredSections.length,
+        url: normalizedUrl
+      });
+
+      // Transform sections to match the exact format requested
+      const sections = filteredSections.map((section) => {
+        const components = {};
+        
+        // Add title if present
+        if (section.title) {
+          components.title = section.title;
+        }
+        
+        // Add subtitle if present
+        if (section.subtitle) {
+          components.subtitle = section.subtitle;
+        }
+        
+        // Add content if present
+        if (section.content) {
+          components.content = section.content;
+        }
+        
+        // Add buttons if present
+        if (section.buttons && section.buttons.length > 0) {
+          components.buttons = section.buttons;
+        }
+        
+        // Add images if present
+        if (section.images && section.images.length > 0) {
+          components.images = section.images;
+        }
+        
+        // Add links if present
+        if (section.links && section.links.length > 0) {
+          components.links = section.links;
+        }
+        
+        // Add messages if present
+        if (section.messages && section.messages.length > 0) {
+          components.messages = section.messages;
+        }
+        
+        // Add lists if present
+        if (section.lists && section.lists.length > 0) {
+          components.items = section.lists;
+        }
+        
+        // Add forms if present
+        if (section.forms && section.forms.length > 0) {
+          components.forms = section.forms;
+        }
+        
+        // Add CTAs if present
+        if (section.ctas && section.ctas.length > 0) {
+          components.ctas = section.ctas;
+        }
+
+        // Add navigation if present
+        if (section.navigation && section.navigation.length > 0) {
+          components.navigation = section.navigation;
+        }
+
+        // Add testimonials if present
+        if (section.testimonials && section.testimonials.length > 0) {
+          components.testimonials = section.testimonials;
+        }
+
+        // Add pricing if present
+        if (section.pricing && section.pricing.length > 0) {
+          components.pricing = section.pricing;
+        }
+
+        // Add features if present
+        if (section.features && section.features.length > 0) {
+          components.features = section.features;
+        }
+
+        return {
+          name: section.section_name,
+          components: components
+        };
+      });
+
+      logger.info('URL design analysis completed successfully', {
+        url: normalizedUrl,
+        sectionsCount: sections.length
+      });
+
+      logger.info('=== URL DESIGN EXTRACTION COMPLETED SUCCESSFULLY ===', {
+        url: normalizedUrl,
+        sectionsCount: sections.length
+      });
+
+      res.json({
+        success: true,
+        sections: sections,
+        sourceUrl: normalizedUrl
+      });
+
+    } catch (geminiError) {
+      logger.error('Gemini AI processing failed for URL design analysis:', {
+        error: geminiError.message,
+        errorCode: geminiError.code,
+        url: normalizedUrl,
+        stack: geminiError.stack
+      });
+      
+      // Fallback: create basic sections
+      logger.info('Creating fallback analysis due to Gemini error...');
+      const fallbackSections = createFallbackSections('');
+      
+      // Transform fallback sections to match the exact format
+      const sections = fallbackSections.map((section) => {
+        return {
+          name: section.name || section.title || 'Unknown Section',
+          components: {
+            title: section.title || section.name || 'Section Title',
+            content: section.content || 'Section content not available'
+          }
+        };
+      });
+
+      logger.info('=== URL DESIGN EXTRACTION COMPLETED WITH FALLBACK ===', {
+        url: normalizedUrl,
+        reason: 'Gemini AI error',
+        sectionsCount: sections.length
+      });
+
+      res.json({
+        success: true,
+        sections: sections,
+        sourceUrl: normalizedUrl
+      });
+    }
+
+  } catch (error) {
+    logger.error('URL design extraction failed:', {
+      error: error.message,
+      errorCode: error.code,
+      errorType: error.name,
+      url: req.body?.url,
+      stack: error.stack
+    });
+    
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to extract PDF content'
+      error: error.message || 'Failed to extract design from URL'
     });
   }
 });
@@ -2227,21 +2419,44 @@ router.post('/generate-dynamic-landing-page', async (req, res) => {
         fileName: extractedData?.metadata?.title || 'Extracted Design',
         processedAt: new Date()
       },
-      sections: enhancedContent.sections?.map(section => ({
-        id: section.id,
-        type: section.type,
-        title: section.title,
-        content: section.content || `Content for ${section.title || section.type}`,
-        order: section.order || 1,
-        pageNumber: section.pageNumber || 1,
-        boundingBox: section.boundingBox || {
-          x: 0,
-          y: 0,
-          width: 800,
-          height: 200
-        },
-        extractedAt: new Date().toISOString()
-      })) || [],
+      sections: enhancedContent.sections?.map(section => {
+        // Handle new format with components
+        if (section.components) {
+          return {
+            id: section.id,
+            name: section.name,
+            type: section.name?.toLowerCase() || 'content', // Add required type field
+            title: section.name || 'Section', // Add required title field
+            components: section.components,
+            order: section.order || 1,
+            pageNumber: section.pageNumber || 1,
+            boundingBox: section.boundingBox || {
+              x: 0,
+              y: 0,
+              width: 800,
+              height: 200
+            },
+            extractedAt: new Date().toISOString()
+          };
+        } else {
+          // Handle old format
+          return {
+            id: section.id,
+            type: section.type,
+            title: section.title,
+            content: section.content || `Content for ${section.title || section.type}`,
+            order: section.order || 1,
+            pageNumber: section.pageNumber || 1,
+            boundingBox: section.boundingBox || {
+              x: 0,
+              y: 0,
+              width: 800,
+              height: 200
+            },
+            extractedAt: new Date().toISOString()
+          };
+        }
+      }) || [],
       status: 'draft',
       tags: ['ai-generated', 'extracted-data', 'dynamic-generation'],
       isPublic: false,
@@ -4177,27 +4392,34 @@ async function generateCompleteLandingPage({ businessInfo, extractedData, prefer
   }
 
   const prompt = `
-Generate professional content for each section in the given payload.  
+You are a professional content generator that creates landing page content based on extracted design sections and business information.
 
-IMPORTANT: You MUST generate content with EXACTLY the specified word count for each section. This is CRITICAL and non-negotiable.
+CRITICAL: You MUST return the EXACT same JSON structure as the input, but with all component content customized for the business.
 
-The payload contains two parts:
-- "businessInfo": details about the business (name, overview, target audience, tone, and website).
-- "extractedData.sections": a list of sections with titles.
+INPUT FORMAT:
+- businessInfo: Business details (name, overview, target audience, tone, website)
+- extractedData.sections: Array of sections with components structure
 
-For each section:
-1. Keep only these keys in the response: "id", "title", "type", "content", "order".
-2. Use the section "title" as the theme to generate the content.
-   Example: if the title is "Projects", generate project-related content for the business. 
-3. Generate the "content" using information from "businessInfo" (businessName, businessOverview, targetAudience, brandTone, websiteUrl).
-4. Ensure the generated content matches the "brandTone".
-5. ${lengthInstruction}
-6. MANDATORY WORD COUNT: Each section's content must be ${wordCountRange}
-7. Return all sections in JSON format, where each section has enriched "content".
+OUTPUT FORMAT:
+Return the EXACT same JSON structure with customized content:
 
-WORD COUNT EXAMPLES:
-- If you need 200-400 words, generate content like this example (approximately 300 words):
-  "Our company specializes in providing comprehensive digital solutions that transform businesses and drive growth. With over a decade of experience in the industry, we have successfully helped hundreds of clients achieve their goals through innovative strategies and cutting-edge technology. Our team of expert professionals brings together deep industry knowledge and technical expertise to deliver results that exceed expectations. We understand that every business is unique, which is why we take a personalized approach to each project, ensuring that our solutions are tailored to meet specific needs and objectives. Our comprehensive suite of services includes web development, digital marketing, data analytics, and business consulting, all designed to help companies stay competitive in today's fast-paced digital landscape. We pride ourselves on our commitment to excellence, attention to detail, and ability to deliver projects on time and within budget. Our proven track record speaks for itself, with numerous success stories and satisfied clients who continue to trust us with their most important projects. When you choose our company, you're not just getting a service provider – you're getting a strategic partner who is invested in your long-term success and growth."
+{
+  "sections": [
+    {
+      "name": "Section Name",
+      "components": {
+        "title": "Customized title",
+        "subtitle": "Customized subtitle", 
+        "content": "Customized content",
+        "buttons": ["Customized button 1", "Customized button 2"],
+        "images": ["Customized image 1", "Customized image 2"],
+        "links": ["Customized link 1", "Customized link 2"],
+        "messages": ["Customized message 1", "Customized message 2"],
+        "items": ["Customized item 1", "Customized item 2"]
+      }
+    }
+  ]
+}
 
 BUSINESS INFORMATION:
 - Business Name: ${businessInfo.businessName}
@@ -4205,47 +4427,24 @@ BUSINESS INFORMATION:
 - Target Audience: ${businessInfo.targetAudience}
 - Brand Tone: ${businessInfo.brandTone || 'professional'}
 - Website URL: ${businessInfo.websiteUrl || 'Not provided'}
-- Content Length: ${contentLength}${contentLength === 'custom' ? ` (${customLength} words)` : ''}
 
-EXTRACTED SECTIONS:
+EXTRACTED DESIGN SECTIONS:
 ${JSON.stringify(extractedData.sections || [], null, 2)}
 
-ADDITIONAL CONTEXT:
-- Preferences: ${JSON.stringify(preferences, null, 2)}
-- Step Data: ${JSON.stringify(stepData, null, 2)}
+RULES:
+1. Keep the EXACT same structure as the input
+2. For each component, generate content relevant to ${businessInfo.businessName}
+3. Make content specific to the business and target audience
+4. Maintain the same component types (title, subtitle, content, buttons, images, links, messages, items)
+5. Ensure content matches the brand tone: ${businessInfo.brandTone || 'professional'}
+6. ${lengthInstruction}
+7. Return ONLY the JSON object - no other text
 
----
+EXAMPLE TRANSFORMATION:
+Input: {"name": "Hero", "components": {"title": "Spicy delicious chicken wings", "buttons": ["View Recipes"]}}
+Output: {"name": "Hero", "components": {"title": "Kubernetes Container Orchestration", "buttons": ["Get Started with K8s", "View Documentation"]}}
 
-Sample Response Format:
-
-[
-    {
-      "id": "section-1",
-    "title": "About Me",
-    "type": "header",
-    "content": "Amazon Web Services (AWS) is the world's leading cloud platform, trusted by startups, enterprises, and governments worldwide. Our mission is to help organizations innovate faster, reduce costs, and build with confidence in a secure, scalable environment.",
-      "order": 1
-  },
-  {
-    "id": "section-2",
-    "title": "Professional Experience",
-    "type": "content",
-    "content": "AWS has decades of expertise in cloud infrastructure, supporting millions of customers with reliable, scalable, and cost-effective solutions tailored to their needs.",
-    "order": 2
-  }
-  ...
-]
-
-CRITICAL INSTRUCTIONS:
-- Do NOT add any text before or after the JSON
-- Do NOT include explanations or comments
-- Return ONLY the JSON array
-- Generate complete, engaging content for each section
-- Focus on professional, conversion-focused content that matches the brand tone
-- Use the section title as the theme for content generation
-- Content must be plain text only - NO HTML tags, NO markdown, NO formatting
-- ${lengthInstruction}
-- ABSOLUTELY MANDATORY: Each section's content must be ${wordCountRange} - this is non-negotiable!
+Generate the complete response now:
 - COUNT WORDS CAREFULLY: Before finalizing each section, count the words and ensure they fall within the specified range
 - If a section is too short, add more detail, examples, benefits, or features
 - If a section is too long, make it more concise while keeping key information
@@ -4259,7 +4458,7 @@ CRITICAL INSTRUCTIONS:
     let response = await result.response;
     let text = response.text();
     
-    // Check if content meets word count requirements
+    // Parse the response - handle both old format and new components format
     let parsedResponse;
     try {
       const arrayMatch = text.match(/\[[\s\S]*\]/);
@@ -4275,14 +4474,25 @@ CRITICAL INSTRUCTIONS:
         }
       }
       
-      // Check word counts
+      // Check word counts for both old and new formats
       let needsRetry = false;
       if (parsedResponse.sections && parsedResponse.sections.length > 0) {
         for (const section of parsedResponse.sections) {
-          const wordCount = section.content ? section.content.split(/\s+/).length : 0;
-          if (!validateWordCount(wordCount, contentLength, customLength)) {
-            needsRetry = true;
-            break;
+          // For new format with components, check content in components
+          if (section.components) {
+            const contentText = section.components.content || '';
+            const wordCount = contentText.split(/\s+/).length;
+            if (wordCount > 0 && !validateWordCount(wordCount, contentLength, customLength)) {
+              needsRetry = true;
+              break;
+            }
+          } else {
+            // For old format, check section.content
+            const wordCount = section.content ? section.content.split(/\s+/).length : 0;
+            if (!validateWordCount(wordCount, contentLength, customLength)) {
+              needsRetry = true;
+              break;
+            }
           }
         }
       }
@@ -4293,15 +4503,30 @@ CRITICAL INSTRUCTIONS:
         // Use smart fallback: manually expand content immediately
         if (parsedResponse.sections && parsedResponse.sections.length > 0) {
           parsedResponse.sections = parsedResponse.sections.map(section => {
-            const currentWordCount = section.content ? section.content.split(/\s+/).length : 0;
-            const targetMinWords = contentLength === 'short' ? 50 : 
-                                 contentLength === 'medium' ? 100 : 
-                                 contentLength === 'long' ? 200 : 
-                                 (customLength || 150) - 10;
-            
-            if (currentWordCount < targetMinWords) {
-              const expansion = generateContentExpansion(section, businessInfo, targetMinWords - currentWordCount);
-              section.content = section.content + ' ' + expansion;
+            // Handle new format with components
+            if (section.components && section.components.content) {
+              const currentWordCount = section.components.content.split(/\s+/).length;
+              const targetMinWords = contentLength === 'short' ? 50 : 
+                                   contentLength === 'medium' ? 100 : 
+                                   contentLength === 'long' ? 200 : 
+                                   (customLength || 150) - 10;
+              
+              if (currentWordCount < targetMinWords) {
+                const expansion = generateContentExpansion(section, businessInfo, targetMinWords - currentWordCount);
+                section.components.content = section.components.content + ' ' + expansion;
+              }
+            } else if (section.content) {
+              // Handle old format
+              const currentWordCount = section.content.split(/\s+/).length;
+              const targetMinWords = contentLength === 'short' ? 50 : 
+                                   contentLength === 'medium' ? 100 : 
+                                   contentLength === 'long' ? 200 : 
+                                   (customLength || 150) - 10;
+              
+              if (currentWordCount < targetMinWords) {
+                const expansion = generateContentExpansion(section, businessInfo, targetMinWords - currentWordCount);
+                section.content = section.content + ' ' + expansion;
+              }
             }
             return section;
           });
@@ -4349,21 +4574,56 @@ CRITICAL INSTRUCTIONS:
       };
     }
 
-    // Transform the sections to match expected structure
+    // Transform the sections to match expected structure - handle both old and new formats
     if (parsedResponse.sections && parsedResponse.sections.length > 0) {
-      parsedResponse.sections = parsedResponse.sections.map((section, index) => ({
-        id: section.id || `section-${index + 1}`,
-        type: section.type || 'content',
-        title: section.title || section.name || `Section ${index + 1}`,
-        content: cleanHtmlContent(section.content) || generateBusinessSpecificContent(section, businessInfo),
-        order: section.order || index + 1
-      }));
+      parsedResponse.sections = parsedResponse.sections.map((section, index) => {
+        // Handle new format with components
+        if (section.components) {
+          return {
+            id: section.id || `section-${index + 1}`,
+            name: section.name || `Section ${index + 1}`,
+            components: section.components,
+            order: section.order || index + 1
+          };
+        } else {
+          // Handle old format
+          return {
+            id: section.id || `section-${index + 1}`,
+            type: section.type || 'content',
+            title: section.title || section.name || `Section ${index + 1}`,
+            content: cleanHtmlContent(section.content) || generateBusinessSpecificContent(section, businessInfo),
+            order: section.order || index + 1
+          };
+        }
+      });
       
       // Validate word counts (simplified logging)
       let totalWords = 0;
       let sectionsMeetingRequirements = 0;
       parsedResponse.sections.forEach((section, index) => {
-        const wordCount = section.content ? section.content.split(/\s+/).length : 0;
+        let wordCount = 0;
+        
+        // Handle new format with components
+        if (section.components) {
+          // Count words in all text components
+          Object.values(section.components).forEach(component => {
+            if (Array.isArray(component)) {
+              component.forEach(item => {
+                if (typeof item === 'string') {
+                  wordCount += item.split(/\s+/).length;
+                } else if (typeof item === 'object' && item.content) {
+                  wordCount += item.content.split(/\s+/).length;
+                }
+              });
+            } else if (typeof component === 'string') {
+              wordCount += component.split(/\s+/).length;
+            }
+          });
+        } else {
+          // Handle old format
+          wordCount = section.content ? section.content.split(/\s+/).length : 0;
+        }
+        
         totalWords += wordCount;
         
         // Check if word count meets requirements
@@ -4506,15 +4766,28 @@ function generateBusinessSpecificContent(section, businessInfo) {
 function enhanceGeneratedContent(content, context) {
   const enhanced = { ...content };
   
-  // Ensure sections are properly formatted
+  // Ensure sections are properly formatted - handle both old and new formats
   if (enhanced.sections && Array.isArray(enhanced.sections)) {
-    enhanced.sections = enhanced.sections.map((section, index) => ({
-      id: section.id || `section-${index + 1}`,
-      type: section.type || 'content',
-      title: section.title || `Section ${index + 1}`,
-      content: section.content || `Content for ${section.title || section.type}`,
-      order: section.order || index + 1
-    }));
+    enhanced.sections = enhanced.sections.map((section, index) => {
+      // Handle new format with components
+      if (section.components) {
+        return {
+          id: section.id || `section-${index + 1}`,
+          name: section.name || `Section ${index + 1}`,
+          components: section.components,
+          order: section.order || index + 1
+        };
+      } else {
+        // Handle old format
+        return {
+          id: section.id || `section-${index + 1}`,
+          type: section.type || 'content',
+          title: section.title || `Section ${index + 1}`,
+          content: section.content || `Content for ${section.title || section.type}`,
+          order: section.order || index + 1
+        };
+      }
+    });
   }
   
   // Enhance HTML content with business context

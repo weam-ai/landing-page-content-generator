@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Eye, Edit, Trash2, FileText, Calendar, Building2, Sparkles, Clock, Users, X, Loader2, Zap, Globe, Search, Download, Save } from "lucide-react"
+import { Plus, Eye, Edit, Trash2, FileText, Calendar, Building2, Sparkles, Clock, Users, X, Loader2, Zap, Globe, Search, Download, Save, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select } from "@/components/ui/select"
 import { ToastContainer, ToastProps } from "@/components/ui/toast"
 import { UploadDesignModal } from "@/components/UploadDesignModal"
 import { UserEmailDisplay } from "@/components/UserEmailDisplay"
@@ -20,6 +24,7 @@ import { api } from "@/lib/utils"
 
 export default function SolutionsPage() {
   const router = useRouter()
+  const [storageUsage, setStorageUsage] = useState<{localStorage: number, sessionStorage: number, total: number} | null>(null)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -40,6 +45,8 @@ export default function SolutionsPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false)
   const [selectedSection, setSelectedSection] = useState<any>(null)
+  const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false)
+  const [newSection, setNewSection] = useState<any>(null)
   // Remove local pagination variables since we're using backend pagination
   const itemsPerPage = 15 // Updated to 15 pages per page
 
@@ -160,7 +167,7 @@ export default function SolutionsPage() {
       try {
         const section = JSON.parse(currentValue)
         setEditingSection(section)
-        setSectionTitle(section.title || '')
+        setSectionTitle(section.name || section.title || '')
         setSectionContent(section.content || '')
         setSectionType(section.type || 'hero')
         setEditValue('') // Clear editValue for section editing
@@ -194,7 +201,144 @@ export default function SolutionsPage() {
 
   const handleSectionClick = (section: any) => {
     setSelectedSection(section)
+    setSectionTitle(section.name || section.title || '')
+    setSectionContent(section.content || '')
     setIsSectionModalOpen(true)
+  }
+
+  const handleAddSectionClick = () => {
+    // Create a new empty section
+    const emptySection = {
+      id: `section-${Date.now()}`,
+      name: '',
+      title: '',
+      type: 'hero',
+      content: '',
+      order: (selectedPage?.sections?.length || 0) + 1,
+      pageNumber: 1,
+      components: {
+        title: '',
+        subtitle: '',
+        content: '',
+        buttons: [],
+        images: [],
+        links: [],
+        messages: [],
+        items: []
+      }
+    }
+    setNewSection(emptySection)
+    setSectionTitle('')
+    setSectionContent('')
+    setIsAddSectionModalOpen(true)
+  }
+
+  const handleSaveSection = async () => {
+    if (!selectedSection || !selectedPage) return
+    
+    try {
+      // Update the section with all the new values including components
+      const updatedSection = {
+        ...selectedSection,
+        name: sectionTitle || selectedSection.name || selectedSection.title,
+        title: sectionTitle || selectedSection.name || selectedSection.title,
+        // Keep the updated components from the form
+        components: selectedSection.components
+      }
+      
+      // Update the landing page with the new section data
+      const updatedPage = { ...selectedPage }
+      updatedPage.sections = updatedPage.sections?.map(section => 
+        section.id === selectedSection.id ? updatedSection : section
+      )
+      
+      // Update the selectedPage state
+      setSelectedPage(updatedPage)
+      
+      // Save to backend
+      const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedPage),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save section')
+      }
+      
+      // Close the modal
+      setIsSectionModalOpen(false)
+      
+      // Show success message
+      addToast({
+        title: 'Success',
+        description: 'Section updated successfully',
+        type: 'success'
+      })
+      
+    } catch (error) {
+      console.error('Error saving section:', error)
+      addToast({
+        title: 'Error',
+        description: 'Failed to save section changes',
+        type: 'error'
+      })
+    }
+  }
+
+  const handleSaveNewSection = async () => {
+    if (!newSection || !selectedPage) return
+    
+    try {
+      // Update the new section with all the form values
+      const updatedNewSection = {
+        ...newSection,
+        name: sectionTitle || 'New Section',
+        title: sectionTitle || 'New Section',
+        // Keep the updated components from the form
+        components: newSection.components
+      }
+      
+      // Add the new section to the landing page
+      const updatedPage = { ...selectedPage }
+      updatedPage.sections = [...(updatedPage.sections || []), updatedNewSection]
+      
+      // Update the selectedPage state
+      setSelectedPage(updatedPage)
+      
+      // Save to backend
+      const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedPage),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to add section')
+      }
+      
+      // Close the modal
+      setIsAddSectionModalOpen(false)
+      
+      // Show success message
+      addToast({
+        title: 'Success',
+        description: 'New section added successfully',
+        type: 'success'
+      })
+      
+    } catch (error) {
+      console.error('Error adding section:', error)
+      addToast({
+        title: 'Error',
+        description: 'Failed to add new section',
+        type: 'error'
+      })
+    }
   }
 
   const handleEditFieldSave = async () => {
@@ -556,7 +700,7 @@ export default function SolutionsPage() {
                   <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center space-x-4">
                       <div className="w-1 h-8 bg-gradient-to-b from-primary to-purple-600 rounded-full" />
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Your Landing Pages</h2>
+                      <h2 className="text-3xl font-bold text-gray-700">Your Landing Pages</h2>
                     </div>
                     
                     {/* Modern Search Bar */}
@@ -851,73 +995,42 @@ export default function SolutionsPage() {
                     
                     {/* Expanded Sections View */}
                     {expandedCard === 'landingPageSections' && selectedPage.sections && selectedPage.sections.length > 0 && (
-                      <div className="mt-4 p-3 bg-white/90 backdrop-blur-sm rounded-lg shadow-md border border-green-100 max-h-[60vh] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-base font-semibold text-primary">All Landing Page Sections</h3>
+                      <div className="mt-4 p-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-md border border-green-100 max-h-[60vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-primary">All Landing Page Sections</h3>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 px-2 py-1 text-xs">
+                            <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 px-3 py-1 text-sm font-medium">
                               {selectedPage.sections.length} sections
                             </Badge>
-                            <Tooltip content="Add New Section">
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleEditField('addSection', '')}
-                                variant="ghost"
-                                className="text-green-600 hover:text-green-700 hover:bg-transparent p-1"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
+                            <Button 
+                              size="sm" 
+                              onClick={handleAddSectionClick}
+                              variant="ghost"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className={`${selectedPage.sections.length > 6 ? 'grid grid-cols-2 gap-3' : 'space-y-2'}`}>
+                        
+                        {/* Clean Grid Layout - Only Section Titles */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {selectedPage.sections.map((section, index) => (
-                            <div key={section.id} className={`bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 p-3 hover:shadow-md transition-all duration-200 cursor-pointer ${selectedPage.sections.length > 6 ? 'min-h-[120px]' : ''}`}
-                              onClick={() => handleSectionClick(section)}>
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center space-x-3 flex-1">
-                                  <div className="w-8 h-8 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                            <div 
+                              key={section.id} 
+                              className="bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 p-4 hover:shadow-lg hover:border-green-300 transition-all duration-200 cursor-pointer group"
+                              onClick={() => handleSectionClick(section)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
                                     {index + 1}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-semibold text-foreground mb-1 truncate">{section.title}</h4>
-                                    <div className="flex items-center space-x-2 mb-2">
-                                      <span className="text-xs text-muted-foreground">Order: {section.order}</span>
-                                    </div>
-                                    <p className="text-xs text-foreground leading-relaxed line-clamp-2">
-                                      {section.content}
-                                    </p>
+                                    <h4 className="text-base font-semibold text-foreground truncate group-hover:text-green-700 transition-colors">
+                                      {section.name || section.title || 'Untitled Section'}
+                                    </h4>
                                   </div>
-                                </div>
-                                <div className="flex items-center space-x-1 ml-2">
-                                  <Tooltip content="View Full Content">
-                                    <Button size="sm" 
-                                      onClick={(e) => { e.stopPropagation(); handleSectionClick(section); }}
-                                      variant="ghost"
-                                      className="text-blue-600 hover:text-blue-700 hover:bg-transparent p-1">
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip content="Edit Section">
-                                    <Button 
-                                      size="sm" 
-                                      onClick={(e) => { e.stopPropagation(); handleEditField('editSection', JSON.stringify(section)); }}
-                                      variant="ghost"
-                                      className="text-green-600 hover:text-green-700 hover:bg-transparent p-1"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip content="Delete Section">
-                                    <Button 
-                                      size="sm" 
-                                      onClick={(e) => { e.stopPropagation(); handleEditField('deleteSection', JSON.stringify(section)); }}
-                                      variant="ghost"
-                                      className="text-red-600 hover:text-red-700 hover:bg-transparent p-1"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </Tooltip>
                                 </div>
                               </div>
                             </div>
@@ -1224,12 +1337,12 @@ export default function SolutionsPage() {
         />
       )}
       
-      {/* Section Content Modal */}
+      {/* Enhanced Section Edit Modal */}
       <Dialog open={isSectionModalOpen} onOpenChange={setIsSectionModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
           {selectedSection && (
             <div className="h-full overflow-hidden">
-              <DialogHeader className="border-b border-gray-200/50 pb-4">
+              <DialogHeader className="border-b border-gray-200/50 pb-6 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
@@ -1237,30 +1350,482 @@ export default function SolutionsPage() {
                     </div>
                     <div>
                       <DialogTitle className="text-2xl font-bold text-gray-900">
-                        {selectedSection.title || 'Section Title'}
+                        Edit Section
                       </DialogTitle>
                       <DialogDescription className="text-gray-600 mt-1">
-                        Section content and details
+                        Modify section details and content
                       </DialogDescription>
                     </div>
                   </div>
                 </div>
               </DialogHeader>
               
-              <div className="overflow-y-auto max-h-[60vh] pr-2 py-6">
+              <div className="overflow-y-auto max-h-[75vh] pr-2 py-6">
                 <div className="space-y-6">
+                  {/* Section Basic Info */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200/50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Content</h3>
-                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {selectedSection.content || selectedSection.description || selectedSection.text || 'No content available for this section.'}
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Edit className="h-5 w-5 mr-2 text-blue-600" />
+                      Section Basic Info
+                    </h3>
+                    <div>
+                      <Label htmlFor="section-title" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Section Title
+                      </Label>
+                      <Input
+                        id="section-title"
+                        value={sectionTitle}
+                        onChange={(e) => setSectionTitle(e.target.value)}
+                        placeholder="Enter section title"
+                        className="w-full"
+                      />
                     </div>
                   </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 mb-2">Section ID</h4>
-                    <p className="text-sm text-gray-600 font-mono">
-                      {selectedSection.id || 'N/A'}
-                    </p>
+
+                  {/* Section Components Editor */}
+                  {selectedSection.components && Object.keys(selectedSection.components).length > 0 && (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200/50">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Sparkles className="h-5 w-5 mr-2 text-purple-600" />
+                        Section Components
+                      </h3>
+                      <div className="space-y-4">
+                        {Object.entries(selectedSection.components).map(([componentKey, componentValue]) => {
+                          const componentTypes = {
+                            title: { label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+                            subtitle: { label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
+                            content: { label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
+                            buttons: { label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
+                            images: { label: 'Images', icon: '🖼️', color: 'indigo', bgColor: 'indigo-50', textColor: 'indigo-700' },
+                            links: { label: 'Links', icon: '🔗', color: 'cyan', bgColor: 'cyan-50', textColor: 'cyan-700' },
+                            messages: { label: 'Messages', icon: '💬', color: 'pink', bgColor: 'pink-50', textColor: 'pink-700' },
+                            items: { label: 'Items', icon: '📋', color: 'teal', bgColor: 'teal-50', textColor: 'teal-700' },
+                            forms: { label: 'Forms', icon: '📝', color: 'amber', bgColor: 'amber-50', textColor: 'amber-700' },
+                            ctas: { label: 'CTAs', icon: '🎯', color: 'red', bgColor: 'red-50', textColor: 'red-700' }
+                          }
+                          
+                          const config = componentTypes[componentKey as keyof typeof componentTypes] || { 
+                            label: componentKey, icon: '📄', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' 
+                          }
+
+                          return (
+                            <div key={componentKey} className={`bg-${config.bgColor} rounded-xl p-4 border border-${config.color}-200`}>
+                              <div className="flex items-center space-x-3 mb-3">
+                                <div className={`w-8 h-8 bg-${config.color}-100 rounded-lg flex items-center justify-center`}>
+                                  <span className="text-lg">{config.icon}</span>
+                                </div>
+                                <div>
+                                  <h6 className={`font-semibold text-${config.textColor} text-sm`}>{config.label}</h6>
+                                  <p className="text-xs text-gray-500">
+                                    {Array.isArray(componentValue) ? `${componentValue.length} items` : '1 item'}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                {Array.isArray(componentValue) ? (
+                                  <div className="space-y-2">
+                                    {componentValue.map((item: any, idx: number) => {
+                                      if (typeof item === 'object' && item !== null) {
+                                        return (
+                                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200 space-y-2`}>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                              {Object.entries(item).map(([key, value]) => (
+                                                <div key={key}>
+                                                  <Label className="text-xs font-medium text-gray-600 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                  </Label>
+                                                  <Input
+                                                    value={String(value)}
+                                                    onChange={(e) => {
+                                                      const newComponents = {...selectedSection.components}
+                                                      const newArray = [...(newComponents[componentKey] as any[])]
+                                                      newArray[idx] = {...newArray[idx], [key]: e.target.value}
+                                                      newComponents[componentKey] = newArray
+                                                      setSelectedSection({...selectedSection, components: newComponents})
+                                                    }}
+                                                    className="text-sm"
+                                                    placeholder={`Enter ${key}`}
+                                                  />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )
+                                      } else {
+                                        return (
+                                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                            <Input
+                                              value={String(item)}
+                                              onChange={(e) => {
+                                                const newComponents = {...selectedSection.components}
+                                                const newArray = [...(newComponents[componentKey] as any[])]
+                                                newArray[idx] = e.target.value
+                                                newComponents[componentKey] = newArray
+                                                setSelectedSection({...selectedSection, components: newComponents})
+                                              }}
+                                              className="text-sm"
+                                              placeholder={`Enter ${config.label.toLowerCase()}`}
+                                            />
+                                          </div>
+                                        )
+                                      }
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                    <Textarea
+                                      value={String(componentValue)}
+                                      onChange={(e) => {
+                                        const newComponents = {...selectedSection.components}
+                                        newComponents[componentKey] = e.target.value
+                                        setSelectedSection({...selectedSection, components: newComponents})
+                                      }}
+                                      className="text-sm resize-none"
+                                      rows={3}
+                                      placeholder={`Enter ${config.label.toLowerCase()}`}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Add New Item Button for Arrays */}
+                                {Array.isArray(componentValue) && (
+                                  <div className="flex items-center space-x-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const newComponents = {...selectedSection.components}
+                                        const newArray = [...(newComponents[componentKey] as any[]), '']
+                                        newComponents[componentKey] = newArray
+                                        setSelectedSection({...selectedSection, components: newComponents})
+                                      }}
+                                      className={`text-${config.textColor} border-${config.color}-200 hover:bg-${config.color}-50`}
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Add {config.label.slice(0, -1)}
+                                    </Button>
+                                    {componentValue.length > 0 && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          const newComponents = {...selectedSection.components}
+                                          const newArray = (newComponents[componentKey] as any[]).slice(0, -1)
+                                          newComponents[componentKey] = newArray
+                                          setSelectedSection({...selectedSection, components: newComponents})
+                                        }}
+                                        className="text-red-600 border-red-200 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-3 w-3 mr-1" />
+                                        Remove Last
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
+                <div className="flex items-center justify-end">
+                  <div className="flex items-center space-x-3">
+                    <Button 
+                      onClick={() => setIsSectionModalOpen(false)}
+                      variant="outline"
+                      className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                    >
+                      Cancel
+                    </Button>
+                    <Tooltip content="Delete Section">
+                      <Button 
+                        onClick={async () => {
+                          if (!selectedSection || !selectedPage) return
+                          
+                          try {
+                            // Remove the section from the landing page
+                            const updatedPage = { ...selectedPage }
+                            updatedPage.sections = updatedPage.sections?.filter(
+                              section => section.id !== selectedSection.id
+                            )
+                            
+                            // Update the selectedPage state
+                            setSelectedPage(updatedPage)
+                            
+                            // Save to backend
+                            const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify(updatedPage),
+                            })
+                            
+                            if (!response.ok) {
+                              throw new Error('Failed to delete section')
+                            }
+                            
+                            // Close the modal
+                            setIsSectionModalOpen(false)
+                            
+                            // Show success message
+                            addToast({
+                              title: 'Success',
+                              description: 'Section deleted successfully',
+                              type: 'success'
+                            })
+                            
+                          } catch (error) {
+                            console.error('Error deleting section:', error)
+                            addToast({
+                              title: 'Error',
+                              description: 'Failed to delete section',
+                              type: 'error'
+                            })
+                          }
+                        }}
+                        variant="outline"
+                        className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </Tooltip>
+                    <Button 
+                      onClick={handleSaveSection}
+                      className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Section Modal */}
+      <Dialog open={isAddSectionModalOpen} onOpenChange={setIsAddSectionModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
+          {newSection && (
+            <div className="h-full overflow-hidden">
+              <DialogHeader className="border-b border-gray-200/50 pb-6 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                      +
+                    </div>
+                    <div>
+                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                        Add New Section
+                      </DialogTitle>
+                      <DialogDescription className="text-gray-600 mt-1">
+                        Create a new section for your landing page
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="overflow-y-auto max-h-[75vh] pr-2 py-6">
+                <div className="space-y-6">
+                  {/* Section Basic Info */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200/50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Edit className="h-5 w-5 mr-2 text-blue-600" />
+                      Section Basic Info
+                    </h3>
+                    <div>
+                      <Label htmlFor="new-section-title" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Section Title
+                      </Label>
+                      <Input
+                        id="new-section-title"
+                        value={sectionTitle}
+                        onChange={(e) => setSectionTitle(e.target.value)}
+                        placeholder="Enter section title"
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section Components Editor */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200/50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Sparkles className="h-5 w-5 mr-2 text-purple-600" />
+                      Section Components
+                    </h3>
+                    <div className="space-y-4">
+                      {Object.entries(newSection.components).map(([componentKey, componentValue]) => {
+                        const componentTypes = {
+                          title: { label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+                          subtitle: { label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
+                          content: { label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
+                          buttons: { label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
+                          images: { label: 'Images', icon: '🖼️', color: 'indigo', bgColor: 'indigo-50', textColor: 'indigo-700' },
+                          links: { label: 'Links', icon: '🔗', color: 'cyan', bgColor: 'cyan-50', textColor: 'cyan-700' },
+                          messages: { label: 'Messages', icon: '💬', color: 'pink', bgColor: 'pink-50', textColor: 'pink-700' },
+                          items: { label: 'Items', icon: '📋', color: 'teal', bgColor: 'teal-50', textColor: 'teal-700' },
+                          forms: { label: 'Forms', icon: '📝', color: 'amber', bgColor: 'amber-50', textColor: 'amber-700' },
+                          ctas: { label: 'CTAs', icon: '🎯', color: 'red', bgColor: 'red-50', textColor: 'red-700' }
+                        }
+                        
+                        const config = componentTypes[componentKey as keyof typeof componentTypes] || { 
+                          label: componentKey, icon: '📄', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' 
+                        }
+
+                        return (
+                          <div key={componentKey} className={`bg-${config.bgColor} rounded-xl p-4 border border-${config.color}-200`}>
+                            <div className="flex items-center space-x-3 mb-3">
+                              <div className={`w-8 h-8 bg-${config.color}-100 rounded-lg flex items-center justify-center`}>
+                                <span className="text-lg">{config.icon}</span>
+                              </div>
+                              <div>
+                                <h6 className={`font-semibold text-${config.textColor} text-sm`}>{config.label}</h6>
+                                <p className="text-xs text-gray-500">
+                                  {Array.isArray(componentValue) ? `${componentValue.length} items` : '1 item'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {Array.isArray(componentValue) ? (
+                                <div className="space-y-2">
+                                  {componentValue.map((item: any, idx: number) => {
+                                    if (typeof item === 'object' && item !== null) {
+                                      return (
+                                        <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200 space-y-2`}>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                            {Object.entries(item).map(([key, value]) => (
+                                              <div key={key}>
+                                                <Label className="text-xs font-medium text-gray-600 capitalize">
+                                                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </Label>
+                                                <Input
+                                                  value={String(value)}
+                                                  onChange={(e) => {
+                                                    const newComponents = {...newSection.components}
+                                                    const newArray = [...(newComponents[componentKey] as any[])]
+                                                    newArray[idx] = {...newArray[idx], [key]: e.target.value}
+                                                    newComponents[componentKey] = newArray
+                                                    setNewSection({...newSection, components: newComponents})
+                                                  }}
+                                                  className="text-sm"
+                                                  placeholder={`Enter ${key}`}
+                                                />
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )
+                                    } else {
+                                      return (
+                                        <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                          <Input
+                                            value={String(item)}
+                                            onChange={(e) => {
+                                              const newComponents = {...newSection.components}
+                                              const newArray = [...(newComponents[componentKey] as any[])]
+                                              newArray[idx] = e.target.value
+                                              newComponents[componentKey] = newArray
+                                              setNewSection({...newSection, components: newComponents})
+                                            }}
+                                            className="text-sm"
+                                            placeholder={`Enter ${config.label.toLowerCase()}`}
+                                          />
+                                        </div>
+                                      )
+                                    }
+                                  })}
+                                </div>
+                              ) : (
+                                <div className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                  <Textarea
+                                    value={String(componentValue)}
+                                    onChange={(e) => {
+                                      const newComponents = {...newSection.components}
+                                      newComponents[componentKey] = e.target.value
+                                      setNewSection({...newSection, components: newComponents})
+                                    }}
+                                    className="text-sm resize-none"
+                                    rows={3}
+                                    placeholder={`Enter ${config.label.toLowerCase()}`}
+                                  />
+                                </div>
+                              )}
+                              
+                              {/* Add New Item Button for Arrays */}
+                              {Array.isArray(componentValue) && (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const newComponents = {...newSection.components}
+                                      const newArray = [...(newComponents[componentKey] as any[]), '']
+                                      newComponents[componentKey] = newArray
+                                      setNewSection({...newSection, components: newComponents})
+                                    }}
+                                    className={`text-${config.textColor} border-${config.color}-200 hover:bg-${config.color}-50`}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add {config.label.slice(0, -1)}
+                                  </Button>
+                                  {componentValue.length > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const newComponents = {...newSection.components}
+                                        const newArray = (newComponents[componentKey] as any[]).slice(0, -1)
+                                        newComponents[componentKey] = newArray
+                                        setNewSection({...newSection, components: newComponents})
+                                      }}
+                                      className="text-red-600 border-red-200 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Remove Last
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
+                <div className="flex items-center justify-end">
+                  <div className="flex items-center space-x-3">
+                    <Button 
+                      onClick={() => setIsAddSectionModalOpen(false)}
+                      variant="outline"
+                      className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSaveNewSection}
+                      className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Section
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1624,7 +2189,7 @@ function LandingPageCard({
         .section-card {
             background: white;
             border-radius: 16px;
-            padding: 2rem;
+            padding: 1.5rem;
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(255,255,255,0.2);
@@ -1633,13 +2198,27 @@ function LandingPageCard({
             animation: cardSlideIn 0.8s ease-out forwards;
             opacity: 0;
             transform: translateY(40px) scale(0.95);
-            min-height: 160px;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .section-card-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .section-card-content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            text-align: center;
+            margin-top: 0.75rem;
         }
 
         .section-card::before {
@@ -1731,21 +2310,22 @@ function LandingPageCard({
 
         /* Icon Styles */
         .section-icon {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
+            margin: 0 auto 0.75rem;
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 700;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             position: relative;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             animation: iconPulse 2s ease-in-out infinite;
+            flex-shrink: 0;
         }
 
         .section-icon::after {
@@ -1773,15 +2353,33 @@ function LandingPageCard({
 
         /* Typography */
         .section-title {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: #2d3748;
             text-align: center;
-            margin-bottom: 0.5rem;
-            line-height: 1.3;
+            line-height: 1.2;
             transition: all 0.3s ease;
             position: relative;
             z-index: 2;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .section-content {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #64748b;
+            margin-top: 0.75rem;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
         .section-card:hover .section-title {
@@ -1886,6 +2484,65 @@ function LandingPageCard({
             line-height: 1.8;
             color: #4a5568;
             margin-bottom: 2rem;
+        }
+
+        .section-main-content {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section-main-content h4 {
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .section-components-modal {
+            margin-top: 2rem;
+        }
+
+        .section-components-modal h4 {
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .component-section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .component-section h5 {
+            color: #4a5568;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            text-transform: capitalize;
+        }
+
+        .component-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .component-item {
+            padding: 0.5rem 0.75rem;
+            background: #f7fafc;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #2d3748;
+            border-left: 3px solid #667eea;
         }
 
         .section-modal-footer {
@@ -2019,18 +2676,19 @@ function LandingPageCard({
             }
             
             .section-card {
-                padding: 1.5rem;
-                min-height: 140px;
+                padding: 1.25rem;
+                height: 160px;
             }
             
             .section-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+                margin-bottom: 0.5rem;
             }
             
             .section-title {
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
         }
 
@@ -2079,18 +2737,19 @@ function LandingPageCard({
             }
             
             .section-card {
-                padding: 1.5rem;
-                min-height: 120px;
+                padding: 1rem;
+                height: 140px;
             }
             
             .section-icon {
-                width: 45px;
-                height: 45px;
-                font-size: 1.2rem;
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
             }
             
             .section-title {
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
         }
 
@@ -2166,14 +2825,20 @@ function LandingPageCard({
             <!-- Sections Grid -->
             <div class="sections-grid">
                 ${latestPage.sections && latestPage.sections.length > 0 ? latestPage.sections.map((section: any, index: number) => {
-                    let icon = section.title ? section.title.charAt(0).toUpperCase() : 'S';
-                    let sectionType = section.type || 'section';
+                    const sectionTitle = section.title || section.name || `Section ${index + 1}`;
+                    const icon = sectionTitle ? sectionTitle.charAt(0).toUpperCase() : 'S';
+                    const sectionType = section.type || 'section';
+                    const sectionContent = section.content ? section.content.substring(0, 60) + (section.content.length > 60 ? '...' : '') : 'Click to view content';
                     
                     return `
                     <div class="section-card" onclick="openSectionModal(${JSON.stringify(section).replace(/"/g, '&quot;')})">
-                        <div class="section-icon">${icon}</div>
-                        <h2 class="section-title">${section.title || 'Section Title'}</h2>
-                        <div class="section-content">${section.content ? section.content.substring(0, 100) + (section.content.length > 100 ? '...' : '') : 'Click to view content'}</div>
+                        <div class="section-card-header">
+                            <div class="section-icon">${icon}</div>
+                            <h2 class="section-title">${sectionTitle}</h2>
+                        </div>
+                        <div class="section-card-content">
+                            <div class="section-content">${sectionContent}</div>
+                        </div>
                     </div>
                     `;
                 }).join('') : `
@@ -2245,9 +2910,52 @@ function LandingPageCard({
             const modalContent = document.getElementById('modalContent');
             
             // Set modal content
-            modalIcon.textContent = section.title ? section.title.charAt(0).toUpperCase() : 'S';
-            modalTitle.textContent = section.title || 'Section Title';
-            modalContent.textContent = section.content || section.description || section.text || 'No content available for this section.';
+            const sectionTitle = section.title || section.name || 'Section Title';
+            modalIcon.textContent = sectionTitle ? sectionTitle.charAt(0).toUpperCase() : 'S';
+            modalTitle.textContent = sectionTitle;
+            
+            // Build detailed content with components
+            let contentHTML = '';
+            
+            // Main section content
+            if (section.content) {
+                contentHTML += '<div class="section-main-content">';
+                contentHTML += '<h4>Section Content</h4>';
+                contentHTML += '<p>' + section.content + '</p>';
+                contentHTML += '</div>';
+            }
+            
+            // Section components
+            if (section.components && Object.keys(section.components).length > 0) {
+                contentHTML += '<div class="section-components-modal">';
+                contentHTML += '<h4>Section Components</h4>';
+                
+                Object.entries(section.components).forEach(([key, value]) => {
+                    if (value && (Array.isArray(value) ? value.length > 0 : String(value).trim())) {
+                        contentHTML += '<div class="component-section">';
+                        contentHTML += '<h5>' + key.charAt(0).toUpperCase() + key.slice(1) + '</h5>';
+                        contentHTML += '<div class="component-items">';
+                        
+                        if (Array.isArray(value)) {
+                            value.forEach(item => {
+                                contentHTML += '<div class="component-item">' + item + '</div>';
+                            });
+                        } else {
+                            contentHTML += '<div class="component-item">' + value + '</div>';
+                        }
+                        
+                        contentHTML += '</div></div>';
+                    }
+                });
+                
+                contentHTML += '</div>';
+            }
+            
+            if (!contentHTML) {
+                contentHTML = '<p>No content available for this section.</p>';
+            }
+            
+            modalContent.innerHTML = contentHTML;
             
             // Show modal
             modal.style.display = 'flex';

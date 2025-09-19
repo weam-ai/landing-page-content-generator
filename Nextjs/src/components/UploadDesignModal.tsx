@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Upload, FileText, Link, Loader2, CheckCircle, Figma, FileImage, Sparkles, ArrowRight, X, AlertCircle, AlertTriangle, Eye, Download, ExternalLink, Globe, Calendar } from "lucide-react"
+import { Upload, FileText, Link, Loader2, CheckCircle, Figma, FileImage, Sparkles, ArrowRight, X, AlertCircle, AlertTriangle, Eye, Download, ExternalLink, Globe, Calendar, Building2, EyeIcon, ListChecks, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,8 +17,36 @@ import { api } from "@/lib/utils"
 import { UploadFile } from "@/types"
 import { PDFProcessor, PDFAnalysisResult, PDFSection } from "./PDFProcessor"
 import { FigmaProcessor, FigmaAnalysisResult, FigmaSection } from "./FigmaProcessor"
+import { apiService } from "@/lib/api"
 import { filterDirectResponse } from "@/utils/filterAnalysis"
 import React from "react"
+
+// URL Analysis Types
+interface URLAnalysisResult {
+  success: boolean
+  sections: URLSection[]
+  sourceUrl: string
+}
+
+interface URLSection {
+  name: string
+  components: {
+    title?: string
+    subtitle?: string
+    content?: string
+    buttons?: string[]
+    images?: string[]
+    links?: string[]
+    messages?: string[]
+    items?: string[]
+    forms?: string[]
+    ctas?: string[]
+    navigation?: string[]
+    testimonials?: string[]
+    pricing?: string[]
+    features?: string[]
+  }
+}
 
 interface UploadDesignModalProps {
   isOpen: boolean
@@ -36,6 +64,8 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   const [extractedSections, setExtractedSections] = useState<PDFSection[]>([])
   const [figmaAnalysis, setFigmaAnalysis] = useState<FigmaAnalysisResult | null>(null)
   const [extractedFigmaSections, setExtractedFigmaSections] = useState<FigmaSection[]>([])
+  const [urlAnalysis, setUrlAnalysis] = useState<URLAnalysisResult | null>(null)
+  const [extractedUrlSections, setExtractedUrlSections] = useState<URLSection[]>([])
   const [error, setError] = useState<string | null>(null)
   const [finalSections, setFinalSections] = useState<any[]>([])
   const [businessDetails, setBusinessDetails] = useState<any>(null)
@@ -70,16 +100,26 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     setProcessingProgress(0)
   }
 
+  const handleWebsiteUrl = (url: string) => {
+    setUploadFile({ type: "url", url })
+    setIsProcessing(true) // Start processing immediately - same as PDF
+    setProcessingProgress(0)
+  }
+
   const handlePDFAnalysisComplete = (result: PDFAnalysisResult) => {
+    console.log('PDF Analysis Complete - Result:', result)
+    console.log('PDF Analysis Complete - Sections:', result.sections)
+    
     setPdfAnalysis(result)
     setIsProcessing(false) // Processing complete
     
     // Preserve all sections from the analysis
     if (result.sections && result.sections.length > 0) {
-      
+      console.log('Setting extracted sections:', result.sections)
       // Store all sections without filtering
       setExtractedSections(result.sections)
     } else {
+      console.log('No sections found in result')
       setExtractedSections([])
     }
     
@@ -117,6 +157,51 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     setStep("sections-review")
   }
 
+  const handleURLAnalysisComplete = (result: URLAnalysisResult) => {
+    console.log('URL Analysis Complete - Result:', result)
+    console.log('URL Analysis Complete - Sections:', result.sections)
+    
+    setUrlAnalysis(result)
+    setIsProcessing(false) // Processing complete
+    
+    // Preserve all sections from the analysis
+    if (result.sections && result.sections.length > 0) {
+      console.log('Setting extracted URL sections:', result.sections)
+      // Store all sections without filtering
+      setExtractedUrlSections(result.sections)
+      
+      // Save to localStorage for landing page generation
+      try {
+        const designStructure = {
+          sections: result.sections,
+          sectionTypes: result.sections.map((section: any) => section.name),
+          sourceType: 'url',
+          sourceUrl: result.sourceUrl,
+          extractedAt: new Date().toISOString()
+        }
+        localStorage.setItem('extractedDesignStructure', JSON.stringify(designStructure))
+        console.log('URL analysis results saved to localStorage')
+      } catch (error) {
+        console.error('Failed to save URL analysis to localStorage:', error)
+      }
+    } else {
+      console.log('No sections found in URL result')
+      setExtractedUrlSections([])
+    }
+    
+    // Auto-progress to sections review after processing is complete
+    setStep("sections-review")
+  }
+
+  const handleURLAnalysisError = (error: string) => {
+    setError(error)
+    setIsProcessing(false) // Processing failed
+    // Set empty sections on error
+    setExtractedUrlSections([])
+    // Still allow user to continue to sections review
+    setStep("sections-review")
+  }
+
   const simulateProcessing = () => {
     // This function is no longer needed since we use real PDF/Figma processors
     // Auto-progression is handled by the actual analysis completion handlers
@@ -129,7 +214,9 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     // Store in window context for PreviewStep to access
     ;(window as any).modalBusinessDetails = details
     ;(window as any).modalExtractedData = {
-      sections: uploadFile?.type === 'figma' ? extractedFigmaSections : extractedSections
+      sections: uploadFile?.type === 'figma' ? extractedFigmaSections : 
+                uploadFile?.type === 'url' ? extractedUrlSections : 
+                extractedSections
     }
     ;(window as any).modalDesignType = uploadFile?.type || 'unknown'
     
@@ -228,7 +315,7 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
       return {
         id: section.id || `section-${index + 1}`,
         type: section.type || 'content',
-        title: section.title || `Section ${index + 1}`,
+        title: section.title || section.name || `Section ${index + 1}`,
         content: enhancedContent,
         order: section.order || index + 1,
         pageNumber: section.pageNumber || 1,
@@ -437,37 +524,69 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
           )}
         </DialogHeader>
 
-        {/* Enhanced Progress Steps */}
+        {/* Enhanced Progress Steps with Icons and Names */}
         <div className="flex items-center justify-center py-6 bg-white/50">
-          <div className="flex items-center space-x-2">
-            {["upload", "sections-review", "business-details", "preview", "sections-view"].map((stepName, index) => (
-              <div key={stepName} className="flex items-center">
-                <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-500 transform ${
-                  step === stepName 
-                    ? "bg-gradient-to-r from-primary to-purple-600 text-white scale-110 shadow-lg shadow-primary/25" 
-                    : step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index
-                    ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white scale-105"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                }`}>
-                  {step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index ? (
-                    <CheckCircle className="w-5 h-5 animate-pulse" />
-                  ) : (
-                    <span className="animate-pulse">{index + 1}</span>
-                  )}
-                  {/* Active step indicator */}
-                  {step === stepName && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-primary to-purple-600 rounded-full animate-ping" />
+          <div className="flex items-center space-x-4">
+            {[
+              { id: "upload", name: "Upload", icon: Upload },
+              { id: "sections-review", name: "Review", icon: ListChecks },
+              { id: "business-details", name: "Details", icon: Building2 },
+              { id: "preview", name: "Generate", icon: EyeIcon },
+              { id: "sections-view", name: "Complete", icon: CheckCircle2 }
+            ].map((stepConfig, index) => {
+              const stepName = stepConfig.id;
+              const stepDisplayName = stepConfig.name;
+              const StepIcon = stepConfig.icon;
+              const isCompleted = step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index;
+              const isCurrent = step === stepName;
+              const isPrevious = ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index;
+              
+              return (
+                <div key={stepName} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    {/* Step Circle with Icon */}
+                    <div className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 transform ${
+                      isCurrent
+                        ? "bg-gradient-to-r from-primary to-purple-600 text-white scale-110 shadow-lg shadow-primary/25" 
+                        : isCompleted
+                        ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white scale-105"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}>
+                      {isCompleted ? (
+                        <CheckCircle className="w-6 h-6 animate-pulse" />
+                      ) : (
+                        <StepIcon className={`w-5 h-5 ${isCurrent ? 'animate-pulse' : ''}`} />
+                      )}
+                      
+                      {/* Active step indicator */}
+                      {isCurrent && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-primary to-purple-600 rounded-full animate-ping" />
+                      )}
+                    </div>
+                    
+                    {/* Step Name */}
+                    <span className={`text-xs font-medium mt-2 transition-all duration-300 text-center max-w-20 leading-tight ${
+                      isCurrent 
+                        ? "text-primary font-semibold" 
+                        : isCompleted 
+                        ? "text-green-600 font-medium" 
+                        : "text-gray-500"
+                    }`}>
+                      {stepDisplayName}
+                    </span>
+                  </div>
+                  
+                  {/* Connector Line */}
+                  {index < 4 && (
+                    <div className={`w-20 h-1 mx-4 rounded-full transition-all duration-700 ${
+                      isCompleted
+                        ? "bg-gradient-to-r from-green-500 to-emerald-600"
+                        : "bg-gray-200"
+                    }`} />
                   )}
                 </div>
-                {index < 4 && (
-                  <div className={`w-16 h-1 mx-3 rounded-full transition-all duration-700 ${
-                    step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index
-                      ? "bg-gradient-to-r from-green-500 to-emerald-600"
-                      : "bg-gray-200"
-                  }`} />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -475,6 +594,7 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
           <UploadStep
             onFileUpload={handleFileUpload}
             onFigmaUrl={handleFigmaUrl}
+            onWebsiteUrl={handleWebsiteUrl}
             isProcessingFile={isProcessingFile}
             setIsProcessingFile={setIsProcessingFile}
             uploadFile={uploadFile}
@@ -482,10 +602,13 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
             progress={processingProgress}
             pdfAnalysis={pdfAnalysis}
             figmaAnalysis={figmaAnalysis}
+            urlAnalysis={urlAnalysis}
             onPDFAnalysisComplete={handlePDFAnalysisComplete}
             onPDFAnalysisError={handlePDFAnalysisError}
             onFigmaAnalysisComplete={handleFigmaAnalysisComplete}
             onFigmaAnalysisError={handleFigmaAnalysisError}
+            onURLAnalysisComplete={handleURLAnalysisComplete}
+            onURLAnalysisError={handleURLAnalysisError}
           />
         )}
 
@@ -493,6 +616,8 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
           <SectionsReviewStep
             pdfAnalysis={pdfAnalysis}
             figmaAnalysis={figmaAnalysis}
+            urlAnalysis={urlAnalysis}
+            extractedSections={extractedSections}
             onBack={() => setStep("upload")}
             onNext={() => {
               // User must manually click to proceed to business details
@@ -531,9 +656,14 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
             onClose={handleClose}
             onComplete={onSuccess}
             completionData={(() => {
-              // Get the latest landing page data from localStorage
+            // Get the latest landing page data from localStorage
+            try {
               const savedData = localStorage.getItem('latestLandingPage')
               return savedData ? JSON.parse(savedData) : null
+            } catch (error) {
+              console.error('Failed to load data from localStorage:', error)
+              return null
+            }
             })()}
           />
         )}
@@ -545,6 +675,7 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
 function UploadStep({ 
   onFileUpload, 
   onFigmaUrl,
+  onWebsiteUrl,
   isProcessingFile,
   setIsProcessingFile,
   uploadFile,
@@ -552,13 +683,17 @@ function UploadStep({
   progress,
   pdfAnalysis,
   figmaAnalysis,
+  urlAnalysis,
   onPDFAnalysisComplete,
   onPDFAnalysisError,
   onFigmaAnalysisComplete,
   onFigmaAnalysisError,
+  onURLAnalysisComplete,
+  onURLAnalysisError,
 }: { 
   onFileUpload: (file: File) => void
   onFigmaUrl: (url: string) => void
+  onWebsiteUrl: (url: string) => void
   isProcessingFile: boolean
   setIsProcessingFile: (isProcessing: boolean) => void
   uploadFile: UploadFile | null
@@ -566,14 +701,18 @@ function UploadStep({
   progress: number
   pdfAnalysis?: PDFAnalysisResult | null
   figmaAnalysis?: FigmaAnalysisResult | null
+  urlAnalysis?: URLAnalysisResult | null
   onPDFAnalysisComplete: (result: PDFAnalysisResult) => void
   onPDFAnalysisError: (error: string) => void
   onFigmaAnalysisComplete: (result: FigmaAnalysisResult) => void
   onFigmaAnalysisError: (error: string) => void
+  onURLAnalysisComplete: (result: URLAnalysisResult) => void
+  onURLAnalysisError: (error: string) => void
 }) {
   const [dragActive, setDragActive] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [figmaUrl, setFigmaUrl] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
   const [processingStage, setProcessingStage] = React.useState<'upload' | 'ai-processing' | 'finalizing'>('upload')
   const [stageProgress, setStageProgress] = React.useState(0)
   const [currentStep, setCurrentStep] = React.useState('Initializing...')
@@ -684,16 +823,27 @@ function UploadStep({
     }
   }
 
+  const handleWebsiteSubmit = () => {
+    if (websiteUrl.trim()) {
+      onWebsiteUrl(websiteUrl.trim())
+      // Auto-progress to processing step is handled by onWebsiteUrl
+    }
+  }
+
   // Show processing UI when processing is active
   if (isProcessing) {
     // Check if analysis is complete but still in processing step
-    const isAnalysisComplete = (pdfAnalysis && uploadFile?.type === 'pdf') || (figmaAnalysis && uploadFile?.type === 'figma')
+    const isAnalysisComplete = (pdfAnalysis && uploadFile?.type === 'pdf') || 
+                              (figmaAnalysis && uploadFile?.type === 'figma') ||
+                              (urlAnalysis && uploadFile?.type === 'url')
     
     if (isAnalysisComplete) {
       // Check if any sections were actually extracted
       const hasSections = uploadFile?.type === 'pdf' 
         ? (pdfAnalysis?.sections && pdfAnalysis.sections.length > 0)
-        : (figmaAnalysis?.sections && figmaAnalysis.sections.length > 0)
+        : uploadFile?.type === 'figma'
+        ? (figmaAnalysis?.sections && figmaAnalysis.sections.length > 0)
+        : (urlAnalysis?.sections && urlAnalysis.sections.length > 0)
       
       if (hasSections) {
         // Show compact success state when sections were extracted
@@ -708,10 +858,14 @@ function UploadStep({
                     </div>
                     <div className="text-left">
                       <h3 className="text-lg font-semibold text-gray-800">
-                        {uploadFile?.type === 'figma' ? 'Figma' : 'PDF'} Analysis Complete!
+                        {uploadFile?.type === 'figma' ? 'Figma' : uploadFile?.type === 'url' ? 'Website' : 'PDF'} Analysis Complete!
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Successfully extracted {uploadFile?.type === 'pdf' ? pdfAnalysis?.sections.length : figmaAnalysis?.sections.length} sections
+                        Successfully extracted {
+                          uploadFile?.type === 'pdf' ? pdfAnalysis?.sections.length 
+                          : uploadFile?.type === 'figma' ? figmaAnalysis?.sections.length
+                          : urlAnalysis?.sections.length
+                        } sections
                       </p>
                     </div>
                   </div>
@@ -741,7 +895,11 @@ function UploadStep({
                         No Content Found
                       </h3>
                       <p className="text-sm text-gray-600">
-                        No sections extracted from {uploadFile?.type === 'figma' ? 'Figma design' : 'PDF'}
+                        No sections extracted from {
+                          uploadFile?.type === 'figma' ? 'Figma design' 
+                          : uploadFile?.type === 'url' ? 'website' 
+                          : 'PDF'
+                        }
                       </p>
                     </div>
                   </div>
@@ -804,11 +962,13 @@ function UploadStep({
                 <div className="flex items-center space-x-2 text-sm">
                   {uploadFile?.type === 'figma' ? (
                     <Figma className="w-4 h-4 text-blue-600" />
+                  ) : uploadFile?.type === 'url' ? (
+                    <Globe className="w-4 h-4 text-blue-600" />
                   ) : (
                     <FileText className="w-4 h-4 text-blue-600" />
                   )}
                   <span className="text-gray-700 font-medium">
-                    {uploadFile?.type === 'figma' ? uploadFile.url : uploadFile?.file?.name}
+                    {uploadFile?.type === 'figma' || uploadFile?.type === 'url' ? uploadFile.url : uploadFile?.file?.name}
                   </span>
                   {uploadFile?.file && (
                     <span className="text-gray-500">({(uploadFile.file.size / 1024 / 1024).toFixed(1)} MB)</span>
@@ -837,6 +997,14 @@ function UploadStep({
                 onError={onPDFAnalysisError}
               />
             )}
+
+            {uploadFile.type === "url" && uploadFile.url && (
+              <URLProcessor
+                url={uploadFile.url}
+                onAnalysisComplete={onURLAnalysisComplete}
+                onError={onURLAnalysisError}
+              />
+            )}
           </div>
         )}
       </div>
@@ -845,6 +1013,52 @@ function UploadStep({
 
   return (
     <div className="space-y-6 px-6 pb-6">
+      {/* Website URL Input */}
+      <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
+        <CardHeader className="text-center pb-3">
+          <div className="mx-auto w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+            <Globe className="w-5 h-5 text-primary" />
+          </div>
+          <CardTitle className="text-lg font-semibold text-gray-800">Website URL</CardTitle>
+          <CardDescription className="text-gray-600">
+            Analyze any website to extract design structure and content
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex space-x-3">
+            <Input
+              type="url"
+              placeholder="https://example.com"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              className="flex-1 text-base border-2 border-gray-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
+            />
+            <Button 
+              onClick={handleWebsiteSubmit}
+              disabled={!websiteUrl.trim()}
+              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            >
+              <Globe className="h-4 w-4 mr-2" />
+              Analyze
+            </Button>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-gray-500 bg-blue-50/50 rounded-lg p-3">
+            <Sparkles className="w-4 h-4 text-blue-500" />
+            <span>Our AI will scrape and analyze the website to extract design sections</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Enhanced Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-white px-6 text-sm font-semibold text-gray-500 uppercase tracking-wider">Or</span>
+        </div>
+      </div>
+
       {/* Figma URL Input */}
       <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
         <CardHeader className="text-center pb-3">
@@ -1006,14 +1220,203 @@ function UploadStep({
 function SectionsReviewStep({
   pdfAnalysis,
   figmaAnalysis,
+  urlAnalysis,
+  extractedSections,
   onBack,
   onNext
 }: {
   pdfAnalysis?: PDFAnalysisResult | null;
   figmaAnalysis?: FigmaAnalysisResult | null;
+  urlAnalysis?: URLAnalysisResult | null;
+  extractedSections?: any[];
   onBack: () => void;
   onNext: () => void;
 }): JSX.Element {
+  // Debug logging
+  console.log('SectionsReviewStep - pdfAnalysis:', pdfAnalysis)
+  console.log('SectionsReviewStep - figmaAnalysis:', figmaAnalysis)
+  console.log('SectionsReviewStep - urlAnalysis:', urlAnalysis)
+  
+  // State for search/filter
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredSections, setFilteredSections] = useState<any[]>([])
+  
+  // Filter sections based on search term
+  useEffect(() => {
+    const sections = pdfAnalysis?.sections || figmaAnalysis?.sections || urlAnalysis?.sections || extractedSections || []
+    if (!searchTerm.trim()) {
+      setFilteredSections(sections)
+    } else {
+      const filtered = sections.filter((section: any) => 
+        section.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        JSON.stringify(section.components || {}).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      setFilteredSections(filtered)
+    }
+  }, [searchTerm, pdfAnalysis, figmaAnalysis, urlAnalysis, extractedSections])
+  
+  // Helper function to count actual components with values
+  const countActualComponents = (components: any) => {
+    if (!components || typeof components !== 'object') return 0
+    return Object.values(components).filter(value => 
+      value !== null && 
+      value !== undefined && 
+      value !== '' && 
+      (Array.isArray(value) ? value.length > 0 : true)
+    ).length
+  }
+
+  // Helper function to render section components
+  const renderSectionComponents = (components: any) => {
+    if (!components || typeof components !== 'object' || Object.keys(components).length === 0) {
+      return (
+        <div className="text-center py-8">
+          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-gray-400 text-lg">📝</span>
+          </div>
+          <p className="text-sm text-gray-500 italic">No components extracted</p>
+        </div>
+      )
+    }
+
+    const componentTypes = [
+      { key: 'title', label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+      { key: 'subtitle', label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
+      { key: 'content', label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
+      { key: 'buttons', label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
+      { key: 'images', label: 'Images', icon: '🖼️', color: 'indigo', bgColor: 'indigo-50', textColor: 'indigo-700' },
+      { key: 'links', label: 'Links', icon: '🔗', color: 'cyan', bgColor: 'cyan-50', textColor: 'cyan-700' },
+      { key: 'messages', label: 'Messages', icon: '💬', color: 'pink', bgColor: 'pink-50', textColor: 'pink-700' },
+      { key: 'items', label: 'Items', icon: '📋', color: 'teal', bgColor: 'teal-50', textColor: 'teal-700' },
+      { key: 'forms', label: 'Forms', icon: '📝', color: 'amber', bgColor: 'amber-50', textColor: 'amber-700' },
+      { key: 'ctas', label: 'CTAs', icon: '🎯', color: 'red', bgColor: 'red-50', textColor: 'red-700' },
+      { key: 'navigation', label: 'Navigation', icon: '🧭', color: 'violet', bgColor: 'violet-50', textColor: 'violet-700' },
+      { key: 'testimonials', label: 'Testimonials', icon: '⭐', color: 'yellow', bgColor: 'yellow-50', textColor: 'yellow-700' },
+      { key: 'pricing', label: 'Pricing', icon: '💰', color: 'emerald', bgColor: 'emerald-50', textColor: 'emerald-700' },
+      { key: 'features', label: 'Features', icon: '✨', color: 'sky', bgColor: 'sky-50', textColor: 'sky-700' }
+    ]
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {componentTypes.map(({ key, label, icon, color, bgColor, textColor }) => {
+          const value = components[key]
+          if (!value) return null
+
+          return (
+            <div key={key} className={`bg-${bgColor} rounded-xl p-4 border border-${color}-200 hover:border-${color}-300 transition-colors duration-200`}>
+              <div className="flex items-center space-x-3 mb-3">
+                <div className={`w-8 h-8 bg-${color}-100 rounded-lg flex items-center justify-center`}>
+                  <span className="text-lg">{icon}</span>
+                </div>
+                <div>
+                  <h6 className={`font-semibold text-${textColor} text-sm`}>{label}</h6>
+                  <p className="text-xs text-gray-500">
+                    {Array.isArray(value) ? `${value.length} items` : '1 item'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                {Array.isArray(value) ? (
+                  <div className="space-y-2">
+                    {value.map((item: any, idx: number) => {
+                      // Handle complex objects (like items with title, content, author, etc.)
+                      if (typeof item === 'object' && item !== null) {
+                        return (
+                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${color}-200 space-y-2`}>
+                            {item.title && (
+                              <div className={`font-semibold text-${textColor} text-sm`}>
+                                {String(item.title)}
+                              </div>
+                            )}
+                            {item.content && (
+                              <div className={`text-sm text-${textColor} opacity-90`}>
+                                {String(item.content)}
+                              </div>
+                            )}
+                            {item.author && (
+                              <div className={`text-xs text-${textColor} opacity-75 font-medium`}>
+                                — {String(item.author)}
+                              </div>
+                            )}
+                            {item.role && (
+                              <div className={`text-xs text-${textColor} opacity-60`}>
+                                {String(item.role)}
+                              </div>
+                            )}
+                            {item.plan_name && (
+                              <div className={`font-semibold text-${textColor} text-sm`}>
+                                {String(item.plan_name)} - {String(item.users || '')} - {String(item.price || '')}
+                              </div>
+                            )}
+                            {item.type && (
+                              <div className={`text-xs text-${textColor} opacity-60 mb-2`}>
+                                Type: {String(item.type)}
+                              </div>
+                            )}
+                            {item.features && Array.isArray(item.features) && (
+                              <div className="space-y-1">
+                                {item.features.map((feature: any, fIdx: number) => (
+                                  <div key={fIdx} className={`text-xs text-${textColor} opacity-80 flex items-start space-x-2`}>
+                                    <span className="text-green-500 mt-1">•</span>
+                                    <span>{String(feature)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {item.buttons && Array.isArray(item.buttons) && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {item.buttons.map((btn: any, bIdx: number) => (
+                                  <span key={bIdx} className={`text-xs bg-${color}-100 text-${textColor} px-2 py-1 rounded-full`}>
+                                    {String(btn)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {item.question && (
+                              <div className={`font-semibold text-${textColor} text-sm mb-1`}>
+                                Q: {String(item.question)}
+                              </div>
+                            )}
+                            {item.answer && (
+                              <div className={`text-sm text-${textColor} opacity-90 ml-4`}>
+                                A: {String(item.answer)}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      // Handle simple strings
+                      return (
+                        <div key={idx} className={`text-sm text-${textColor} bg-white rounded-lg p-3 border border-${color}-200`}>
+                          {String(item)}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className={`text-sm text-${textColor} bg-white rounded-lg p-3 border border-${color}-200 whitespace-pre-wrap`}>
+                    {Array.isArray(value) ? (
+                      <div className="space-y-2">
+                        {value.map((item: any, idx: number) => (
+                          <div key={idx} className="border-l-2 border-gray-200 pl-3">
+                            {String(item)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      String(value)
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="py-6 px-6">
       <div className="text-center mb-6">
@@ -1021,59 +1424,168 @@ function SectionsReviewStep({
           Review Extracted Sections
         </h3>
         <p className="text-gray-600 text-base max-w-lg mx-auto mb-4">
-          Review all the sections extracted from your design file before proceeding to the next step.
+          Review all the sections and design elements extracted from your design file before proceeding to the next step.
         </p>
       </div>
 
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* PDF Analysis Results */}
         {pdfAnalysis && (
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FileText className="w-6 h-6 mr-3 text-green-600" />
-                PDF Analysis Results
-              </h4>
-              <Badge className="bg-green-100 text-green-800 border-green-200">
-                {pdfAnalysis.sections.length} Sections
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-500 to-green-600 px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <FileText className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-2xl font-bold">PDF Analysis Results</h4>
+                    <p className="text-green-100 text-sm">Design sections extracted from your PDF</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                  {pdfAnalysis.sections?.length || 0} Sections Found
               </Badge>
+              </div>
             </div>
 
-            {/* All Sections List */}
-            <div className="space-y-3">
-              <h5 className="text-lg font-semibold text-gray-700 mb-3">All Extracted Sections</h5>
-              {pdfAnalysis.sections.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">No sections extracted from PDF</p>
-                  <p className="text-sm text-gray-400">The AI couldn't identify any sections in this file</p>
+            {/* Content */}
+            <div className="p-8">
+              {!pdfAnalysis.sections || pdfAnalysis.sections.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <FileText className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium text-lg">No sections extracted from PDF</p>
+                  <p className="text-sm text-gray-400 mt-2">The AI couldn't identify any sections in this file</p>
                 </div>
               ) : (
-                <div className="grid gap-3">
-                  {pdfAnalysis.sections.map((section, index) => (
-                    <div key={section.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-all duration-200">
-                      <div className="flex items-start justify-between">
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                  {/* Section Counter and Search */}
+                  <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 pb-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-lg font-semibold text-gray-700">
+                        {searchTerm ? `${filteredSections.length} of ${pdfAnalysis.sections.length}` : `All ${pdfAnalysis.sections.length}`} Sections Extracted
+                      </h5>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <span>Scroll to view all sections</span>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Search Input */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search sections or components..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                      />
+                      <div className="absolute left-3 top-2.5">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {filteredSections.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 font-medium text-lg">No sections found</p>
+                      <p className="text-sm text-gray-400 mt-2">Try adjusting your search terms</p>
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  ) : (
+                    filteredSections.map((section: any, index: number) => (
+                    <div key={`${section.name || 'section'}-${index}`} className="group relative">
+                      {/* Section Card */}
+                      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-green-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                        {/* Section Header */}
+                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                          <div className="flex items-center space-x-4">
+                            {/* Section Icon */}
+                            <div className="relative">
+                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
+                                index % 6 === 0 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
+                                index % 6 === 1 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
+                                index % 6 === 2 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
+                                index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
+                                index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
+                                'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
+                              }`}>
+                                {section.name ? String(section.name).charAt(0).toUpperCase() : 'S'}
+                              </div>
+                              <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
+                                index % 6 === 0 ? 'bg-blue-200 border-blue-400 text-black' :
+                                index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
+                                index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
+                                index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
+                                index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
+                                'bg-purple-200 border-purple-400 text-black'
+                              }`}>
+                                {index + 1}
+                              </div>
+                            </div>
+                            
+                            {/* Section Info */}
                         <div className="flex-1">
-                          <h6 className="text-base font-semibold text-gray-800 mb-2">{section.title}</h6>
-                          {section.content && (
-                            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                              {section.content}
-                            </p>
-                          )}
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span className="flex items-center">
-                              <FileText className="w-3 h-3 mr-1" />
-                              Page {section.pageNumber}
-                            </span>
-                            <span className="flex items-center">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full mr-1" />
-                              Section: {section.order}
-                            </span>
+                              <h6 className="text-xl font-bold text-gray-800 group-hover:text-green-700 transition-colors duration-200">
+                                {String(section.name || `Section ${index + 1}`)}
+                              </h6>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {section.components && typeof section.components === 'object' 
+                                  ? `${countActualComponents(section.components)} components extracted`
+                                  : 'No components available'
+                                }
+                              </p>
                           </div>
+                            
+                            {/* Status Indicator */}
+                            <div className="flex items-center space-x-2">
+                              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="text-sm text-gray-600 font-medium">Active</span>
                         </div>
                       </div>
                     </div>
-                  ))}
+                        
+                        {/* Section Components */}
+                        <div className="p-6">
+                          {section.components && typeof section.components === 'object' ? 
+                            renderSectionComponents(section.components) : 
+                            <div className="text-center py-8">
+                              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <span className="text-gray-400 text-lg">📝</span>
+                </div>
+                              <p className="text-sm text-gray-500 italic">No components available</p>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                  )}
                 </div>
               )}
             </div>
@@ -1083,47 +1595,50 @@ function SectionsReviewStep({
         {/* Figma Analysis Results */}
         {figmaAnalysis && (
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <h4 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Figma className="w-6 h-6 mr-3 text-blue-600" />
                 Figma Analysis Results
               </h4>
               <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                {figmaAnalysis.sections.length} Sections
+                {figmaAnalysis.sections?.length || 0} Sections
               </Badge>
             </div>
 
             {/* All Sections List */}
-            <div className="space-y-3">
-              <h5 className="text-lg font-semibold text-gray-700 mb-3">All Extracted Sections</h5>
-              {figmaAnalysis.sections.length === 0 ? (
+            <div className="space-y-4">
+              <h5 className="text-lg font-semibold text-gray-700 mb-4">Extracted Design Sections</h5>
+              {!figmaAnalysis.sections || figmaAnalysis.sections.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                   <Figma className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500 font-medium">No sections extracted from Figma</p>
                   <p className="text-sm text-gray-400">The AI couldn't identify any sections in this design</p>
                 </div>
               ) : (
-                <div className="grid gap-3">
-                  {figmaAnalysis.sections.map((section, index) => (
-                    <div key={section.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-all duration-200">
-                      <div className="flex items-start justify-between">
+                <div className="grid gap-4">
+                  {figmaAnalysis.sections.map((section: any, index: number) => (
+                    <div key={`figma-${section.id || section.name || section.title || 'section'}-${index}`} className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-5 border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h6 className="text-base font-semibold text-gray-800 mb-2">{section.title}</h6>
-                          {section.content && (
-                            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                              {section.content}
-                            </p>
-                          )}
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span className="flex items-center">
-                              <div className="w-2 h-2 bg-blue-400 rounded-full mr-1" />
-                              Depth: {section.depth}
-                            </span>
-                            <span className="flex items-center">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full mr-1" />
-                              Section: {section.order || index + 1}
-                            </span>
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                              {(section.title || section.name) ? (section.title || section.name).charAt(0).toUpperCase() : 'S'}
+                            </div>
+                            <h6 className="text-lg font-semibold text-gray-800">{section.title || section.name || `Section ${index + 1}`}</h6>
+                            <Badge variant="outline" className="text-xs">
+                              #{index + 1}
+                            </Badge>
                           </div>
+                          
+                          {/* Section Content */}
+                          {section.content && (
+                            <div className="ml-11">
+                              <div className="flex items-start space-x-2">
+                                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">Content:</span>
+                                <span className="text-sm text-gray-700 line-clamp-2">{section.content}</span>
+                          </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1134,8 +1649,257 @@ function SectionsReviewStep({
           </div>
         )}
 
+        {/* URL Analysis Results */}
+        {urlAnalysis && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <Globe className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-2xl font-bold">Website Analysis Results</h4>
+                    <p className="text-purple-100 text-sm">Design sections extracted from {urlAnalysis.sourceUrl}</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                  {urlAnalysis.sections?.length || 0} Sections Found
+                </Badge>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-8">
+              {!urlAnalysis.sections || urlAnalysis.sections.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Globe className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium text-lg">No sections extracted from website</p>
+                  <p className="text-sm text-gray-400 mt-2">The AI couldn't identify any sections on this website</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Search/Filter */}
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder="Search sections..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                      >
+                        Clear Search
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sections List */}
+                  {filteredSections.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No sections match your search criteria</p>
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  ) : (
+                    filteredSections.map((section: any, index: number) => (
+                      <div key={`${section.name || 'section'}-${index}`} className="group relative">
+                        {/* Section Card */}
+                        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                          {/* Section Header */}
+                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center space-x-4">
+                              {/* Section Icon */}
+                              <div className="relative">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
+                                  index % 6 === 0 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
+                                  index % 6 === 1 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
+                                  index % 6 === 2 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
+                                  index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
+                                  index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
+                                  'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
+                                }`}>
+                                  {section.name ? String(section.name).charAt(0).toUpperCase() : 'S'}
+                                </div>
+                                <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
+                                  index % 6 === 0 ? 'bg-blue-200 border-blue-400 text-black' :
+                                  index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
+                                  index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
+                                  index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
+                                  index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
+                                  'bg-purple-200 border-purple-400 text-black'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                              </div>
+                              
+                              {/* Section Info */}
+                              <div className="flex-1">
+                                <h6 className="text-xl font-bold text-gray-800 group-hover:text-purple-700 transition-colors duration-200">
+                                  {String(section.name || `Section ${index + 1}`)}
+                                </h6>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {section.components && typeof section.components === 'object' 
+                                    ? `${countActualComponents(section.components)} components extracted`
+                                    : 'No components available'
+                                  }
+                                </p>
+                              </div>
+                              
+                              {/* Status Indicator */}
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Section Components */}
+                          <div className="p-6">
+                            {section.components && typeof section.components === 'object' ? 
+                              renderSectionComponents(section.components) : 
+                              <div className="text-center py-8">
+                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                  <span className="text-gray-400 text-lg">📝</span>
+                                </div>
+                                <p className="text-sm text-gray-500 italic">No components available</p>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+
+        {/* Fallback: Show sections if they exist but main display failed */}
+        {(!pdfAnalysis && !figmaAnalysis && !urlAnalysis) && extractedSections && extractedSections.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <FileText className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-2xl font-bold">Extracted Sections</h4>
+                    <p className="text-blue-100 text-sm">Design sections from your uploaded file</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                  {extractedSections.length} Sections Found
+                </Badge>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-8">
+              <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                {/* Section Counter */}
+                <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 pb-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-lg font-semibold text-gray-700">
+                      All {extractedSections.length} Sections Extracted
+                    </h5>
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <span>Scroll to view all sections</span>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                {extractedSections.map((section: any, index: number) => (
+                  <div key={`extracted-${section.name || 'section'}-${index}`} className="group relative">
+                    {/* Section Card */}
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                      {/* Section Header */}
+                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                        <div className="flex items-center space-x-4">
+                          {/* Section Icon */}
+                          <div className="relative">
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
+                              index % 6 === 0 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
+                              index % 6 === 1 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
+                              index % 6 === 2 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
+                              index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
+                              index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
+                              'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
+                            }`}>
+                              {section.name ? String(section.name).charAt(0).toUpperCase() : 'S'}
+                            </div>
+                            <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
+                              index % 6 === 0 ? 'bg-green-200 border-green-400 text-black' :
+                              index % 6 === 1 ? 'bg-blue-200 border-blue-400 text-black' :
+                              index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
+                              index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
+                              index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
+                              'bg-purple-200 border-purple-400 text-black'
+                            }`}>
+                              {index + 1}
+                            </div>
+                          </div>
+                          
+                          {/* Section Info */}
+                          <div className="flex-1">
+                            <h6 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors duration-200">
+                              {String(section.name || `Section ${index + 1}`)}
+                            </h6>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {section.components && typeof section.components === 'object' 
+                                ? `${countActualComponents(section.components)} components extracted`
+                                : 'No components available'
+                              }
+                            </p>
+                          </div>
+                          
+                          {/* Status Indicator */}
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                            <span className="text-sm text-gray-600 font-medium">Active</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Section Components */}
+                      <div className="p-6">
+                        {section.components && typeof section.components === 'object' ? 
+                          renderSectionComponents(section.components) : 
+                          <div className="text-center py-8">
+                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <span className="text-gray-400 text-lg">📝</span>
+                            </div>
+                            <p className="text-sm text-gray-500 italic">No components available</p>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* No Analysis Results */}
-        {!pdfAnalysis && !figmaAnalysis && (
+        {!pdfAnalysis && !figmaAnalysis && !urlAnalysis && (!extractedSections || extractedSections.length === 0) && (
           <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
             <div className="text-center">
               <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1160,7 +1924,7 @@ function SectionsReviewStep({
         </Button>
         <Button 
           onClick={onNext} 
-          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
+          className="px-6 py-3 from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
         >
           Go to Next Step →
         </Button>
@@ -1239,6 +2003,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
           lastUpdated: Date.now()
         }
         
+        // Use regular localStorage for now to avoid async import issues
         localStorage.setItem('latestLandingPage', JSON.stringify(previewData))
       } else {
         throw new Error(result.error || 'Generation failed')
@@ -1278,6 +2043,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
         lastUpdated: Date.now()
       }
 
+      // Use regular localStorage for now to avoid async import issues
       localStorage.setItem('latestLandingPage', JSON.stringify(previewData))
       setPreviewUrl('/preview/landing-page')
     } catch (error) {
@@ -1307,7 +2073,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
           <Button 
             onClick={handleGenerateLandingPage}
             disabled={isGenerating}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="w-full from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             {isGenerating ? (
               <>
@@ -1349,7 +2115,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
         <Button 
           onClick={onNext}
           disabled={!generationComplete}
-          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Eye className="h-4 w-4 mr-2" />
           Get Preview
@@ -1363,6 +2129,148 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
   const [generatedLandingPage, setGeneratedLandingPage] = useState<any>(null)
   const [showSectionsModal, setShowSectionsModal] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+
+  // Helper function to count actual components with values
+  const countActualComponents = (components: any) => {
+    if (!components || typeof components !== 'object') return 0
+    return Object.values(components).filter(value => 
+      value !== null && 
+      value !== undefined && 
+      value !== '' && 
+      (Array.isArray(value) ? value.length > 0 : true)
+    ).length
+  }
+
+  // Helper function to render section components
+  const renderSectionComponents = (components: any) => {
+    if (!components || typeof components !== 'object' || Object.keys(components).length === 0) {
+      return (
+        <div className="text-center py-8">
+          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-gray-400 text-lg">📝</span>
+          </div>
+          <p className="text-sm text-gray-500 italic">No components extracted</p>
+        </div>
+      )
+    }
+
+    const componentTypes = [
+      { key: 'title', label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+      { key: 'subtitle', label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
+      { key: 'content', label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
+      { key: 'buttons', label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
+      { key: 'images', label: 'Images', icon: '🖼️', color: 'indigo', bgColor: 'indigo-50', textColor: 'indigo-700' },
+      { key: 'links', label: 'Links', icon: '🔗', color: 'cyan', bgColor: 'cyan-50', textColor: 'cyan-700' },
+      { key: 'messages', label: 'Messages', icon: '💬', color: 'pink', bgColor: 'pink-50', textColor: 'pink-700' },
+      { key: 'items', label: 'Items', icon: '📋', color: 'teal', bgColor: 'teal-50', textColor: 'teal-700' },
+      { key: 'forms', label: 'Forms', icon: '📝', color: 'amber', bgColor: 'amber-50', textColor: 'amber-700' },
+      { key: 'ctas', label: 'CTAs', icon: '🎯', color: 'red', bgColor: 'red-50', textColor: 'red-700' },
+      { key: 'navigation', label: 'Navigation', icon: '🧭', color: 'violet', bgColor: 'violet-50', textColor: 'violet-700' },
+      { key: 'testimonials', label: 'Testimonials', icon: '⭐', color: 'yellow', bgColor: 'yellow-50', textColor: 'yellow-700' },
+      { key: 'pricing', label: 'Pricing', icon: '💰', color: 'emerald', bgColor: 'emerald-50', textColor: 'emerald-700' },
+      { key: 'features', label: 'Features', icon: '✨', color: 'sky', bgColor: 'sky-50', textColor: 'sky-700' }
+    ]
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {componentTypes.map(({ key, label, icon, color, bgColor, textColor }) => {
+          const value = components[key]
+          if (!value) return null
+
+          return (
+            <div key={key} className={`bg-${bgColor} rounded-xl p-4 border border-${color}-200 hover:border-${color}-300 transition-colors duration-200`}>
+              <div className="flex items-center space-x-3 mb-3">
+                <div className={`w-8 h-8 bg-${color}-100 rounded-lg flex items-center justify-center`}>
+                  <span className="text-lg">{icon}</span>
+                </div>
+                <div>
+                  <h6 className={`font-semibold text-${textColor} text-sm`}>{label}</h6>
+                  <p className="text-xs text-gray-500">
+                    {Array.isArray(value) ? `${value.length} items` : '1 item'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                {Array.isArray(value) ? (
+                  <div className="space-y-2">
+                    {value.map((item: any, idx: number) => {
+                      // Handle complex objects (like items with title, content, author, etc.)
+                      if (typeof item === 'object' && item !== null) {
+                        return (
+                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${color}-200 space-y-2`}>
+                            {item.title && (
+                              <div className={`font-semibold text-${textColor} text-sm`}>
+                                {String(item.title)}
+                              </div>
+                            )}
+                            {item.content && (
+                              <div className={`text-sm text-${textColor} opacity-90`}>
+                                {String(item.content)}
+                              </div>
+                            )}
+                            {item.author && (
+                              <div className={`text-xs text-${textColor} opacity-75 font-medium`}>
+                                — {String(item.author)}
+                              </div>
+                            )}
+                            {item.role && (
+                              <div className={`text-xs text-${textColor} opacity-60`}>
+                                {String(item.role)}
+                              </div>
+                            )}
+                            {item.plan_name && (
+                              <div className={`font-semibold text-${textColor} text-sm`}>
+                                {String(item.plan_name)} - {String(item.users || '')} - {String(item.price || '')}
+                              </div>
+                            )}
+                            {item.type && (
+                              <div className={`text-xs text-${textColor} opacity-60 mb-2`}>
+                                Type: {String(item.type)}
+                              </div>
+                            )}
+                            {item.features && Array.isArray(item.features) && (
+                              <div className="space-y-1">
+                                {item.features.map((feature: any, fIdx: number) => (
+                                  <div key={fIdx} className={`text-xs text-${textColor} opacity-80 flex items-start space-x-2`}>
+                                    <span className="text-green-500 mt-1">•</span>
+                                    <span>{String(feature)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {item.description && (
+                              <div className={`text-xs text-${textColor} opacity-80`}>
+                                {String(item.description)}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      } else {
+                        return (
+                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${color}-200`}>
+                            <div className={`text-sm text-${textColor}`}>
+                              {String(item)}
+                            </div>
+                          </div>
+                        )
+                      }
+                    })}
+                  </div>
+                ) : (
+                  <div className={`bg-white rounded-lg p-3 border border-${color}-200`}>
+                    <div className={`text-sm text-${textColor}`}>
+                      {String(value)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
   const [downloadFormat, setDownloadFormat] = useState<'html' | 'zip'>('html')
 
 
@@ -1398,19 +2306,229 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
   const handleSectionsSave = async (editedSections: any[]) => {
     if (!generatedLandingPage) return
 
-    // Update the generated landing page with edited sections
-    const updatedLandingPage = {
-      ...generatedLandingPage,
-      sections: editedSections
+    try {
+      // Update the generated landing page with edited sections
+      const updatedLandingPage = {
+        ...generatedLandingPage,
+        sections: editedSections
+      }
+
+      setGeneratedLandingPage(updatedLandingPage)
+
+      // Update localStorage with the edited sections
+      localStorage.setItem('latestLandingPage', JSON.stringify({
+        ...updatedLandingPage,
+        lastUpdated: Date.now()
+      }))
+
+      // Save to database if the landing page has an ID
+      if (generatedLandingPage.id) {
+        console.log('Saving sections to database for landing page:', generatedLandingPage.id)
+        
+        // Import the API service
+        const { apiService } = await import('@/lib/api')
+        
+        // Transform sections to ensure they have the required fields for API validation
+        const transformedSections = editedSections.map((section, index) => {
+          // Ensure we have a valid ID
+          const sectionId = section.id || `section-${index + 1}`
+          
+          // Ensure we have a name or title
+          const sectionName = section.title || section.name || `Section ${index + 1}`
+          
+          // Ensure we have content
+          let sectionContent = section.content || ''
+          if (!sectionContent && section.components) {
+            // Extract content from components if content field is empty
+            const componentContent = Object.values(section.components)
+              .filter(component => component && String(component).trim())
+              .map(component => {
+                if (Array.isArray(component)) {
+                  return component.filter(item => item && String(item).trim()).join(' ')
+                }
+                return String(component).trim()
+              })
+              .join(' ')
+            sectionContent = componentContent || `Content for ${sectionName}`
+          }
+          
+          return {
+            id: sectionId,
+            name: sectionName,
+            title: section.title || sectionName,
+            type: section.type || 'content',
+            content: sectionContent || `Content for ${sectionName}`,
+            order: section.order || index + 1,
+            pageNumber: section.pageNumber || 1,
+            components: section.components || {},
+            boundingBox: section.boundingBox || {
+              x: 0,
+              y: index * 200,
+              width: 800,
+              height: 200
+            }
+          }
+        })
+        
+        console.log('Transformed sections for API:', transformedSections)
+        
+        // Call the API to update sections in the database
+        let response
+        try {
+          response = await apiService.updateLandingPageSections(generatedLandingPage.id, transformedSections)
+        } catch (apiError) {
+          console.error('API call failed:', apiError)
+          const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown API error'
+          throw new Error(`API call failed: ${errorMessage}`)
+        }
+        
+        if (response.success) {
+          console.log('Successfully saved sections to database:', response.data)
+          
+          // Update the landing page with the response data from the database
+          const dbUpdatedLandingPage = {
+            ...updatedLandingPage,
+            sections: response.data.sections,
+            updatedAt: new Date()
+          }
+          
+          setGeneratedLandingPage(dbUpdatedLandingPage)
+          
+          // Update localStorage with the database response
+          localStorage.setItem('latestLandingPage', JSON.stringify({
+            ...dbUpdatedLandingPage,
+            lastUpdated: Date.now()
+          }))
+        } else {
+          console.error('Failed to save sections to database:', response.error)
+          console.error('Response details:', response)
+          throw new Error(response.error || 'Failed to save sections to database')
+        }
+      } else {
+        console.log('No landing page ID found, skipping database save')
+      }
+    } catch (error) {
+      console.error('Error saving sections:', error)
+      // Still update local state even if database save fails
+      // The user can try to save again later
+      throw error
+    }
+  }
+
+  // Helper function to render section components for HTML download
+  const renderSectionComponentsForHTML = (components: any) => {
+    if (!components || typeof components !== 'object' || Object.keys(components).length === 0) {
+      return '<div class="no-components">No components available</div>'
     }
 
-    setGeneratedLandingPage(updatedLandingPage)
+    let html = '<div class="section-components">'
+    
+    // Define component types with their rendering logic
+    const componentTypes = [
+      { key: 'title', label: 'Title', icon: '📝', className: 'component-title' },
+      { key: 'subtitle', label: 'Subtitle', icon: '📄', className: 'component-subtitle' },
+      { key: 'content', label: 'Content', icon: '📋', className: 'component-content' },
+      { key: 'buttons', label: 'Buttons', icon: '🔘', className: 'component-buttons' },
+      { key: 'images', label: 'Images', icon: '🖼️', className: 'component-images' },
+      { key: 'links', label: 'Links', icon: '🔗', className: 'component-links' },
+      { key: 'messages', label: 'Messages', icon: '💬', className: 'component-messages' },
+      { key: 'items', label: 'Items', icon: '📋', className: 'component-items' },
+      { key: 'forms', label: 'Forms', icon: '📝', className: 'component-forms' },
+      { key: 'ctas', label: 'CTAs', icon: '🎯', className: 'component-ctas' }
+    ]
 
-    // Update localStorage with the edited sections
-    localStorage.setItem('latestLandingPage', JSON.stringify({
-      ...updatedLandingPage,
-      lastUpdated: Date.now()
-    }))
+    componentTypes.forEach(({ key, label, icon, className }) => {
+      const value = components[key]
+      if (!value) return
+
+      html += `<div class="component-group ${className}">`
+      html += `<div class="component-header">`
+      html += `<span class="component-icon">${icon}</span>`
+      html += `<span class="component-label">${label}</span>`
+      html += `</div>`
+      html += `<div class="component-content">`
+
+      if (Array.isArray(value)) {
+        value.forEach((item: any, idx: number) => {
+          if (typeof item === 'object' && item !== null) {
+            html += `<div class="component-item">`
+            
+            // Handle different object structures
+            if (item.title) {
+              html += `<div class="item-title">${String(item.title).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.content) {
+              html += `<div class="item-content">${String(item.content).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.description) {
+              html += `<div class="item-description">${String(item.description).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.author) {
+              html += `<div class="item-author">— ${String(item.author).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.role) {
+              html += `<div class="item-role">${String(item.role).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.plan_name) {
+              html += `<div class="item-plan">${String(item.plan_name).replace(/"/g, '&quot;')} - ${String(item.users || '').replace(/"/g, '&quot;')} - ${String(item.price || '').replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.type) {
+              html += `<div class="item-type">Type: ${String(item.type).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.features && Array.isArray(item.features)) {
+              html += `<div class="item-features">`
+              item.features.forEach((feature: any) => {
+                html += `<div class="feature-item">• ${String(feature).replace(/"/g, '&quot;')}</div>`
+              })
+              html += `</div>`
+            }
+            if (item.buttons && Array.isArray(item.buttons)) {
+              html += `<div class="item-buttons">`
+              item.buttons.forEach((btn: any) => {
+                html += `<span class="button-tag">${String(btn).replace(/"/g, '&quot;')}</span>`
+              })
+              html += `</div>`
+            }
+            if (item.question) {
+              html += `<div class="item-question">Q: ${String(item.question).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.answer) {
+              html += `<div class="item-answer">A: ${String(item.answer).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.url || item.src) {
+              html += `<div class="item-url">URL: ${String(item.url || item.src).replace(/"/g, '&quot;')}</div>`
+            }
+            if (item.alt) {
+              html += `<div class="item-alt">Alt: ${String(item.alt).replace(/"/g, '&quot;')}</div>`
+            }
+            
+            html += `</div>`
+          } else {
+            // Handle simple strings
+            html += `<div class="component-item simple">${String(item).replace(/"/g, '&quot;')}</div>`
+          }
+        })
+      } else if (typeof value === 'string') {
+        html += `<div class="component-item simple">${String(value).replace(/"/g, '&quot;')}</div>`
+      } else if (typeof value === 'object' && value !== null) {
+        html += `<div class="component-item">`
+        if (value.title) {
+          html += `<div class="item-title">${String(value.title).replace(/"/g, '&quot;')}</div>`
+        }
+        if (value.content) {
+          html += `<div class="item-content">${String(value.content).replace(/"/g, '&quot;')}</div>`
+        }
+        if (value.description) {
+          html += `<div class="item-description">${String(value.description).replace(/"/g, '&quot;')}</div>`
+        }
+        html += `</div>`
+      }
+
+      html += `</div></div>`
+    })
+
+    html += '</div>'
+    return html
   }
 
   const handleDownload = async () => {
@@ -1694,7 +2812,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         .section-card {
             background: white;
             border-radius: 16px;
-            padding: 2rem;
+            padding: 1.5rem;
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(255,255,255,0.2);
@@ -1703,10 +2821,10 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             animation: cardSlideIn 0.8s ease-out forwards;
             opacity: 0;
             transform: translateY(40px) scale(0.95);
-            min-height: 160px;
+            height: 180px; /* Optimized height */
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             cursor: pointer;
             text-align: center;
@@ -1783,21 +2901,22 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
         /* Icon Styles */
         .section-icon {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
+            margin: 0 auto 0.75rem;
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 700;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             position: relative;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             animation: iconPulse 2s ease-in-out infinite;
+            flex-shrink: 0;
         }
 
         .section-icon::after {
@@ -1825,15 +2944,21 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
         /* Typography */
         .section-title {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: #2d3748;
             text-align: center;
             margin-bottom: 0.5rem;
-            line-height: 1.3;
+            line-height: 1.2;
             transition: all 0.3s ease;
             position: relative;
             z-index: 2;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
         .section-card:hover .section-title {
@@ -1841,14 +2966,36 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             transform: translateY(-2px);
         }
 
+        .section-card-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .section-card-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+        }
+
         .section-content {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #64748b;
             text-align: center;
-            line-height: 1.5;
+            line-height: 1.4;
             position: relative;
             z-index: 2;
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
+            max-width: 100%;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
         }
 
         /* Section Content Modal Styles */
@@ -1947,6 +3094,91 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             line-height: 1.8;
             color: #4a5568;
             margin-bottom: 2rem;
+        }
+
+        .section-main-content {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section-components-modal {
+            margin-top: 2rem;
+        }
+
+        .section-components-modal h4 {
+            color: #2d3748;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .component-section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .component-section h5 {
+            color: #374151;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .component-item-modal {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .component-item-modal.simple {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .component-item-modal strong {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .component-item-modal em {
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .component-item-modal small {
+            color: #9ca3af;
+            font-size: 0.8rem;
+        }
+
+        .component-item-modal ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .component-item-modal li {
+            margin-bottom: 0.25rem;
+        }
+
+        .button-tag-modal {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+            margin-bottom: 0.25rem;
+            display: inline-block;
         }
 
         .section-modal-footer {
@@ -2079,14 +3311,15 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             }
             
             .section-card {
-                padding: 1.5rem;
-                min-height: 140px;
+                padding: 1.25rem;
+                height: 160px; /* Reduced height for tablet */
             }
             
             .section-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+                margin-bottom: 0.5rem;
             }
             
             .section-title {
@@ -2139,20 +3372,22 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             }
             
             .section-card {
-                padding: 1.5rem;
-                min-height: 120px;
+                padding: 1rem;
+                height: 140px; /* Reduced height for mobile */
             }
             
             .section-icon {
-                width: 45px;
-                height: 45px;
-                font-size: 1.2rem;
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
             }
             
             .section-title {
                 font-size: 1rem;
             }
         }
+
 
         /* Animation delays for staggered effect */
         .section-card:nth-child(1) { animation-delay: 0.1s; }
@@ -2226,14 +3461,21 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             <!-- Sections Grid -->
             <div class="sections-grid">
                 ${landingPageData.sections && landingPageData.sections.length > 0 ? landingPageData.sections.map((section: any, index: number) => {
-                    let icon = section.title ? section.title.charAt(0).toUpperCase() : 'S';
+                    let icon = (section.title || section.name) ? (section.title || section.name).charAt(0).toUpperCase() : 'S';
                     let sectionType = section.type || 'section';
+                    
+                    // Render section components if available
+                    const componentsHTML = section.components ? renderSectionComponentsForHTML(section.components) : '';
                     
                     return `
                     <div class="section-card" onclick="openSectionModal(${JSON.stringify(section).replace(/"/g, '&quot;')})">
-                        <div class="section-icon">${icon}</div>
-                        <h2 class="section-title">${section.title || 'Section Title'}</h2>
-                        <div class="section-content">${section.content ? section.content.substring(0, 100) + (section.content.length > 100 ? '...' : '') : 'Click to view content'}</div>
+                        <div class="section-card-header">
+                            <div class="section-icon">${icon}</div>
+                            <h2 class="section-title">${section.title || section.name || 'Section Title'}</h2>
+                        </div>
+                        <div class="section-card-content">
+                            <div class="section-content">${section.content ? section.content.substring(0, 60) + (section.content.length > 60 ? '...' : '') : 'Click to view content'}</div>
+                        </div>
                     </div>
                     `;
                 }).join('') : `
@@ -2305,9 +3547,97 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             const modalContent = document.getElementById('modalContent');
             
             // Set modal content
-            modalIcon.textContent = section.title ? section.title.charAt(0).toUpperCase() : 'S';
-            modalTitle.textContent = section.title || 'Section Title';
-            modalContent.textContent = section.content || section.description || section.text || 'No content available for this section.';
+            modalIcon.textContent = (section.title || section.name) ? (section.title || section.name).charAt(0).toUpperCase() : 'S';
+            modalTitle.textContent = section.title || section.name || 'Section Title';
+            
+            // Build content with components
+            let contentHTML = '';
+            
+            // Add main content
+            if (section.content) {
+                contentHTML += '<div class="section-main-content">' + section.content + '</div>';
+            }
+            
+            // Add components if available
+            if (section.components && typeof section.components === 'object') {
+                contentHTML += '<div class="section-components-modal">';
+                contentHTML += '<h4>Section Components:</h4>';
+                
+                // Render components similar to the main page
+                Object.entries(section.components).forEach(([key, value]) => {
+                    if (!value) return;
+                    
+                    const componentLabels = {
+                        title: 'Title',
+                        subtitle: 'Subtitle', 
+                        content: 'Content',
+                        buttons: 'Buttons',
+                        images: 'Images',
+                        links: 'Links',
+                        messages: 'Messages',
+                        items: 'Items',
+                        forms: 'Forms',
+                        ctas: 'CTAs'
+                    };
+                    
+                    contentHTML += '<div class="component-section">';
+                    contentHTML += '<h5>' + (componentLabels[key] || key) + ':</h5>';
+                    
+                    if (Array.isArray(value)) {
+                        value.forEach((item, idx) => {
+                            if (typeof item === 'object' && item !== null) {
+                                contentHTML += '<div class="component-item-modal">';
+                                if (item.title) contentHTML += '<strong>' + item.title + '</strong><br>';
+                                if (item.content) contentHTML += item.content + '<br>';
+                                if (item.description) contentHTML += '<em>' + item.description + '</em><br>';
+                                if (item.author) contentHTML += '<small>— ' + item.author + '</small><br>';
+                                if (item.role) contentHTML += '<small>' + item.role + '</small><br>';
+                                if (item.plan_name) contentHTML += '<strong>' + item.plan_name + '</strong> - ' + (item.users || '') + ' - ' + (item.price || '') + '<br>';
+                                if (item.type) contentHTML += '<small>Type: ' + item.type + '</small><br>';
+                                if (item.features && Array.isArray(item.features)) {
+                                    contentHTML += '<ul>';
+                                    item.features.forEach(feature => {
+                                        contentHTML += '<li>' + feature + '</li>';
+                                    });
+                                    contentHTML += '</ul>';
+                                }
+                                if (item.buttons && Array.isArray(item.buttons)) {
+                                    item.buttons.forEach(btn => {
+                                        contentHTML += '<span class="button-tag-modal">' + btn + '</span> ';
+                                    });
+                                    contentHTML += '<br>';
+                                }
+                                if (item.question) contentHTML += '<strong>Q: ' + item.question + '</strong><br>';
+                                if (item.answer) contentHTML += 'A: ' + item.answer + '<br>';
+                                if (item.url || item.src) contentHTML += '<small>URL: ' + (item.url || item.src) + '</small><br>';
+                                if (item.alt) contentHTML += '<small>Alt: ' + item.alt + '</small><br>';
+                                contentHTML += '</div>';
+                            } else {
+                                contentHTML += '<div class="component-item-modal simple">' + item + '</div>';
+                            }
+                        });
+                    } else if (typeof value === 'string') {
+                        contentHTML += '<div class="component-item-modal simple">' + value + '</div>';
+                    } else if (typeof value === 'object' && value !== null) {
+                        contentHTML += '<div class="component-item-modal">';
+                        if (value.title) contentHTML += '<strong>' + value.title + '</strong><br>';
+                        if (value.content) contentHTML += value.content + '<br>';
+                        if (value.description) contentHTML += '<em>' + value.description + '</em><br>';
+                        contentHTML += '</div>';
+                    }
+                    
+                    contentHTML += '</div>';
+                });
+                
+                contentHTML += '</div>';
+            }
+            
+            // Set the content
+            if (contentHTML) {
+                modalContent.innerHTML = contentHTML;
+            } else {
+                modalContent.textContent = 'No content available for this section.';
+            }
             
             // Show modal
             modal.style.display = 'flex';
@@ -2482,7 +3812,11 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
     }
   }
 
-  const getSectionIcon = (type: string) => {
+  const getSectionIcon = (type: string | undefined) => {
+    if (!type) {
+      return '📝'
+    }
+    
     switch (type.toLowerCase()) {
       case 'hero':
         return '🎯'
@@ -2505,7 +3839,11 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
     }
   }
 
-  const getSectionColor = (type: string) => {
+  const getSectionColor = (type: string | undefined) => {
+    if (!type) {
+      return 'bg-gradient-to-r from-gray-500 to-gray-700'
+    }
+    
     switch (type.toLowerCase()) {
       case 'hero':
         return 'bg-gradient-to-r from-blue-500 to-purple-600'
@@ -2528,98 +3866,173 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
     }
   }
 
+  // Helper function to generate content from components structure
+  const generateContentFromComponents = (components: any) => {
+    if (!components || typeof components !== 'object') {
+      return ''
+    }
+
+    const contentParts: string[] = []
+    
+    // Extract content from different component types
+    Object.entries(components).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item: any) => {
+          if (typeof item === 'string') {
+            contentParts.push(item)
+          } else if (typeof item === 'object' && item !== null) {
+            const obj = item as any
+            if (obj.title) contentParts.push(obj.title)
+            if (obj.content) contentParts.push(obj.content)
+            if (obj.description) contentParts.push(obj.description)
+            if (obj.text) contentParts.push(obj.text)
+          }
+        })
+      } else if (typeof value === 'string') {
+        contentParts.push(value)
+      } else if (typeof value === 'object' && value !== null) {
+        const obj = value as any
+        if (obj.title) contentParts.push(obj.title)
+        if (obj.content) contentParts.push(obj.content)
+        if (obj.description) contentParts.push(obj.description)
+        if (obj.text) contentParts.push(obj.text)
+      }
+    })
+
+    return contentParts.join(' ').trim() || 'Content generated from components'
+  }
+
   return (
-    <div className="text-center py-6 px-6">
-      <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mb-4 shadow-lg">
-        <FileText className="w-8 h-8 text-purple-600" />
-      </div>
-      
-      <h3 className="text-2xl font-bold text-gray-800 mb-3">
-        View Generated Sections
-      </h3>
-      
-      <p className="text-gray-600 mb-6 text-base max-w-lg mx-auto leading-relaxed">
-        Review all the AI-generated content for your landing page sections. Each section has been customized for your business.
-      </p>
-
-
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Generated Sections Results */}
       {generatedLandingPage && generatedLandingPage.sections && generatedLandingPage.sections.length > 0 ? (
-        <div className="max-w-4xl mx-auto space-y-4">
-          {/* Section Preview Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
-            {generatedLandingPage.sections.slice(0, 8).map((section: any, index: number) => (
-              <Card 
-                key={section.id || index} 
-                className="group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border-l-4"
-                style={{ borderLeftColor: getSectionColor(section.type).includes('blue') ? '#3B82F6' : 
-                                                getSectionColor(section.type).includes('green') ? '#10B981' :
-                                                getSectionColor(section.type).includes('red') ? '#EF4444' :
-                                                getSectionColor(section.type).includes('purple') ? '#8B5CF6' :
-                                                getSectionColor(section.type).includes('pink') ? '#EC4899' :
-                                                getSectionColor(section.type).includes('indigo') ? '#6366F1' : '#6B7280' }}
-              >
-                <CardContent className="p-4">
-                  {/* Header with Icon and Badge */}
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm shadow-sm"
-                      style={{ 
-                        backgroundColor: getSectionColor(section.type).includes('blue') ? '#3B82F6' : 
-                                        getSectionColor(section.type).includes('green') ? '#10B981' :
-                                        getSectionColor(section.type).includes('red') ? '#EF4444' :
-                                        getSectionColor(section.type).includes('purple') ? '#8B5CF6' :
-                                        getSectionColor(section.type).includes('pink') ? '#EC4899' :
-                                        getSectionColor(section.type).includes('indigo') ? '#6366F1' : '#6B7280'
-                      }}
-                    >
-                      {getSectionIcon(section.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            section.type === 'hero' ? 'bg-blue-100 text-blue-700' :
-                            section.type === 'features' ? 'bg-green-100 text-green-700' :
-                            section.type === 'cta' ? 'bg-red-100 text-red-700' :
-                            section.type === 'benefits' ? 'bg-purple-100 text-purple-700' :
-                            section.type === 'testimonials' ? 'bg-pink-100 text-pink-700' :
-                            section.type === 'contact' ? 'bg-indigo-100 text-indigo-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {section.type}
-                        </Badge>
-                        <span className="text-xs text-gray-500 font-medium">#{index + 1}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section Title */}
-                  <h4 className="font-semibold text-gray-900 text-sm mb-2 leading-tight line-clamp-2">
-                    {section.title || `Section ${index + 1}`}
-                  </h4>
-
-                  {/* Section Content Preview */}
-                  <div className="relative">
-                    <p className="text-xs text-gray-700 leading-relaxed line-clamp-3">
-                      {section.content?.substring(0, 80) || 'Content will be generated here...'}
-                      {section.content && section.content.length > 80 && '...'}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <FileText className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-bold">Generated Landing Page Sections</h4>
+                  <p className="text-purple-100 text-sm">AI-generated content for your landing page</p>
+                </div>
+              </div>
+              <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                {generatedLandingPage.sections.length} Sections Generated
+              </Badge>
+            </div>
           </div>
 
-          {/* View All Sections and Download Buttons - Side by Side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          {/* Content */}
+          <div className="p-8">
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Section Counter and Search */}
+              <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="text-lg font-semibold text-gray-700">
+                    All {generatedLandingPage.sections.length} Generated Sections
+                  </h5>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <span>Scroll to view all sections</span>
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+              
+              {generatedLandingPage.sections.map((section: any, index: number) => (
+                <div key={section.id || index} className="group relative">
+                  {/* Section Card */}
+                  <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                    {/* Section Header */}
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                      <div className="flex items-center space-x-4">
+                        {/* Section Icon */}
+                        <div className="relative">
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
+                            index % 6 === 0 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
+                            index % 6 === 1 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
+                            index % 6 === 2 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
+                            index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
+                            index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
+                            'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
+                          }`}>
+                            {section.title || section.name ? String(section.title || section.name).charAt(0).toUpperCase() : 'S'}
+                          </div>
+                          <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
+                            index % 6 === 0 ? 'bg-blue-200 border-blue-400 text-black' :
+                            index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
+                            index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
+                            index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
+                            index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
+                            'bg-purple-200 border-purple-400 text-black'
+                          }`}>
+                            {index + 1}
+                          </div>
+                        </div>
+                        
+                        {/* Section Info */}
+                        <div className="flex-1">
+                          <h6 className="text-xl font-bold text-gray-800 group-hover:text-purple-700 transition-colors duration-200">
+                            {String(section.title || section.name || `Section ${index + 1}`)}
+                          </h6>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {section.components && typeof section.components === 'object' 
+                              ? `${Object.keys(section.components).length} components generated`
+                              : 'No components available'
+                            }
+                          </p>
+                        </div>
+                        
+                        {/* Status Indicator */}
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                          <span className="text-sm text-gray-600 font-medium">Generated</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Section Components */}
+                    <div className="p-6">
+                      {section.components && typeof section.components === 'object' ? 
+                        renderSectionComponents(section.components) : 
+                        <div className="text-center py-8">
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <span className="text-gray-400 text-lg">📝</span>
+                          </div>
+                          <p className="text-sm text-gray-500 italic">No components available</p>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-gray-500" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-800 mb-2">No Generated Sections</h4>
+            <p className="text-gray-600 mb-4">No generated sections are available at the moment.</p>
+            <p className="text-sm text-gray-500">Please go back and generate the landing page first.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      {generatedLandingPage && generatedLandingPage.sections && generatedLandingPage.sections.length > 0 && (
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* View All Sections Button */}
             <div className="relative">
               <Button 
                 onClick={() => setShowSectionsModal(true)}
-                className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 hover:from-purple-700 hover:via-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
+                className="w-full from-purple-600 via-blue-600 to-indigo-600 hover:from-purple-700 hover:via-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
               >
                 <div className="flex items-center justify-center space-x-2">
                   <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
@@ -2641,7 +4054,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
               <Button 
                 onClick={handleDownload}
                 disabled={isDownloading}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
+                className="w-full from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
               >
                 {isDownloading ? (
                   <>
@@ -2661,20 +4074,10 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             </div>
           </div>
         </div>
-      ) : (
-        <div className="max-w-md mx-auto">
-          <div className="p-6 bg-yellow-50 rounded-lg border border-yellow-200">
-            <AlertTriangle className="w-8 h-8 text-yellow-600 mx-auto mb-3" />
-            <h4 className="font-semibold text-yellow-800 mb-2">No Sections Found</h4>
-            <p className="text-sm text-yellow-700">
-              No generated sections were found. Please go back and generate the landing page first.
-            </p>
-          </div>
-        </div>
       )}
 
       {/* Navigation Buttons */}
-      <div className="mt-6 flex justify-center space-x-4">
+      <div className="flex justify-center space-x-4">
         <Button 
           variant="outline" 
           onClick={onBack}
@@ -2689,27 +4092,8 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             if (savedData) {
               try {
                 const latestData = JSON.parse(savedData)
-                if (latestData.sections && Array.isArray(latestData.sections) && latestData.id) {
+                if (latestData.sections && Array.isArray(latestData.sections)) {
                   setGeneratedLandingPage(latestData)
-                  
-                  // Update the database with edited sections before proceeding
-                  
-                  const response = await fetch(api(`/landing-pages/${latestData.id}`), {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      sections: latestData.sections
-                    })
-                  })
-
-                  if (response.ok) {
-                    // Database updated successfully with edited sections
-                  } else {
-                    const errorData = await response.json()
-                    // Failed to update database with edited sections
-                  }
                 }
               } catch (error) {
                 console.error('Failed to load latest sections from localStorage:', error)
@@ -2718,7 +4102,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             onNext()
           }}
           disabled={!generatedLandingPage || !generatedLandingPage.sections || generatedLandingPage.sections.length === 0}
-          className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <CheckCircle className="h-4 w-4 mr-2" />
           Complete
@@ -2726,7 +4110,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
       </div>
 
       {/* Sections Modal */}
-      {/* Generated Sections Modal */}
       <GeneratedSectionsModal
         isOpen={showSectionsModal}
         onClose={() => setShowSectionsModal(false)}
@@ -3000,5 +4383,44 @@ const CompleteStep = ({ onClose, onComplete, completionData }: { onClose: () => 
 
     </div>
   )
+}
+
+// URL Processor Component
+interface URLProcessorProps {
+  url: string
+  onAnalysisComplete: (result: URLAnalysisResult) => void
+  onError: (error: string) => void
+}
+
+function URLProcessor({ url, onAnalysisComplete, onError }: URLProcessorProps) {
+  const [isProcessing, setIsProcessing] = React.useState(false)
+
+  React.useEffect(() => {
+    const processUrl = async () => {
+      if (!url) return
+
+      setIsProcessing(true)
+      try {
+        console.log('Starting URL analysis for:', url)
+        const result = await apiService.extractDesignFromUrl(url)
+        console.log('URL analysis result:', result)
+        
+        if (result.success && result.sections) {
+          onAnalysisComplete(result)
+        } else {
+          onError('Failed to extract design sections from URL')
+        }
+      } catch (error) {
+        console.error('URL analysis error:', error)
+        onError(error instanceof Error ? error.message : 'Failed to analyze URL')
+      } finally {
+        setIsProcessing(false)
+      }
+    }
+
+    processUrl()
+  }, [url, onAnalysisComplete, onError])
+
+  return null // This component doesn't render anything
 }
 

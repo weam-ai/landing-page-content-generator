@@ -5,6 +5,7 @@ import { Edit3, RotateCcw, Save, Eye, CheckCircle, ArrowLeft, Sparkles, FileText
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Progress } from "@/components/ui/progress"
@@ -28,6 +29,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
 
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState("")
+  const [editingSectionName, setEditingSectionName] = useState("")
   const [isRegenerating, setIsRegenerating] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveProgress, setSaveProgress] = useState(0)
@@ -36,8 +38,9 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
   const [selectedSection, setSelectedSection] = useState<LandingPageSection | null>(null)
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [modifiedSections, setModifiedSections] = useState<Set<string>>(new Set())
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null)
 
-  // Ensure editingContent is updated when selectedSection changes
+  // Ensure editingContent and editingSectionName are updated when selectedSection changes
   useEffect(() => {
     if (selectedSection && showSectionModal) {
       console.log('Modal opened, updating editing content for section:', selectedSection)
@@ -47,6 +50,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
       
       console.log('Setting editing content to:', sectionContent)
       setEditingContent(sectionContent)
+      setEditingSectionName(selectedSection.title)
     }
   }, [selectedSection, showSectionModal])
 
@@ -65,6 +69,19 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
       })
     })
   }, [sections, modifiedSections])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutId) {
+        if (typeof timeoutId === 'number') {
+          clearTimeout(timeoutId)
+        } else {
+          clearInterval(timeoutId as any)
+        }
+      }
+    }
+  }, [timeoutId])
 
   const handleEditSection = (sectionId: string) => {
     const section = sections.find(s => s.id === sectionId)
@@ -88,118 +105,173 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
     
     console.log('Setting editing content to:', sectionContent)
     setEditingContent(sectionContent)
+    setEditingSectionName(section.title)
     setShowSectionModal(true)
   }
 
   const handleSaveSection = (sectionId: string) => {
-    console.log('=== SAVE SECTION DEBUG ===')
-    console.log('Saving section:', sectionId)
-    console.log('New content:', editingContent)
-    console.log('Current sections before update:', sections)
-    
-    // Find the section title before updating
-    const sectionTitle = sections.find(s => s.id === sectionId)?.title || 'Unknown Section'
-    
-    // Update the sections state with the new content
-    setSections(prev => {
-      const updatedSections = prev.map(s => 
-        s.id === sectionId ? { ...s, content: editingContent } : s
-      )
-      console.log('Updated sections after save:', updatedSections)
+    try {
+      console.log('=== SAVE SECTION DEBUG ===')
+      console.log('Saving section:', sectionId)
+      console.log('New content:', editingContent)
+      console.log('Current sections before update:', sections)
       
-      // Verify the update worked
-      const updatedSection = updatedSections.find(s => s.id === sectionId)
-      console.log('Updated section verification:', {
-        id: updatedSection?.id,
-        title: updatedSection?.title,
-        content: updatedSection?.content,
-        contentLength: updatedSection?.content?.length || 0
+      // Find the section title before updating
+      const sectionTitle = sections.find(s => s.id === sectionId)?.title || 'Unknown Section'
+      
+      // Update the sections state with the new content and title
+      setSections(prev => {
+        const updatedSections = prev.map(s => 
+          s.id === sectionId ? { 
+            ...s, 
+            content: editingContent,
+            title: editingSectionName || s.title
+          } : s
+        )
+        console.log('Updated sections after save:', updatedSections)
+        
+        // Verify the update worked
+        const updatedSection = updatedSections.find(s => s.id === sectionId)
+        console.log('Updated section verification:', {
+          id: updatedSection?.id,
+          title: updatedSection?.title,
+          content: updatedSection?.content,
+          contentLength: updatedSection?.content?.length || 0
+        })
+        
+        return updatedSections
       })
       
-      return updatedSections
-    })
-    
-    // Mark this section as modified
-    setModifiedSections(prev => new Set([...Array.from(prev), sectionId]))
-    
-    // Show success message using the section title we found earlier
-    setSaveSuccess(`Content updated for ${sectionTitle}. Click "Save All Changes" to persist to database.`)
-    
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSaveSuccess(null)
-    }, 3000)
-    
-    // Don't clear editingContent immediately - let the modal handle it
-    // setEditingSection(null)
-    // setEditingContent("")
+      // Mark this section as modified
+      setModifiedSections(prev => new Set([...Array.from(prev), sectionId]))
+      
+      // Show success message using the section title we found earlier
+      setSaveSuccess(`Content updated for ${sectionTitle}. Click "Save All Changes" to persist to database.`)
+      
+      // Clear success message after 3 seconds
+      const newTimeoutId = setTimeout(() => {
+        setSaveSuccess(null)
+      }, 3000)
+      setTimeoutId(newTimeoutId)
+      
+      // Don't clear editingContent immediately - let the modal handle it
+      // setEditingSection(null)
+      // setEditingContent("")
+    } catch (error) {
+      console.error('Error saving section:', error)
+    }
   }
 
   const handleCancelEdit = () => {
     setEditingSection(null)
     setEditingContent("")
+    setEditingSectionName("")
   }
 
   const handleRegenerateSection = async (sectionId: string) => {
-    setIsRegenerating(sectionId)
-    
-    // Simulate API call to regenerate content
-    setTimeout(() => {
-      const newContent = `Newly generated content for ${sections.find(s => s.id === sectionId)?.title}. This content has been created using advanced AI technology to better match your business requirements and brand voice. The updated content is more engaging, relevant, and optimized for conversion.`
+    try {
+      setIsRegenerating(sectionId)
       
-      setSections(prev => prev.map(s => 
-        s.id === sectionId ? { ...s, content: newContent } : s
-      ))
+      // Simulate API call to regenerate content
+      const regenerateTimeoutId = setTimeout(() => {
+        const newContent = `Newly generated content for ${sections.find(s => s.id === sectionId)?.title}. This content has been created using advanced AI technology to better match your business requirements and brand voice. The updated content is more engaging, relevant, and optimized for conversion.`
+        
+        setSections(prev => prev.map(s => 
+          s.id === sectionId ? { ...s, content: newContent } : s
+        ))
+        setIsRegenerating(null)
+      }, 2000)
+      
+      setTimeoutId(regenerateTimeoutId)
+    } catch (error) {
+      console.error('Error regenerating section:', error)
       setIsRegenerating(null)
-    }, 2000)
+    }
   }
 
   const handleSaveAll = async () => {
-    setIsSaving(true)
-    setSaveProgress(0)
-    
-    console.log('=== SAVE ALL DEBUG ===')
-    console.log('Original landing page:', landingPage)
-    console.log('Current sections state:', sections)
-    console.log('Modified sections:', Array.from(modifiedSections))
-    console.log('Sections count:', sections.length)
-    
-    // Check if sections have content
-    sections.forEach((section, index) => {
-      console.log(`Section ${index + 1}:`, {
-        id: section.id,
-        title: section.title,
-        content: section.content,
-        contentLength: section.content?.length || 0,
-        isModified: modifiedSections.has(section.id)
+    try {
+      setIsSaving(true)
+      setSaveProgress(0)
+      
+      console.log('=== SAVE ALL DEBUG ===')
+      console.log('Original landing page:', landingPage)
+      console.log('Current sections state:', sections)
+      console.log('Modified sections:', Array.from(modifiedSections))
+      console.log('Sections count:', sections.length)
+      
+      // Check if sections have content
+      sections.forEach((section, index) => {
+        console.log(`Section ${index + 1}:`, {
+          id: section.id,
+          title: section.title,
+          content: section.content,
+          contentLength: section.content?.length || 0,
+          isModified: modifiedSections.has(section.id)
+        })
       })
-    })
-    
-    // Simulate save operation with progress
-    const interval = setInterval(() => {
-      setSaveProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
+      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setSaveProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 25
+        })
+      }, 200)
+      
+      // Make actual API call to save sections
+      const { apiService } = await import('@/lib/api')
+      
+      try {
+        const response = await apiService.updateLandingPageSections(landingPage.id, sections)
+        
+        if (response.success) {
+          // Update progress to 100%
+          setSaveProgress(100)
+          
+          // Update the landing page with the response data
           const updatedPage = {
             ...landingPage,
-            sections,
+            sections: response.data.sections,
             updatedAt: new Date()
           }
-          console.log('=== FINAL SAVE DATA ===')
-          console.log('Updated page object:', updatedPage)
-          console.log('Sections in updated page:', updatedPage.sections)
-          console.log('Calling onSave with:', updatedPage)
           
+          console.log('=== API SAVE SUCCESS ===')
+          console.log('Updated page from API:', updatedPage)
+          
+          // Call the parent onSave callback
           onSave(updatedPage)
-          setIsSaving(false)
+          
           // Clear modified sections after successful save
           setModifiedSections(new Set())
+          
+          // Show success message
+          setSaveSuccess('All changes saved successfully!')
+          setTimeout(() => setSaveSuccess(null), 3000)
+          
           console.log('=== SAVE COMPLETE ===')
-          return 100
+        } else {
+          throw new Error(response.error || 'Failed to save sections')
         }
-        return prev + 25
-      })
-    }, 300)
+      } catch (apiError) {
+        console.error('API save failed:', apiError)
+        throw apiError
+      } finally {
+        clearInterval(progressInterval)
+        setIsSaving(false)
+      }
+    } catch (error) {
+      console.error('Error saving landing page:', error)
+      setIsSaving(false)
+      setSaveProgress(0)
+      
+      // Show error message
+      setSaveSuccess('Error saving changes. Please try again.')
+      setTimeout(() => setSaveSuccess(null), 5000)
+    }
   }
 
   const getSectionIcon = (type: string) => {
@@ -236,6 +308,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
             size="sm" 
             onClick={onCancel} 
             className="absolute left-0 hover:bg-muted"
+            aria-label="Go back to previous page"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -245,6 +318,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
             onClick={handleSaveAll}
             disabled={isSaving}
             className="absolute right-0 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+            aria-label="Save all changes to landing page"
           >
             {isSaving ? (
               <>
@@ -284,6 +358,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                     onClick={handleSaveAll}
                     disabled={isSaving}
                     className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-1 h-6"
+                    aria-label="Save all changes now"
                   >
                     {isSaving ? 'Saving...' : 'Save Now'}
                   </Button>
@@ -311,6 +386,15 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
               <div 
                 className="bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setShowOverviewModal(true)}
+                role="button"
+                tabIndex={0}
+                aria-label="View business overview details"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setShowOverviewModal(true)
+                  }
+                }}
               >
                 <p className="text-foreground leading-relaxed line-clamp-3">
                   {landingPage.businessOverview}
@@ -340,6 +424,15 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                       modifiedSections.has(section.id) ? 'ring-2 ring-orange-300 bg-orange-50/30' : ''
                     }`}
                     onClick={() => handleOpenSectionModal(section)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Edit ${section.title} section`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleOpenSectionModal(section)
+                      }
+                    }}
                   >
                     <CardHeader className="pb-4">
                       <div className="flex items-center space-x-4">
@@ -407,7 +500,20 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
       </div>
 
       {/* Business Overview Modal */}
-      <Dialog open={showOverviewModal} onOpenChange={setShowOverviewModal}>
+      <Dialog open={showOverviewModal} onOpenChange={(open) => {
+        if (!open) {
+          // Clear timeout when modal is closed
+          if (timeoutId) {
+            if (typeof timeoutId === 'number') {
+              clearTimeout(timeoutId)
+            } else {
+              clearInterval(timeoutId as any)
+            }
+            setTimeoutId(null)
+          }
+        }
+        setShowOverviewModal(open)
+      }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
           <DialogHeader className="pb-4">
             <DialogTitle className="text-2xl font-bold text-primary flex items-center">
@@ -505,9 +611,35 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
       </Dialog>
 
       {/* Section Edit Modal */}
-      <Dialog open={showSectionModal} onOpenChange={setShowSectionModal}>
+      <Dialog open={showSectionModal} onOpenChange={(open) => {
+        if (!open) {
+          // Clear timeout when modal is closed
+          if (timeoutId) {
+            if (typeof timeoutId === 'number') {
+              clearTimeout(timeoutId)
+            } else {
+              clearInterval(timeoutId as any)
+            }
+            setTimeoutId(null)
+          }
+          setShowSectionModal(false)
+          setSelectedSection(null)
+          setEditingContent("")
+          setEditingSectionName("")
+        } else {
+          setShowSectionModal(open)
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-xl font-bold text-primary flex items-center">
+              <Edit3 className="h-5 w-5 mr-2" />
+              Edit Section Content
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              Customize the content for your landing page section
+            </DialogDescription>
+          </DialogHeader>
           
           <div className="overflow-y-auto max-h-[60vh] pr-2">
             <div className="space-y-6">
@@ -524,6 +656,61 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                 </div>
               </div>
               
+              {/* Section Name Editor */}
+              <div className="bg-white p-6 rounded-lg border shadow-sm">
+                <h4 className="font-semibold text-foreground mb-3">Section Name</h4>
+                <Input
+                  value={editingSectionName || ''}
+                  onChange={(e) => setEditingSectionName(e.target.value)}
+                  placeholder="Enter section name..."
+                  className="text-base"
+                  aria-label="Section name editor"
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  This will be the display name for this section
+                </p>
+              </div>
+              
+              {/* Images Section */}
+              <div className="bg-white p-6 rounded-lg border shadow-sm">
+                <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Images
+                </h4>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground">1 item</p>
+                  <Textarea
+                    placeholder="Weam platform screenshot showcasing collaborative AI workflows."
+                    className="mt-2 text-sm resize-none"
+                    rows={2}
+                    disabled
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Images are automatically generated based on your content
+                </p>
+              </div>
+              
+              {/* Links Section */}
+              <div className="bg-white p-6 rounded-lg border shadow-sm">
+                <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  Links
+                </h4>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground">4 items</p>
+                  <Textarea
+                    placeholder="/features&#10;/demo-request&#10;LinkedIn icon&#10;Twitter icon"
+                    className="mt-2 text-sm resize-none"
+                    rows={4}
+                    disabled
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Links are automatically generated based on your business information
+                </p>
+              </div>
+              
               {/* Content Editor */}
               <div className="bg-white p-6 rounded-lg border shadow-sm">
                 <h4 className="font-semibold text-foreground mb-3">Section Content</h4>
@@ -533,6 +720,15 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                   rows={8}
                   className="min-h-[200px] text-base resize-none"
                   placeholder="Enter your section content here..."
+                  aria-label="Section content editor"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowSectionModal(false)
+                      setSelectedSection(null)
+                      setEditingContent("")
+                      setEditingSectionName("")
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -549,6 +745,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                 }}
                 disabled={isRegenerating === selectedSection?.id}
                 className="hover:bg-green-50 hover:border-green-200"
+                aria-label="Regenerate section content"
               >
                 {isRegenerating === selectedSection?.id ? (
                   <>
@@ -571,9 +768,24 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                   setShowSectionModal(false)
                   setSelectedSection(null)
                   setEditingContent("")
+                  setEditingSectionName("")
                 }}
+                aria-label="Cancel editing and close modal"
               >
                 Cancel
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowSectionModal(false)
+                  setSelectedSection(null)
+                  setEditingContent("")
+                  setEditingSectionName("")
+                }}
+                aria-label="Close without saving changes"
+                className="hover:bg-red-50 hover:border-red-200 hover:text-red-700"
+              >
+                Close Without Saving
               </Button>
               <Button 
                 onClick={() => {
@@ -585,15 +797,19 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                     handleSaveSection(selectedSection.id)
                     
                     // Wait a bit for state to update, then close modal
-                    setTimeout(() => {
+                    const closeTimeoutId = setTimeout(() => {
                       console.log('Closing modal after save')
                       setShowSectionModal(false)
                       setSelectedSection(null)
                       setEditingContent("")
+                      setEditingSectionName("")
                     }, 100)
+                    
+                    setTimeoutId(closeTimeoutId)
                   }
                 }}
                 className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+                aria-label="Save section changes"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Save Changes

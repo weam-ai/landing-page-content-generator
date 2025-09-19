@@ -5,6 +5,11 @@ const LandingPageSectionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  name: {
+    type: String,
+    required: false,
+    trim: true
+  },
   type: {
     type: String,
     required: true
@@ -19,6 +24,11 @@ const LandingPageSectionSchema = new mongoose.Schema({
     type: String,
     required: false,
     default: ''
+  },
+  components: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    required: false
   },
   order: {
     type: Number,
@@ -38,6 +48,10 @@ const LandingPageSectionSchema = new mongoose.Schema({
   metadata: {
     type: Map,
     of: String
+  },
+  extractedAt: {
+    type: String,
+    required: false
   }
 }, {
   timestamps: true
