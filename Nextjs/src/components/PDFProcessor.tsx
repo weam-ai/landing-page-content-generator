@@ -26,6 +26,9 @@ export interface PDFSection {
 
 export interface PDFAnalysisResult {
   sections: PDFSection[]
+  designName?: string
+  designType?: string
+  totalPages?: number
 }
 
 interface PDFProcessorProps {
@@ -161,7 +164,10 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
       
       // The backend now returns the data directly with sections property
       const transformedResult: PDFAnalysisResult = {
-        sections: analysisResponse.sections || []
+        sections: analysisResponse.sections || [],
+        designName: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+        designType: 'pdf',
+        totalPages: 1 // Default to 1, could be enhanced to extract actual page count
       }
 
       console.log('PDFProcessor - transformedResult:', transformedResult)
@@ -461,7 +467,7 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-lg p-3 border border-green-100">
               <p className="text-sm text-green-600 font-medium">Design Type</p>
-              <p className="text-lg font-bold text-green-800 capitalize">{analysis.designType.replace('-', ' ')}</p>
+              <p className="text-lg font-bold text-green-800 capitalize">{(analysis.designType || 'pdf').replace('-', ' ')}</p>
             </div>
             <div className="bg-white rounded-lg p-3 border border-green-100">
               <p className="text-sm text-green-600 font-medium">Total Pages</p>
@@ -473,14 +479,14 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
             <p className="text-sm text-green-600 font-medium mb-2">Extracted Sections ({analysis.sections.length})</p>
             <div className="space-y-2">
               {analysis.sections.slice(0, 5).map((section, index) => (
-                <div key={section.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+                <div key={`${section.name}-${index}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                   <div className="flex items-center space-x-2">
                     <Badge variant="outline" className="text-xs bg-green-100 border-green-200 text-green-700">
-                      {section.type}
+                      {section.name}
                     </Badge>
-                    <span className="text-sm text-gray-700">{section.title}</span>
+                    <span className="text-sm text-gray-700">{section.components.title || 'Untitled Section'}</span>
                   </div>
-                  <span className="text-xs text-gray-500">Page {section.pageNumber}</span>
+                  <span className="text-xs text-gray-500">PDF Section</span>
                 </div>
               ))}
               {analysis.sections.length > 5 && (
