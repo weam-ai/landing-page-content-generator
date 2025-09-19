@@ -225,81 +225,8 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   }
 
 
-  const createLandingPage = async () => {
-    try {
-      
-      // Get the actual extracted sections from the appropriate source
-      let extractedSectionsData = uploadFile?.type === 'figma' ? extractedFigmaSections : extractedSections
-      
-      // Process and enhance sections with business information
-      const enhancedSections = await processSectionsWithBusinessInfo(extractedSectionsData, businessDetails)
-      
-      // Create landing page with real data
-      const newPage = {
-        id: Date.now().toString(),
-        title: businessDetails?.businessName ? 
-          (businessDetails.businessName.length > 80 ? 
-            `${businessDetails.businessName.substring(0, 80)}... Landing Page` : 
-            `${businessDetails.businessName} Landing Page`).substring(0, 100) : 
-          `Landing Page ${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // Include business details
-        businessName: businessDetails?.businessName || '',
-        businessOverview: businessDetails?.businessOverview || '',
-        targetAudience: businessDetails?.targetAudience || '',
-        brandTone: businessDetails?.brandTone || 'professional',
-        customContentLength: businessDetails?.customContentLength || 150,
-        // Use enhanced sections with real content
-        sections: enhancedSections,
-        designSource: {
-          type: uploadFile?.type || 'unknown',
-          url: uploadFile?.url || '',
-          fileName: uploadFile?.file?.name || '',
-          processedAt: new Date()
-        },
-        // Include analysis metadata
-        analysisData: {
-          pdfAnalysis: pdfAnalysis,
-          figmaAnalysis: figmaAnalysis,
-          totalSections: enhancedSections.length,
-          designType: uploadFile?.type
-        }
-      }
-      
-      
-      // Call onSuccess to create the landing page
-      onSuccess(newPage)
-      
-    } catch (error) {
-      // Create a fallback landing page with available data
-      const fallbackSections = createFallbackSections(businessDetails, uploadFile?.type)
-      
-      const newPage = {
-        id: Date.now().toString(),
-        title: businessDetails?.businessName ? 
-          (businessDetails.businessName.length > 80 ? 
-            `${businessDetails.businessName.substring(0, 80)}... Landing Page` : 
-            `${businessDetails.businessName} Landing Page`).substring(0, 100) : 
-          `Landing Page ${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        businessName: businessDetails?.businessName || '',
-        businessOverview: businessDetails?.businessOverview || '',
-        targetAudience: businessDetails?.targetAudience || '',
-        brandTone: businessDetails?.brandTone || 'professional',
-        sections: fallbackSections,
-        designSource: {
-          type: uploadFile?.type || 'unknown',
-          url: uploadFile?.url || '',
-          fileName: uploadFile?.file?.name || '',
-          processedAt: new Date()
-        }
-      }
-      
-      onSuccess(newPage)
-    }
-  }
+  // Note: Landing page creation is now handled by the PreviewStep API call
+  // which creates the database record and returns the proper ID
 
   // Helper function to process sections with business information
   const processSectionsWithBusinessInfo = async (sections: any[], businessInfo: any) => {
@@ -656,10 +583,21 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
             onClose={handleClose}
             onComplete={onSuccess}
             completionData={(() => {
+            // Get the database record ID from window context (set by PreviewStep)
+            const dbId = (window as any).modalDatabaseRecordId
+            
             // Get the latest landing page data from localStorage
             try {
               const savedData = localStorage.getItem('latestLandingPage')
-              return savedData ? JSON.parse(savedData) : null
+              if (savedData) {
+                const parsedData = JSON.parse(savedData)
+                // Ensure we use the actual database ID
+                if (dbId) {
+                  parsedData.id = dbId
+                }
+                return parsedData
+              }
+              return null
             } catch (error) {
               console.error('Failed to load data from localStorage:', error)
               return null
@@ -1941,6 +1879,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [generatedLandingPage, setGeneratedLandingPage] = useState<any>(null)
   const [generationComplete, setGenerationComplete] = useState(false)
+  const [databaseRecordId, setDatabaseRecordId] = useState<string | null>(null)
 
   const handleGenerateLandingPage = async () => {
     setIsGenerating(true)
@@ -1985,9 +1924,17 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
       if (result.success) {
         setGeneratedLandingPage(result.data.landingPageContent)
         setGenerationComplete(true)
+        
+        // Store the actual database record ID
+        const dbId = result.data.id
+        setDatabaseRecordId(dbId)
+        
+        // Store the database ID in window context for later use
+        ;(window as any).modalDatabaseRecordId = dbId
+        
         // Automatically save to localStorage for immediate access
         const previewData = {
-          id: result.data.id || 'generated-landing-page', // Use the actual database ID
+          id: dbId, // Use the actual database ID
           title: result.data.landingPageContent.meta?.title || 'Generated Landing Page',
           businessName: (window as any).modalBusinessDetails?.businessName || 'Your Business',
           businessOverview: (window as any).modalBusinessDetails?.businessOverview || 'Professional services',
