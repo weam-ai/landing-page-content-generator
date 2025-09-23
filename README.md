@@ -1,3 +1,1 @@
 # landing-page-content-generator
-
-@###
