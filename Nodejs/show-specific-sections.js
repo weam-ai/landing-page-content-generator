@@ -36,10 +36,6 @@ async function showSpecificSections() {
     
     meaningfulSections.slice(0, 30).forEach((section, index) => {
       console.log(`  ${index + 1}. ${section.title}`);
-      console.log(`     Type: ${section.type}`);
-      console.log(`     Content: ${section.content}`);
-      console.log(`     Size: ${section.boundingBox.width} x ${section.boundingBox.height}`);
-      console.log('');
     });
     
     if (meaningfulSections.length > 30) {
