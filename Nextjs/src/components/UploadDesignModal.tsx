@@ -107,19 +107,15 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   }
 
   const handlePDFAnalysisComplete = (result: PDFAnalysisResult) => {
-    console.log('PDF Analysis Complete - Result:', result)
-    console.log('PDF Analysis Complete - Sections:', result.sections)
     
     setPdfAnalysis(result)
     setIsProcessing(false) // Processing complete
     
     // Preserve all sections from the analysis
     if (result.sections && result.sections.length > 0) {
-      console.log('Setting extracted sections:', result.sections)
       // Store all sections without filtering
       setExtractedSections(result.sections)
     } else {
-      console.log('No sections found in result')
       setExtractedSections([])
     }
     
@@ -158,15 +154,12 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   }
 
   const handleURLAnalysisComplete = (result: URLAnalysisResult) => {
-    console.log('URL Analysis Complete - Result:', result)
-    console.log('URL Analysis Complete - Sections:', result.sections)
     
     setUrlAnalysis(result)
     setIsProcessing(false) // Processing complete
     
     // Preserve all sections from the analysis
     if (result.sections && result.sections.length > 0) {
-      console.log('Setting extracted URL sections:', result.sections)
       // Store all sections without filtering
       setExtractedUrlSections(result.sections)
       
@@ -180,12 +173,9 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
           extractedAt: new Date().toISOString()
         }
         localStorage.setItem('extractedDesignStructure', JSON.stringify(designStructure))
-        console.log('URL analysis results saved to localStorage')
       } catch (error) {
-        console.error('Failed to save URL analysis to localStorage:', error)
       }
     } else {
-      console.log('No sections found in URL result')
       setExtractedUrlSections([])
     }
     
@@ -211,15 +201,23 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     // Store business details for later use in createLandingPage
     setBusinessDetails(details)
     
+    // Get the correct extracted sections based on upload type
+    const currentSections = uploadFile?.type === 'figma' ? extractedFigmaSections : 
+                           uploadFile?.type === 'url' ? extractedUrlSections : 
+                           extractedSections;
+    
+    
     // Store in window context for PreviewStep to access
     ;(window as any).modalBusinessDetails = details
     ;(window as any).modalExtractedData = {
-      sections: uploadFile?.type === 'figma' ? extractedFigmaSections : 
-                uploadFile?.type === 'url' ? extractedUrlSections : 
-                extractedSections
+      sections: currentSections,
+      designType: uploadFile?.type || 'unknown',
+      metadata: {
+        extractedAt: new Date().toISOString(),
+        sourceType: uploadFile?.type || 'unknown'
+      }
     }
     ;(window as any).modalDesignType = uploadFile?.type || 'unknown'
-    
     // Move directly to preview step
     setStep("preview")
   }
@@ -231,8 +229,9 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   // Helper function to process sections with business information
   const processSectionsWithBusinessInfo = async (sections: any[], businessInfo: any) => {
     
+    // CRITICAL: NEVER create fallback sections - always use extracted sections
     if (!sections || sections.length === 0) {
-      return createBusinessFocusedSections(businessInfo)
+      return []
     }
     
     return sections.map((section, index) => {
@@ -405,9 +404,9 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     return [heroSection, aboutSection, servicesSection, contactSection]
   }
 
-  // Helper function to create fallback sections
+  // Helper function to create fallback sections - DISABLED to preserve design integrity
   const createFallbackSections = (businessInfo: any, designType?: string) => {
-    return createBusinessFocusedSections(businessInfo)
+    return []
   }
 
   const resetModal = () => {
@@ -422,6 +421,15 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     setBusinessDetails(null)
     setFinalSections([])
     setError(null) // Clear any errors
+    
+    // CRITICAL: Clear window context to prevent data leakage between sessions
+    ;(window as any).modalBusinessDetails = null
+    ;(window as any).modalExtractedData = null
+    ;(window as any).modalDesignType = null
+    
+    // Clear localStorage to prevent stale data
+    localStorage.removeItem('extractedDesignStructure')
+    
   }
 
   const handleClose = () => {
@@ -599,7 +607,6 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
               }
               return null
             } catch (error) {
-              console.error('Failed to load data from localStorage:', error)
               return null
             }
             })()}
@@ -1170,10 +1177,7 @@ function SectionsReviewStep({
   onBack: () => void;
   onNext: () => void;
 }): JSX.Element {
-  // Debug logging
-  console.log('SectionsReviewStep - pdfAnalysis:', pdfAnalysis)
-  console.log('SectionsReviewStep - figmaAnalysis:', figmaAnalysis)
-  console.log('SectionsReviewStep - urlAnalysis:', urlAnalysis)
+// Debug logging - enhanced
   
   // State for search/filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -1532,55 +1536,161 @@ function SectionsReviewStep({
 
         {/* Figma Analysis Results */}
         {figmaAnalysis && (
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <h4 className="text-xl font-semibold text-gray-800 flex items-center">
-                <Figma className="w-6 h-6 mr-3 text-blue-600" />
-                Figma Analysis Results
-              </h4>
-              <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                {figmaAnalysis.sections?.length || 0} Sections
-              </Badge>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <Figma className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-2xl font-bold text-white">Figma Analysis Results</h4>
+                    <p className="text-blue-100 text-sm">Design sections extracted from your Figma design</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium text-white">
+                  {figmaAnalysis.sections?.length || 0} Sections Found
+                </Badge>
+              </div>
             </div>
 
-            {/* All Sections List */}
-            <div className="space-y-4">
-              <h5 className="text-lg font-semibold text-gray-700 mb-4">Extracted Design Sections</h5>
+            {/* Content */}
+            <div className="p-8">
               {!figmaAnalysis.sections || figmaAnalysis.sections.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <Figma className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">No sections extracted from Figma</p>
-                  <p className="text-sm text-gray-400">The AI couldn't identify any sections in this design</p>
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Figma className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium text-lg">No sections extracted from Figma</p>
+                  <p className="text-sm text-gray-400 mt-2">The AI couldn't identify any sections in this design</p>
                 </div>
               ) : (
-                <div className="grid gap-4">
-                  {figmaAnalysis.sections.map((section: any, index: number) => (
-                    <div key={`figma-${section.id || section.name || section.title || 'section'}-${index}`} className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-5 border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                              {(section.title || section.name) ? (section.title || section.name).charAt(0).toUpperCase() : 'S'}
-                            </div>
-                            <h6 className="text-lg font-semibold text-gray-800">{section.title || section.name || `Section ${index + 1}`}</h6>
-                            <Badge variant="outline" className="text-xs">
-                              #{index + 1}
-                            </Badge>
-                          </div>
-                          
-                          {/* Section Content */}
-                          {section.content && (
-                            <div className="ml-11">
-                              <div className="flex items-start space-x-2">
-                                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">Content:</span>
-                                <span className="text-sm text-gray-700 line-clamp-2">{section.content}</span>
-                          </div>
-                            </div>
-                          )}
-                        </div>
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                  {/* Section Counter and Search */}
+                  <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 pb-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-lg font-semibold text-gray-700">
+                        {searchTerm ? `${filteredSections.length} of ${figmaAnalysis.sections.length}` : `All ${figmaAnalysis.sections.length}`} Sections Extracted
+                      </h5>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <span>Scroll to view all sections</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                       </div>
                     </div>
-                  ))}
+                    
+                    {/* Search Input */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search sections or components..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <div className="absolute left-3 top-2.5">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {filteredSections.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 font-medium text-lg">No sections found</p>
+                      <p className="text-sm text-gray-400 mt-2">Try adjusting your search terms</p>
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  ) : (
+                    filteredSections.map((section: any, index: number) => (
+                      <div key={`figma-${section.id || section.name || section.title || 'section'}-${index}`} className="group relative">
+                        {/* Section Card */}
+                        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                          {/* Section Header */}
+                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center space-x-4">
+                              {/* Section Icon */}
+                              <div className="relative">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
+                                  index % 6 === 0 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
+                                  index % 6 === 1 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
+                                  index % 6 === 2 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
+                                  index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
+                                  index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
+                                  'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
+                                }`}>
+                                  {(section.title || section.name) ? String(section.title || section.name).charAt(0).toUpperCase() : 'S'}
+                                </div>
+                                <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
+                                  index % 6 === 0 ? 'bg-purple-200 border-purple-400 text-black' :
+                                  index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
+                                  index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
+                                  index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
+                                  index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
+                                  'bg-blue-200 border-blue-400 text-black'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                              </div>
+                              
+                              {/* Section Info */}
+                              <div className="flex-1">
+                                <h6 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors duration-200">
+                                  {String(section.title || section.name || `Section ${index + 1}`)}
+                                </h6>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {section.components && typeof section.components === 'object' 
+                                    ? `${countActualComponents(section.components)} components extracted`
+                                    : 'No components available'
+                                  }
+                                </p>
+                              </div>
+                              
+                              {/* Status Indicator */}
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                                <span className="text-sm text-gray-600 font-medium">Active</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Section Components */}
+                          <div className="p-6">
+                            {section.components && typeof section.components === 'object' ? 
+                              renderSectionComponents(section.components) : 
+                              <div className="text-center py-8">
+                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                  <span className="text-gray-400 text-lg">📝</span>
+                                </div>
+                                <p className="text-sm text-gray-500 italic">No components available</p>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -1886,20 +1996,21 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
     try {
       // Get business details and extracted data from the modal context
       const businessDetails = (window as any).modalBusinessDetails || {}
-      const extractedData = (window as any).modalExtractedData || {}
+      let extractedData = (window as any).modalExtractedData || {}
       const designType = (window as any).modalDesignType || 'unknown'
       
-      // Get extracted design structure from localStorage if available
-      const extractedDesignStructure = localStorage.getItem('extractedDesignStructure')
-      if (extractedDesignStructure) {
-        try {
-          const designStructure = JSON.parse(extractedDesignStructure)
-          // Merge the design structure with extracted data
-          extractedData.sections = designStructure.sections
-          extractedData.sectionTypes = designStructure.sectionTypes
-        } catch (error) {
-          console.error('Error parsing extracted design structure:', error)
-        }
+      // CRITICAL: Always use the fresh extracted data from the current session, not localStorage
+      // Clear any stale localStorage data to prevent data corruption
+      localStorage.removeItem('extractedDesignStructure')
+      
+      // Validate that we have the correct extracted data
+      if (!extractedData.sections || extractedData.sections.length === 0) {
+        // Log the issue and use empty array to preserve integrity
+        extractedData = {
+          ...extractedData,
+          sections: [],
+          designType: designType
+        };
       }
 
 
@@ -1994,7 +2105,6 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
       localStorage.setItem('latestLandingPage', JSON.stringify(previewData))
       setPreviewUrl('/preview/landing-page')
     } catch (error) {
-      console.error('Preview generation failed:', error)
     } finally {
       setIsPreviewing(false)
     }
@@ -2270,7 +2380,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
       // Save to database if the landing page has an ID
       if (generatedLandingPage.id) {
-        console.log('Saving sections to database for landing page:', generatedLandingPage.id)
         
         // Import the API service
         const { apiService } = await import('@/lib/api')
@@ -2317,20 +2426,17 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
           }
         })
         
-        console.log('Transformed sections for API:', transformedSections)
         
         // Call the API to update sections in the database
         let response
         try {
           response = await apiService.updateLandingPageSections(generatedLandingPage.id, transformedSections)
         } catch (apiError) {
-          console.error('API call failed:', apiError)
           const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown API error'
           throw new Error(`API call failed: ${errorMessage}`)
         }
         
         if (response.success) {
-          console.log('Successfully saved sections to database:', response.data)
           
           // Update the landing page with the response data from the database
           const dbUpdatedLandingPage = {
@@ -2347,15 +2453,11 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             lastUpdated: Date.now()
           }))
         } else {
-          console.error('Failed to save sections to database:', response.error)
-          console.error('Response details:', response)
           throw new Error(response.error || 'Failed to save sections to database')
         }
       } else {
-        console.log('No landing page ID found, skipping database save')
       }
     } catch (error) {
-      console.error('Error saving sections:', error)
       // Still update local state even if database save fails
       // The user can try to save again later
       throw error
@@ -3617,7 +3719,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                         copyText.textContent = 'Copy Content';
                     }, 2000);
                 }).catch(err => {
-                    console.error('Failed to copy content: ', err);
                     // Fallback for older browsers
                     const textArea = document.createElement('textarea');
                     textArea.value = content;
@@ -3632,7 +3733,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                             copyText.textContent = 'Copy Content';
                         }, 2000);
                     } catch (fallbackErr) {
-                        console.error('Fallback copy failed: ', fallbackErr);
                         copyText.textContent = 'Copy Failed';
                         setTimeout(() => {
                             copyText.textContent = 'Copy Content';
@@ -3701,7 +3801,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                         copyText.textContent = 'Copy Content';
                     }, 2000);
                 }).catch(err => {
-                    console.error('Failed to copy content: ', err);
                     // Fallback for older browsers
                     const textArea = document.createElement('textarea');
                     textArea.value = content;
@@ -3716,7 +3815,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                             copyText.textContent = 'Copy Content';
                         }, 2000);
                     } catch (fallbackErr) {
-                        console.error('Fallback copy failed: ', fallbackErr);
                         copyText.textContent = 'Copy Failed';
                         setTimeout(() => {
                             copyText.textContent = 'Copy Content';
@@ -3752,7 +3850,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
       document.body.removeChild(link)
       
     } catch (error) {
-      console.error('Download failed:', error)
       alert('Download failed. Please try again.')
     } finally {
       setIsDownloading(false)
@@ -4043,7 +4140,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                   setGeneratedLandingPage(latestData)
                 }
               } catch (error) {
-                console.error('Failed to load latest sections from localStorage:', error)
               }
             }
             onNext()
@@ -4142,7 +4238,6 @@ const DownloadStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => vo
         return
       }
     } catch (error) {
-      console.error('Download preparation failed:', error)
       alert('Failed to prepare download. Please try again.')
     } finally {
       setIsPreparing(false)
@@ -4348,9 +4443,7 @@ function URLProcessor({ url, onAnalysisComplete, onError }: URLProcessorProps) {
 
       setIsProcessing(true)
       try {
-        console.log('Starting URL analysis for:', url)
         const result = await apiService.extractDesignFromUrl(url)
-        console.log('URL analysis result:', result)
         
         if (result.success && result.sections) {
           onAnalysisComplete(result)
@@ -4358,7 +4451,6 @@ function URLProcessor({ url, onAnalysisComplete, onError }: URLProcessorProps) {
           onError('Failed to extract design sections from URL')
         }
       } catch (error) {
-        console.error('URL analysis error:', error)
         onError(error instanceof Error ? error.message : 'Failed to analyze URL')
       } finally {
         setIsProcessing(false)

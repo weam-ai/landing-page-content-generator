@@ -105,7 +105,7 @@ const LandingPageSchema = new mongoose.Schema({
   designSource: {
     type: {
       type: String,
-      enum: ['figma', 'pdf', 'manual'],
+      enum: ['figma', 'pdf', 'manual', 'url'],
       required: false
     },
     url: String,
@@ -120,26 +120,6 @@ const LandingPageSchema = new mongoose.Schema({
     default: 'draft'
   },
   publishedAt: Date,
-  analytics: {
-    views: {
-      type: Number,
-      default: 0
-    },
-    conversions: {
-      type: Number,
-      default: 0
-    },
-    lastViewed: Date
-  },
-  settings: {
-    theme: {
-      type: String,
-      enum: ['light', 'dark', 'auto'],
-      default: 'light'
-    },
-    customCSS: String,
-    customJS: String
-  },
   tags: [String],
   isPublic: {
     type: Boolean,
@@ -162,88 +142,13 @@ const LandingPageSchema = new mongoose.Schema({
     ogImage: String
   },
   processSteps: {
-    validation: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        businessInfoValid: Boolean,
-        extractedDataValid: Boolean,
-        preferencesValid: Boolean,
-        errors: [String]
-      }
-    },
-    contentPlanning: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        targetSections: [String],
-        contentStrategy: String,
-        toneAnalysis: String,
-        audienceInsights: String
-      }
-    },
-    designAnalysis: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        layoutStructure: String,
-        colorScheme: String,
-        typography: String,
-        responsiveDesign: String,
-        accessibilityNotes: String
-      }
-    },
-    contentGeneration: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        sectionsGenerated: Number,
-        contentQuality: String,
-        seoOptimized: Boolean,
-        conversionFocused: Boolean
-      }
-    },
-    generateLandingPage: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        htmlGenerated: Boolean,
-        cssGenerated: Boolean,
-        jsGenerated: Boolean,
-        responsiveTested: Boolean,
-        sectionsGenerated: Number,
-        totalSections: Number,
-        generationTime: Number,
-        qualityScore: Number
-      }
-    },
-    previewLandingPage: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        previewGenerated: Boolean,
-        previewUrl: String,
-        sectionsPreviewed: Number,
-        previewTime: Number,
-        previewQuality: Number
-      }
-    },
-    downloadLandingPage: {
-      completed: { type: Boolean, default: false },
-      completedAt: Date,
-      data: {
-        downloadPrepared: Boolean,
-        downloadUrl: String,
-        fileSize: Number,
-        downloadFormat: String,
-        downloadTime: Number
-      }
-    }
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   currentStep: {
     type: String,
-    enum: ['validation', 'contentPlanning', 'designAnalysis', 'contentGeneration', 'generateLandingPage', 'previewLandingPage', 'downloadLandingPage', 'completed'],
-    default: 'validation'
+    enum: ['Upload', 'Review', 'Details', 'Generate', 'Complete', 'Extract Design', 'Plan Content', 'Analyze Design', 'Generate Content', 'Generate Landing Page', 'Preview Landing Page', 'Download Landing Page'],
+    default: 'Upload'
   }
 }, {
   timestamps: true
