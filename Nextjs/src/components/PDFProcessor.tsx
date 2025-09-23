@@ -183,7 +183,6 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
       onAnalysisComplete(transformedResult)
 
     } catch (error) {
-      console.error('PDF processing error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       setError(errorMessage)
       setIsProcessing(false)
