@@ -5,9 +5,10 @@ import { ArrowLeft, Building2, Users, MessageSquare, Globe, Sparkles, CheckCircl
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
+import { SectionHeader } from "@/components/ui/section-header"
 import { BusinessDetails } from "@/types"
 import { apiService } from "@/lib/api"
 
@@ -270,17 +271,11 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
   return (
     <div className="space-y-8">
 
-      <div className="text-center mb-8">
-        <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-6">
-          <Building2 className="w-10 h-10 text-primary" />
-        </div>
-        <h3 className="text-2xl font-bold text-foreground mb-3">
-          Tell us about your business
-        </h3>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          This information helps our AI generate relevant, compelling content that perfectly matches your brand and business goals
-        </p>
-      </div>
+      <SectionHeader
+        icon={<Building2 className="w-8 h-8" />}
+        title="Tell us about your business"
+        description="This information helps our AI generate relevant, compelling content that perfectly matches your brand and business goals"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Business Info Fields - Show only when manual input is selected */}
@@ -291,14 +286,13 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
               {/* Business Name */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground flex items-center">
-                  <Building2 className="h-4 w-4 mr-2 text-primary" />
+                  <Building2 className="h-4 w-4 mr-2 text-b2" />
                   Business Name *
                 </label>
                 <Input
                   placeholder="Enter your business name"
                   value={formData.businessName}
                   onChange={(e) => handleInputChange("businessName", e.target.value)}
-                  className={`text-lg ${errors.businessName ? 'border-destructive focus:border-destructive' : ''}`}
                   required
                 />
                 {errors.businessName && (
@@ -312,19 +306,23 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
               {/* Brand Tone */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground flex items-center">
-                  <MessageSquare className="h-4 w-4 mr-2 text-primary" />
+                  <MessageSquare className="h-4 w-4 mr-2 text-b2" />
                   Brand Tone
                 </label>
                 <Select
                   value={formData.brandTone}
-                  onChange={(e) => handleInputChange("brandTone", e.target.value)}
-                  className="text-lg"
+                  onValueChange={(value) => handleInputChange("brandTone", value)}
                 >
-                  {brandToneOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                  <SelectTrigger className="text-lg">
+                    <SelectValue placeholder="Select brand tone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brandToneOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -339,7 +337,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
                 value={formData.businessOverview}
                 onChange={(e) => handleInputChange("businessOverview", e.target.value)}
                 rows={5}
-                className={`text-lg ${errors.businessOverview ? 'border-destructive focus:border-destructive' : ''}`}
+                className={`text-sm ${errors.businessOverview ? 'border-destructive focus:border-destructive' : ''}`}
                 required
               />
               <div className="flex items-center justify-between">
@@ -361,7 +359,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
             {/* Target Audience */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground flex items-center">
-                <Users className="h-4 w-4 mr-2 text-primary" />
+                <Users className="h-4 w-4 mr-2 text-b2" />
                 Target Audience *
               </label>
               <Textarea
@@ -369,7 +367,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
                 value={formData.targetAudience}
                 onChange={(e) => handleInputChange("targetAudience", e.target.value)}
                 rows={4}
-                className={`text-lg ${errors.targetAudience ? 'border-destructive focus:border-destructive' : ''}`}
+                className={`text-sm ${errors.targetAudience ? 'border-destructive focus:border-destructive' : ''}`}
                 required
               />
               {errors.targetAudience && (
@@ -384,14 +382,14 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
 
         {/* OR Divider with Toggle */}
         <div className="flex items-center justify-center my-8">
-          <div className="flex items-center space-x-4 bg-muted/30 rounded-full p-2">
+          <div className="flex items-center space-x-4 bg-muted/30 rounded-full p-2 md:flex-row flex-col">
             <button
               type="button"
               onClick={() => handleInputMethodChange('manual')}
               className={`px-6 py-3 rounded-full text-sm font-medium transition-all duration-200 ${
                 inputMethod === 'manual'
-                  ? 'bg-primary text-white shadow-md'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'bg-b2 text-white shadow-md'
+                  : 'text-muted-foreground bg-b12 hover:text-foreground hover:bg-b11'
               }`}
             >
               <Building2 className="h-4 w-4 mr-2 inline" />
@@ -403,7 +401,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
               onClick={() => handleInputMethodChange('url')}
               className={`px-6 py-3 rounded-full text-sm font-medium transition-all duration-200 ${
                 inputMethod === 'url'
-                  ? 'bg-primary text-white shadow-md'
+                  ? 'bg-b2 text-white shadow-md'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
             >
@@ -417,25 +415,25 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
         {inputMethod === 'url' && (
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground flex items-center">
-              <Globe className="h-4 w-4 mr-2 text-primary" />
+              <Globe className="h-4 w-4 mr-2 text-b2" />
               Website URL *
             </label>
-            <div className="flex space-x-3">
+            <div className="flex md:space-x-3 md:flex-row flex-col space-y-3 md:space-y-0">
               <Input
                 type="url"
                 placeholder="https://yourwebsite.com"
                 value={formData.websiteUrl}
                 onChange={(e) => handleInputChange("websiteUrl", e.target.value)}
-                className={`flex-1 text-lg ${errors.websiteUrl ? 'border-destructive focus:border-destructive' : ''}`}
+                className={`flex-1 text-sm ${errors.websiteUrl ? 'border-destructive focus:border-destructive' : ''}`}
                 required
               />
-              <Tooltip content="We can automatically extract business details from your existing website">
+              <Tooltip content="We can automatically extract business details from your existing website" maxWidth="350px">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleAutoGenerate}
                   disabled={!formData.websiteUrl || isAutoGenerating}
-                  className="whitespace-nowrap border-2 hover:bg-primary/5"
+                  className="whitespace-nowrap hover:bg-b2 hover:text-white"
                 >
                   {isAutoGenerating ? (
                     <>
@@ -510,14 +508,14 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
               {/* Business Name */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground flex items-center">
-                  <Building2 className="h-4 w-4 mr-2 text-primary" />
+                  <Building2 className="h-4 w-4 mr-2 text-b2" />
                   Business Name *
                 </label>
                 <Input
                   placeholder="Enter your business name"
                   value={formData.businessName}
                   onChange={(e) => handleInputChange("businessName", e.target.value)}
-                  className={`text-lg ${errors.businessName ? 'border-destructive focus:border-destructive' : ''}`}
+                  className={`text-sm ${errors.businessName ? 'border-destructive focus:border-destructive' : ''}`}
                   required
                 />
                 {errors.businessName && (
@@ -531,19 +529,23 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
               {/* Brand Tone */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground flex items-center">
-                  <MessageSquare className="h-4 w-4 mr-2 text-primary" />
+                  <MessageSquare className="h-4 w-4 mr-2 text-b2" />
                   Brand Tone
                 </label>
                 <Select
                   value={formData.brandTone}
-                  onChange={(e) => handleInputChange("brandTone", e.target.value)}
-                  className="text-lg"
+                  onValueChange={(value) => handleInputChange("brandTone", value)}
                 >
-                  {brandToneOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select brand tone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brandToneOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -558,7 +560,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
                 value={formData.businessOverview}
                 onChange={(e) => handleInputChange("businessOverview", e.target.value)}
                 rows={5}
-                className={`text-lg ${errors.businessOverview ? 'border-destructive focus:border-destructive' : ''}`}
+                className={`text-sm ${errors.businessOverview ? 'border-destructive focus:border-destructive' : ''}`}
                 required
               />
               <div className="flex items-center justify-between">
@@ -580,7 +582,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
             {/* Target Audience */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground flex items-center">
-                <Users className="h-4 w-4 mr-2 text-primary" />
+                <Users className="h-4 w-4 mr-2 text-b2" />
                 Target Audience *
               </label>
               <Textarea
@@ -588,7 +590,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
                 value={formData.targetAudience}
                 onChange={(e) => handleInputChange("targetAudience", e.target.value)}
                 rows={4}
-                className={`text-lg ${errors.targetAudience ? 'border-destructive focus:border-destructive' : ''}`}
+                className={`text-sm ${errors.targetAudience ? 'border-destructive focus:border-destructive' : ''}`}
                 required
               />
               {errors.targetAudience && (
@@ -609,7 +611,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
         {/* Content Length */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-foreground flex items-center">
-            <MessageSquare className="h-4 w-4 mr-2 text-primary" />
+            <MessageSquare className="h-4 w-4 mr-2 text-b2" />
             Content Length for Sections
           </label>
           <Input
@@ -617,7 +619,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
             placeholder="Enter word count (e.g., 150)"
             value={formData.customContentLength || ''}
             onChange={(e) => handleInputChange("customContentLength", e.target.value)}
-            className="text-lg"
+            className="text-sm"
             min="10"
             max="1000"
           />
@@ -634,16 +636,15 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
 
         {/* Action Buttons */}
         <div className="pt-6">
-          <div className="flex space-x-4">
+          <div className="flex md:space-x-4 md:flex-row flex-col space-y-4 md:space-y-0">
             {/* Back Button - 30% width */}
             <Button
               type="button"
               variant="outline"
               onClick={onBack}
-              className="w-[30%] border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
-              size="lg"
+              className="border px-4 py-2 text-sm bg-white text-b2 hover:bg-b2 hover:text-white transition-all duration-200"
             >
-              <ArrowLeft className="h-5 w-5 mr-2" />
+              <ArrowLeft className="h-auto w-4 mr-1" />
               Back
             </Button>
             
@@ -651,7 +652,7 @@ export function BusinessDetailsForm({ onSubmit, onBack, extractedSections = [] }
             <Button
               type="submit"
               disabled={!isFormValid || isSubmitting}
-              className="w-[70%] bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
+              className="bg-b2 text-white hover:bg-b5 transition-all duration-200"
               size="lg"
             >
               {isSubmitting ? (

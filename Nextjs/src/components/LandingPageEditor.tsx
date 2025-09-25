@@ -465,7 +465,7 @@ export function LandingPageEditor({ landingPage, onSave, onCancel }: LandingPage
                     <div className="w-24 h-24 bg-gradient-to-r from-gray-400 to-slate-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
                       <FileText className="h-12 w-12 text-white" />
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-3">No Sections Available</h3>
+                    <h3 className="md:text-2xl text-lg font-bold text-foreground mb-3">No Sections Available</h3>
                     <p className="text-lg text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
                       This landing page doesn't have any sections yet. Sections will appear here when they are added to the database.
                     </p>

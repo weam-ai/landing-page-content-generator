@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select } from "@/components/ui/select"
 import { ToastContainer, ToastProps } from "@/components/ui/toast"
 import { UploadDesignModal } from "@/components/UploadDesignModal"
 import { UserEmailDisplay } from "@/components/UserEmailDisplay"
@@ -490,55 +489,33 @@ export default function SolutionsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       {/* Header */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-white via-gray-50/50 to-primary/5 border-b border-gray-200/60 sticky top-0 z-10 shadow-sm">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(147,51,234,0.08),transparent_50%)] opacity-60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.06),transparent_50%)] opacity-60" />
-        
-        {/* Decorative Elements */}
-        <div className="absolute top-0 left-1/4 w-32 h-32 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-full blur-3xl opacity-30" />
-        <div className="absolute top-0 right-1/4 w-40 h-40 bg-gradient-to-r from-purple-500/20 to-primary/20 rounded-full blur-3xl opacity-30" />
-        
+      <header className="bg-b13 border-b-2">
         <div className="container mx-auto px-6 py-6 relative">
           
-          <div className="flex items-center justify-between">
+          <div className="flex lg:items-center justify-between lg:flex-row flex-col">
             <div className="flex-1">
               {/* Enhanced Title Section */}
               <div className="flex items-center space-x-3 mb-2">
                 <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary via-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-xl shadow-primary/25">
-                    <div className="w-8 h-8 bg-white/90 rounded-lg flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                  </div>
+                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-b11 p-2">
+                      <FileText className="w-6 h-auto text-b2" />
+                    </div>                  
                   {/* Floating accent dots */}
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse" />
-                  <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
                 </div>
                 
                 <div>
-                  <h1 className="text-4xl font-black text-primary leading-tight">
+                  <h1 className="md:text-2xl text-lg font-black text-b2 leading-tight">
                     AI Landing Page Generator
                   </h1>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <div className="w-2 h-2 bg-gradient-to-r from-primary to-purple-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Weam AI-Powered Platform</span>
+                  <div className="flex items-center space-x-2 mt-1 text-sm text-b6">
+                    Weam AI-Powered Platform
                   </div>
                 </div>
               </div>
               
-              {/* Enhanced Subtitle */}
-              <div className="max-w-2xl">
-                <p className="text-lg text-gray-600 leading-relaxed font-medium">
-                  Transform your designs into stunning landing pages with 
-                  <span className="text-primary/70 font-semibold"> AI-powered content generation</span>
-                </p>
-              </div>
-              
-              {/* Four Step Process - Centered */}
-              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-2 lg:gap-6 mt-6">
+              <div className="w-full sm:flex hidden flex-row flex-wrap items-center gap-4 sm:gap-2 lg:gap-6 mt-5">
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">I</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Figma URL | Upload Design</span>
@@ -546,7 +523,7 @@ export default function SolutionsPage() {
                 
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">II</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">AI Content Analysis</span>
@@ -554,34 +531,35 @@ export default function SolutionsPage() {
                 
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">III</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Customize Content</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">IV</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Landing Page Craft</span>
                 </div>
               </div>
+              
+              <p className="text-sm text-b5 leading-relaxed font-medium mt-2">
+                  Transform your designs into stunning landing pages with 
+                  <span className="font-semibold"> AI-powered content generation</span>
+              </p>
             </div>
             
             {/* Action Buttons */}
-            <div className="flex space-x-4">
+            <div className="flex space-x-4 lg:mt-0 mt-5">
               {/* Enhanced CTA Button */}
               <div className="relative">
                 <Button 
                   onClick={() => setIsUploadModalOpen(true)}
-                  className="relative bg-gradient-to-r from-primary via-purple-600 to-purple-700 hover:from-primary/90 hover:via-purple-600/90 hover:to-purple-700/90 text-white shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 px-6 py-4 text-base font-bold rounded-xl border-0 overflow-hidden group"
+                  className="relative bg-black text-white shadow-xl shadow-b10 hover:bg-b5 transition-all duration-300 transform px-6 py-4 text-base font-bold rounded-xl border-0 overflow-hidden group"
                   size="lg"
                 >
-                  {/* Button Background Pattern */}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  {/* Button Content */}
                   <div className="relative flex items-center space-x-2">
                     <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm relative">
                       <Sparkles className="h-4 w-4 text-white animate-spin" style={{ animationDuration: '2s' }} />
@@ -594,22 +572,13 @@ export default function SolutionsPage() {
                     </div>
                     <span>Generate New Landing Page</span>
                   </div>
-                  
-                  {/* Button Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </Button>
                 
-                {/* Floating notification badge */}
-                <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-r from-primary via-purple-600 to-purple-700 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30 border-2 border-white animate-pulse">
-                  <span className="text-sm text-white font-bold">{totalCount}</span>
-                </div>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Bottom accent line */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
       </header>
 
       {/* Main Content */}
@@ -618,7 +587,7 @@ export default function SolutionsPage() {
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin text-b2 mx-auto mb-4" />
               <p className="text-muted-foreground">Loading your landing pages...</p>
             </div>
           </div>
@@ -652,35 +621,33 @@ export default function SolutionsPage() {
           <>
             {/* Stats Section with Back to App - Always show */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
-              <div className="flex items-center justify-between">
+              <div className="flex md:items-center justify-between flex-col md:flex-row">
                 {/* Left Side - Back to App */}
                 <div className="flex items-center">
                   <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
                 </div>
 
                 {/* Right Side - Stats */}
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-6 md:mt-0 mt-4">
                   {/* Total Pages */}
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border border-primary/20">
-                      <FileText className="h-5 w-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-primary/20">
+                      <FileText className="h-5 w-5 text-b5" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                      <p className="md:text-2xl text-lg font-bold text-gray-900">{totalCount}</p>
                       <p className="text-xs text-gray-500">Total Pages</p>
                     </div>
                   </div>
 
-                  {/* Divider */}
                   <div className="w-px h-12 bg-gray-200" />
 
-                  {/* Updated This Week */}
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
-                      <Zap className="h-5 w-5 text-green-600" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-primary/20">
+                      <Zap className="h-5 w-5 text-b5" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="md:text-2xl text-lg font-bold text-gray-900">
                         {landingPages.filter(p => p.updatedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
                       </p>
                       <p className="text-xs text-gray-500">Updated This Week</p>
@@ -697,26 +664,23 @@ export default function SolutionsPage() {
 
                 {/* Landing Pages Grid */}
                 <div>
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-1 h-8 bg-gradient-to-b from-primary to-purple-600 rounded-full" />
-                      <h2 className="text-3xl font-bold text-gray-700">Your Landing Pages</h2>
-                    </div>
+                  <div className="flex sm:items-center justify-between mb-8 flex-col sm:flex-row">
+                    <h2 className="text-2xl font-bold text-b2 mb-2 md:mb-0">Your Landing Pages</h2>
                     
                     {/* Modern Search Bar */}
                     <div className="relative max-w-sm group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/15 to-purple-600/15 rounded-xl blur-sm group-hover:blur-md transition-all duration-300"></div>
-                      <div className="relative bg-white/95 backdrop-blur-sm rounded-xl shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/15 transition-all duration-300 group-hover:scale-[1.01] border border-white/40 ring-1 ring-primary/20 group-hover:ring-primary/30">
-                        <div className="flex items-center px-3 py-2">
-                          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-r from-primary/15 to-purple-600/15 mr-2 group-hover:from-primary/25 group-hover:to-purple-600/25 transition-all duration-300 ring-1 ring-primary/10 group-hover:ring-primary/20">
-                            <Search className="h-3.5 w-3.5 text-primary group-hover:text-primary/90 transition-colors duration-300" />
+                      <div className="absolute inset-0 rounded-lg transition-all duration-300"></div>
+                      <div className="relative bg-white rounded-lg transition-all duration-300 border border-b10 ">
+                        <div className="flex items-center px-3 py-0">
+                          <div className="flex items-center justify-center w-6 h-6">
+                            <Search className="h-3.5 w-3.5 text-b7 group-hover:text-b2 transition-colors duration-300" />
                           </div>
-                          <input
+                          <Input
                             type="text"
                             placeholder="Search pages"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="flex-1 bg-transparent text-gray-700 placeholder-gray-500 focus:outline-none text-sm font-medium"
+                            className="border-none"
                           />
                           {searchQuery && (
                             <button
@@ -763,8 +727,8 @@ export default function SolutionsPage() {
                     ) : (
                       <div className="col-span-full text-center py-12">
                         <div className="max-w-md mx-auto">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-xl flex items-center justify-center ring-1 ring-primary/20">
-                            <Search className="h-8 w-8 text-primary/70" />
+                          <div className="w-16 h-16 mx-auto mb-4 rounded-lg flex items-center justify-center border bg-b12">
+                            <Search className="h-8 w-8 text-b2" />
                           </div>
                           <h3 className="text-xl font-bold text-gray-900 mb-2">
                             {searchQuery ? 'No Results Found' : 'No Landing Pages'}
@@ -772,7 +736,7 @@ export default function SolutionsPage() {
                           <p className="text-gray-600 mb-4">
                             {searchQuery ? (
                               <>
-                                No results found for <span className="font-semibold text-primary">"{searchQuery}"</span>. 
+                                No results found for <span className="font-semibold text-b2">"{searchQuery}"</span>. 
                                 Try a different search term.
                               </>
                             ) : (
@@ -783,7 +747,7 @@ export default function SolutionsPage() {
                             <Button
                               onClick={() => setSearchQuery('')}
                               variant="outline"
-                              className="bg-white/90 backdrop-blur-sm border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/30 px-6 py-2 rounded-lg shadow-md shadow-primary/5 hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 ring-1 ring-primary/10 hover:ring-primary/20"
+                              className="border bg-white hover:bg-b2 hover:text-white transition-all duration-200"
                             >
                               <X className="h-4 w-4 mr-2" />
                               Clear Search
@@ -835,8 +799,8 @@ export default function SolutionsPage() {
                                     onClick={() => setCurrentPage(pageNum)}
                                     className={`w-6 h-6 flex items-center justify-center text-xs font-semibold rounded-full transition-all duration-200 ${
                                       isCurrentPage
-                                        ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-sm'
-                                        : 'text-gray-600 hover:text-primary hover:bg-primary/10'
+                                        ? 'bg-b2 text-white'
+                                        : 'text-gray-600 hover:text-b2 hover:bg-b12'
                                     }`}
                                   >
                                     {pageNum}
@@ -917,22 +881,22 @@ export default function SolutionsPage() {
           setIsViewModalOpen(open)
           if (!open) setExpandedCard(null)
         }}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50/30">
+        <DialogContent className="md:max-w-5xl max-w-[calc(100%-30px)] rounded-md max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50/30">
           {selectedPage && (
             <div className="h-full overflow-hidden">
-              <DialogHeader className="border-b border-gray-200/50 pb-4 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl">
+              <DialogHeader className="border-b border-b10 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent flex items-center mb-2">
-                      <div className="w-10 h-10 bg-gradient-to-r from-primary to-purple-600 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-                        <FileText className="h-5 w-5 text-white" />
+                    <DialogTitle className="text-xl font-bold flex items-center mb-2">
+                      <div className="w-10 h-10 bg-b12 rounded-lg flex items-center justify-center mr-3">
+                        <FileText className="h-5 w-5 text-b2" />
                       </div>
                       {selectedPage.title}
                     </DialogTitle>
-                    <DialogDescription className="text-base text-muted-foreground font-medium">
+                    <DialogDescription className="text-base text-muted-foreground">
                       Complete landing page details and sections
                       {selectedPage.sections && selectedPage.sections.length > 0 && (
-                        <span className="ml-2 text-primary font-semibold">
+                        <span className="ml-2 text-b2 font-semibold">
                           • {selectedPage.sections.length} sections available
                         </span>
                       )}
@@ -946,15 +910,15 @@ export default function SolutionsPage() {
                 <div className="space-y-6 max-w-3xl mx-auto">
                   {/* Business Information & Overview */}
                   <div 
-                    className="bg-gradient-to-r from-indigo-50 via-blue-50 to-cyan-50 p-6 rounded-xl border border-indigo-200/50 shadow-md backdrop-blur-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+                    className="border px-4 py-3 rounded-md cursor-pointer"
                     onClick={() => setIsBusinessInfoModalOpen(true)}
                   >
                      <div className="flex items-center">
-                       <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-blue-700 rounded-lg flex items-center justify-center mr-4 shadow-lg">
-                         <Building2 className="h-6 w-6 text-white" />
+                       <div className="w-12 h-12 bg-b12 rounded-lg flex items-center justify-center mr-4">
+                         <Building2 className="h-6 w-6 text-b2" />
                        </div>
                        <div>
-                         <h2 className="text-xl font-bold text-primary">Business Information & Overview</h2>
+                         <h2 className="md:text-xl text-lg font-bold text-b2">Business Information & Overview</h2>
                          <p className="text-sm text-muted-foreground mt-1">Click to view and edit all business details</p>
                        </div>
                      </div>
@@ -963,33 +927,32 @@ export default function SolutionsPage() {
 
 
                   {/* Landing Page Sections */}
-                  <div className="bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 p-6 rounded-xl border border-green-200/50 shadow-md backdrop-blur-sm">
+                  <div className="bg-gradient-to-r px-4 py-3 rounded-md border">
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-bold text-primary flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-                          <Sparkles className="h-5 w-5 text-white" />
+                      <h2 className="md:text-xl text-lg font-bold text-b2 flex items-center">
+                        <div className="w-10 h-10 bg-b12 rounded-lg flex items-center justify-center mr-3">
+                          <Sparkles className="h-5 w-5 text-b2" />
                         </div>
                         Landing Page Sections
                       </h2>
-                      <Badge variant="outline" className="text-base px-4 py-2 bg-white/90 backdrop-blur-sm border-green-200 text-green-700 font-bold">
+                      <Badge variant="outline" className="px-3 py-2 border md:text-sm text-xs md:text-left text-center max-md:rounded-md">
                         {selectedPage.sections?.length || 0} sections
                       </Badge>
                     </div>
                     
                     {/* Clickable Sections Overview Card */}
                     <div 
-                      className="flex items-center space-x-3 p-4 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 cursor-pointer mb-4"
+                      className="flex items-center space-x-3 px-3 py-2 rounded-md cursor-pointer mb-4"
                       onClick={() => setExpandedCard(expandedCard === 'landingPageSections' ? null : 'landingPageSections')}
                     >
                       <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0"
-                        style={{ backgroundColor: '#059669' }}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-b12"
                       >
-                        <Sparkles className="h-5 w-5 text-white" />
+                        <Sparkles className="h-5 w-5 text-b2" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-muted-foreground font-medium mb-1">Landing Page Sections</p>
-                        <p className="text-base font-bold text-foreground break-words">Click to view all sections</p>
+                        <p className="text-xs underline text-foreground break-words">Click to view all sections</p>
                       </div>
                     </div>
                     
@@ -1018,12 +981,12 @@ export default function SolutionsPage() {
                           {selectedPage.sections.map((section, index) => (
                             <div 
                               key={section.id} 
-                              className="bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 p-4 hover:shadow-lg hover:border-green-300 transition-all duration-200 cursor-pointer group"
+                              className="bg-white rounded-md border p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group"
                               onClick={() => handleSectionClick(section)}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
+                                  <div className="w-10 h-10 bg-b12 rounded-md border flex items-center justify-center text-b5 text-sm font-bold flex-shrink-0">
                                     {index + 1}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -1059,7 +1022,7 @@ export default function SolutionsPage() {
                   {/* Page Dates - Inline */}
                   <div className="flex items-center justify-center space-x-6 text-xs text-muted-foreground py-2">
                     <div className="flex items-center space-x-2">
-                      <Calendar className="h-3 w-3 text-blue-600" />
+                      <Calendar className="h-3 w-3 text-gray-600" />
                       <span>Created: {formatDate(selectedPage.createdAt)}</span>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1080,11 +1043,11 @@ export default function SolutionsPage() {
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent className="max-w-md border-0 shadow-2xl">
           {/* Background Pattern */}
-          <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50 to-pink-50 rounded-lg opacity-50"></div>
+          
           
           <DialogHeader className="relative">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
                 <span className="text-white text-xl">🗑️</span>
               </div>
               <div>
@@ -1109,7 +1072,7 @@ export default function SolutionsPage() {
             </Button>
             <Button 
               onClick={confirmDelete}
-              className="px-6 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              className="px-6 py-2 bg-b2 text-white hover:bg-b5 transition-all duration-200"
             >
               <span className="flex items-center space-x-2">
                 <span>🗑️</span>
@@ -1125,11 +1088,11 @@ export default function SolutionsPage() {
         <DialogContent className={`${editingField === 'deleteSection' ? 'max-w-sm' : 'max-w-2xl'} max-h-[90vh] overflow-hidden`}>
           {/* Enhanced Header with Gradient Background */}
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-t-lg"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 rounded-t-lg"></div>
             <DialogHeader className="relative p-6 pb-4">
               {editingField === 'deleteSection' ? null : (
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl shadow-lg">
+                  <div className="w-12 h-12 bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl flex items-center justify-center text-white text-xl shadow-lg">
                     {editingField === 'addSection' ? '➕' : 
                      editingField === 'editSection' ? '✏️' : '📝'}
                   </div>
@@ -1155,14 +1118,14 @@ export default function SolutionsPage() {
               <div className="space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-gray-700 flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
                     <span>Section Title</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={sectionTitle}
                     onChange={(e) => setSectionTitle(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                     placeholder="Enter section title..."
                   />
                 </div>
@@ -1184,14 +1147,14 @@ export default function SolutionsPage() {
               <div className="space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-gray-700 flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
                     <span>Section Title</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={sectionTitle}
                     onChange={(e) => setSectionTitle(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                     placeholder="Enter section title..."
                   />
                 </div>
@@ -1234,7 +1197,7 @@ export default function SolutionsPage() {
                       placeholder={`Enter ${editingField?.toLowerCase().replace(/([A-Z])/g, ' $1')}...`}
                     />
                   ) : (
-                    <input
+                    <Input
                       type="text"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
@@ -1268,7 +1231,7 @@ export default function SolutionsPage() {
               ) : (
                 <Button 
                   onClick={handleEditFieldSave} 
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  className="px-6 py-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   {editingField === 'addSection' ? (
                     <>
@@ -1342,17 +1305,17 @@ export default function SolutionsPage() {
         <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
           {selectedSection && (
             <div className="h-full overflow-hidden">
-              <DialogHeader className="border-b border-gray-200/50 pb-6 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl">
+              <DialogHeader className="border-b pb-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                      {selectedSection.title ? selectedSection.title.charAt(0).toUpperCase() : 'S'}
+                    <div className="w-12 h-12 md:bg-b12 md:border rounded-xl flex items-center justibg-b12 text-lg font-bold md:shadow-lg">
+              b2      {selectedSection.title ? selectedSection.title.charAt(0).toUpperCase() : 'S'}
                     </div>
                     <div>
-                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                      <DialogTitle className="md:text-2xl font-bold text-gray-900 max-md:text-left">
                         Edit Section
                       </DialogTitle>
-                      <DialogDescription className="text-gray-600 mt-1">
+                      <DialogDescription className="text-gray-600 mt-1 max-md:text-left">
                         Modify section details and content
                       </DialogDescription>
                     </div>
@@ -1363,9 +1326,9 @@ export default function SolutionsPage() {
               <div className="overflow-y-auto max-h-[75vh] pr-2 py-6">
                 <div className="space-y-6">
                   {/* Section Basic Info */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200/50">
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200/50">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Edit className="h-5 w-5 mr-2 text-blue-600" />
+                      <Edit className="h-5 w-5 mr-2 text-gray-600" />
                       Section Basic Info
                     </h3>
                     <div>
@@ -1392,7 +1355,7 @@ export default function SolutionsPage() {
                       <div className="space-y-4">
                         {Object.entries(selectedSection.components).map(([componentKey, componentValue]) => {
                           const componentTypes = {
-                            title: { label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+                            title: { label: 'Title', icon: '📝', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' },
                             subtitle: { label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
                             content: { label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
                             buttons: { label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
@@ -1490,7 +1453,7 @@ export default function SolutionsPage() {
                                 
                                 {/* Add New Item Button for Arrays */}
                                 {Array.isArray(componentValue) && (
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex items-center space-x-2 md:flex-row flex-col md:space-x-2 md:space-y-0 space-y-2">
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -1532,83 +1495,83 @@ export default function SolutionsPage() {
                   )}
 
                 </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
-                <div className="flex items-center justify-end">
-                  <div className="flex items-center space-x-3">
-                    <Button 
-                      onClick={() => setIsSectionModalOpen(false)}
-                      variant="outline"
-                      className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                    >
-                      Cancel
-                    </Button>
-                    <Tooltip content="Delete Section">
+                {/* Action Buttons */}
+                <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
+                  <div className="flex items-center justify-end">
+                    <div className="flex items-center space-x-3 flex-wrap">
                       <Button 
-                        onClick={async () => {
-                          if (!selectedSection || !selectedPage) return
-                          
-                          try {
-                            // Remove the section from the landing page
-                            const updatedPage = { ...selectedPage }
-                            updatedPage.sections = updatedPage.sections?.filter(
-                              section => section.id !== selectedSection.id
-                            )
-                            
-                            // Update the selectedPage state
-                            setSelectedPage(updatedPage)
-                            
-                            // Save to backend
-                            const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
-                              method: 'PUT',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify(updatedPage),
-                            })
-                            
-                            if (!response.ok) {
-                              throw new Error('Failed to delete section')
-                            }
-                            
-                            // Close the modal
-                            setIsSectionModalOpen(false)
-                            
-                            // Show success message
-                            addToast({
-                              title: 'Success',
-                              description: 'Section deleted successfully',
-                              type: 'success'
-                            })
-                            
-                          } catch (error) {
-                            console.error('Error deleting section:', error)
-                            addToast({
-                              title: 'Error',
-                              description: 'Failed to delete section',
-                              type: 'error'
-                            })
-                          }
-                        }}
+                        onClick={() => setIsSectionModalOpen(false)}
                         variant="outline"
-                        className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                        className="border bg-white hover:bg-b5 hover:text-white"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        Cancel
                       </Button>
-                    </Tooltip>
-                    <Button 
-                      onClick={handleSaveSection}
-                      className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </Button>
+                      <Tooltip content="Delete Section">
+                        <Button 
+                          onClick={async () => {
+                            if (!selectedSection || !selectedPage) return
+                            
+                            try {
+                              // Remove the section from the landing page
+                              const updatedPage = { ...selectedPage }
+                              updatedPage.sections = updatedPage.sections?.filter(
+                                section => section.id !== selectedSection.id
+                              )
+                              
+                              // Update the selectedPage state
+                              setSelectedPage(updatedPage)
+                              
+                              // Save to backend
+                              const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(updatedPage),
+                              })
+                              
+                              if (!response.ok) {
+                                throw new Error('Failed to delete section')
+                              }
+                              
+                              // Close the modal
+                              setIsSectionModalOpen(false)
+                              
+                              // Show success message
+                              addToast({
+                                title: 'Success',
+                                description: 'Section deleted successfully',
+                                type: 'success'
+                              })
+                              
+                            } catch (error) {
+                              console.error('Error deleting section:', error)
+                              addToast({
+                                title: 'Error',
+                                description: 'Failed to delete section',
+                                type: 'error'
+                              })
+                            }
+                          }}
+                          variant="outline"
+                          className="border bg-white hover:bg-b5 hover:text-white"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </Tooltip>
+                      <Button 
+                        onClick={handleSaveSection}
+                        className="bg-b2 text-white hover:bg-b5 hover:text-white max-md:mt-1"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Changes
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </div>             
+              
             </div>
           )}
         </DialogContent>
@@ -1619,17 +1582,17 @@ export default function SolutionsPage() {
         <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
           {newSection && (
             <div className="h-full overflow-hidden">
-              <DialogHeader className="border-b border-gray-200/50 pb-6 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl">
+              <DialogHeader className="border-b pb-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                  <div className="flex items-center md:space-x-4 space-x-2">
+                    <div className="w-16 h-16 rounded-xl flex items-center justify-center text-b2 text-2xl font-bold md:bg-b12 md:border">
                       +
                     </div>
                     <div>
-                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                      <DialogTitle className="text-2xl font-bold text-gray-900 max-md:text-left">
                         Add New Section
                       </DialogTitle>
-                      <DialogDescription className="text-gray-600 mt-1">
+                      <DialogDescription className="text-gray-600 mt-1 max-md:text-left">
                         Create a new section for your landing page
                       </DialogDescription>
                     </div>
@@ -1640,9 +1603,9 @@ export default function SolutionsPage() {
               <div className="overflow-y-auto max-h-[75vh] pr-2 py-6">
                 <div className="space-y-6">
                   {/* Section Basic Info */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200/50">
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200/50">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Edit className="h-5 w-5 mr-2 text-blue-600" />
+                      <Edit className="h-5 w-5 mr-2 text-gray-600" />
                       Section Basic Info
                     </h3>
                     <div>
@@ -1668,7 +1631,7 @@ export default function SolutionsPage() {
                     <div className="space-y-4">
                       {Object.entries(newSection.components).map(([componentKey, componentValue]) => {
                         const componentTypes = {
-                          title: { label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+                            title: { label: 'Title', icon: '📝', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' },
                           subtitle: { label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
                           content: { label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
                           buttons: { label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
@@ -1806,29 +1769,30 @@ export default function SolutionsPage() {
                     </div>
                   </div>
                 </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
-                <div className="flex items-center justify-end">
-                  <div className="flex items-center space-x-3">
-                    <Button 
-                      onClick={() => setIsAddSectionModalOpen(false)}
-                      variant="outline"
-                      className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleSaveNewSection}
-                      className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Section
-                    </Button>
+                {/* Action Buttons */}
+                <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
+                  <div className="flex items-center justify-end">
+                    <div className="flex items-center space-x-3 flex-wrap">
+                      <Button 
+                        onClick={() => setIsAddSectionModalOpen(false)}
+                        variant="outline"
+                        className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleSaveNewSection}
+                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Section
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              
             </div>
           )}
         </DialogContent>
@@ -1937,7 +1901,7 @@ function LandingPageCard({
         body {
             font-family: 'Inter', sans-serif;
             line-height: 1.6;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             min-height: 100vh;
             color: #333;
             margin: 0;
@@ -1955,7 +1919,7 @@ function LandingPageCard({
 
         /* Header Styles */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             color: white;
             padding: 2rem 2rem;
             position: relative;
@@ -2013,7 +1977,7 @@ function LandingPageCard({
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
         }
 
         .business-details-header {
@@ -2028,7 +1992,7 @@ function LandingPageCard({
         .business-icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -2067,7 +2031,7 @@ function LandingPageCard({
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
@@ -2075,7 +2039,7 @@ function LandingPageCard({
         .info-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .info-item:hover::before {
@@ -2100,7 +2064,7 @@ function LandingPageCard({
 
         .info-value.brand-tone {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
@@ -2123,7 +2087,7 @@ function LandingPageCard({
         .info-item.clickable:hover {
             transform: translateY(-4px);
             box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .info-item.clickable:hover::before {
@@ -2139,7 +2103,7 @@ function LandingPageCard({
 
         .click-hint {
             font-size: 0.75rem;
-            color: #667eea;
+            color: #000000;
             font-weight: 500;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -2228,7 +2192,7 @@ function LandingPageCard({
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
             transform: scaleX(0);
             transform-origin: left;
             transition: transform 0.3s ease;
@@ -2312,7 +2276,7 @@ function LandingPageCard({
         .section-icon {
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -2332,7 +2296,7 @@ function LandingPageCard({
             content: '';
             position: absolute;
             inset: -2px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 22px;
             z-index: -1;
             opacity: 0.2;
@@ -2383,7 +2347,7 @@ function LandingPageCard({
         }
 
         .section-card:hover .section-title {
-            color: #667eea;
+            color: #000000;
             transform: translateY(-2px);
         }
 
@@ -2449,7 +2413,7 @@ function LandingPageCard({
         .section-modal-icon {
             width: 60px;
             height: 60px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 16px;
             display: flex;
             align-items: center;
@@ -2491,7 +2455,7 @@ function LandingPageCard({
             padding: 1.5rem;
             background: #f8fafc;
             border-radius: 12px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #000000;
         }
 
         .section-main-content h4 {
@@ -2542,7 +2506,7 @@ function LandingPageCard({
             border-radius: 6px;
             font-size: 0.9rem;
             color: #2d3748;
-            border-left: 3px solid #667eea;
+            border-left: 3px solid #000000;
         }
 
         .section-modal-footer {
@@ -3135,17 +3099,14 @@ function LandingPageCard({
   return (
     <Card className="group relative overflow-hidden bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 rounded-xl cursor-pointer" onClick={onView}>
       {/* Left accent line */}
-      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      
-      <div className="p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between md:p-4 py-1 px-3">
           {/* Left side - Icon and Title */}
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4 h-4 text-primary" />
+            <div className="w-8 h-8 rounded-lg bg-b11 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-b2" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors duration-200">
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-b2 transition-colors duration-200 text-wrap">
                 {page.title}
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -3155,48 +3116,49 @@ function LandingPageCard({
           </div>
           
           {/* Right side - Badge and Action Icons */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-2 flex-shrink-0 flex-col md:flex-row md:space-y-0 space-y-2">
             <Badge 
               variant={getBrandToneColor(page.brandTone)} 
-              className="px-2 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-primary/10 to-purple-500/10 text-primary border-0"
+              className="px-2 py-1 text-xs font-medium rounded-full bg-b12 text-b2 border-0"
             >
               {page.brandTone || 'Not Set'}
             </Badge>
             
             {/* Action Icons */}
-            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownload}
-                className="w-8 h-8 p-0 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-green-200/50 group border border-transparent hover:border-green-200"
-                title="Download Landing Page"
-              >
-                <div className="relative">
-                  <Download className="w-4 h-4 text-green-600 group-hover:text-green-700 transition-all duration-300 group-hover:animate-pulse" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+            <div className="flex items-center space-x-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+              <Tooltip content="Download Landing Page" position="top">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="w-8 h-8 p-0 hover:bg-green-50 rounded-lg transition-all duration-300 group border"
+                >
+                  <div className="relative">
+                    <Download className="w-4 h-4 text-green-600 group-hover:text-green-700 transition-all duration-300" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+                    </div>
                   </div>
-                </div>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="w-8 h-8 p-0 hover:bg-red-50 rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-red-200/50 group border border-transparent hover:border-red-200"
-                title="Delete Landing Page"
-              >
-                <div className="relative">
-                  <Trash2 className="w-4 h-4 text-red-600 group-hover:text-red-700 transition-all duration-300 group-hover:animate-pulse" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+                </Button>
+              </Tooltip>
+              <Tooltip content="Delete Landing Page" position="top">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="w-8 h-8 p-0 hover:bg-red-50 rounded-lg transition-all duration-300 group border"
+                >
+                  <div className="relative">
+                    <Trash2 className="w-4 h-4 text-red-600 group-hover:text-red-700 transition-all duration-300" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+                    </div>
                   </div>
-                </div>
-              </Button>
+                </Button>
+              </Tooltip>
             </div>
           </div>
         </div>
-      </div>
     </Card>
   )
 }
