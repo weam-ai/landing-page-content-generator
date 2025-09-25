@@ -9,6 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
+import { Divider } from "@/components/ui/divider"
+import { UrlInputCard } from "@/components/ui/url-input-card"
+import { FileUploadCard } from "@/components/ui/file-upload-card"
+import { SectionHeader } from "@/components/ui/section-header"
 import { BusinessDetailsForm } from "./BusinessDetailsForm"
 import { ComprehensiveAnalysisDisplay } from "./ComprehensiveAnalysisDisplay"
 import { FilteredAnalysisDisplay } from "./FilteredAnalysisDisplay"
@@ -447,82 +451,76 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[91vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50/30">
-        <DialogHeader className="text-center pb-6 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl border-b border-gray-200/50">
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-600 to-purple-700 bg-clip-text text-transparent mb-2">
-            Create New Landing Page
+      <DialogContent className="md:max-w-4xl rounded-md max-w-[calc(100%-30px)] max-h-[91vh] overflow-y-auto">
+        <DialogHeader className="text-left p-3 border-b">
+          <DialogTitle className="font-semibold flex items-center flex-wrap gap-x-1">
+          Create New Content for the Page
           </DialogTitle>
           {step === "upload" && (
-            <DialogDescription className="text-base text-gray-600 max-w-lg mx-auto">
-              Upload your design file or provide a Figma URL to get started with AI-powered content generation
+            <DialogDescription className="">
+              Paste your website URL or Figma Design URL or upload design pdf to write or rewrite the content with the AI powered content builder. 
             </DialogDescription>
           )}
         </DialogHeader>
 
         {/* Enhanced Progress Steps with Icons and Names */}
-        <div className="flex items-center justify-center py-6 bg-white/50">
-          <div className="flex items-center space-x-4">
-            {[
-              { id: "upload", name: "Upload", icon: Upload },
-              { id: "sections-review", name: "Review", icon: ListChecks },
-              { id: "business-details", name: "Details", icon: Building2 },
-              { id: "preview", name: "Generate", icon: EyeIcon },
-              { id: "sections-view", name: "Complete", icon: CheckCircle2 }
-            ].map((stepConfig, index) => {
-              const stepName = stepConfig.id;
-              const stepDisplayName = stepConfig.name;
-              const StepIcon = stepConfig.icon;
-              const isCompleted = step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index;
-              const isCurrent = step === stepName;
-              const isPrevious = ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index;
-              
-              return (
-                <div key={stepName} className="flex items-center">
-                  <div className="flex flex-col items-center">
-                    {/* Step Circle with Icon */}
-                    <div className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 transform ${
-                      isCurrent
-                        ? "bg-gradient-to-r from-primary to-purple-600 text-white scale-110 shadow-lg shadow-primary/25" 
-                        : isCompleted
-                        ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white scale-105"
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    }`}>
-                      {isCompleted ? (
-                        <CheckCircle className="w-6 h-6 animate-pulse" />
-                      ) : (
-                        <StepIcon className={`w-5 h-5 ${isCurrent ? 'animate-pulse' : ''}`} />
-                      )}
-                      
-                      {/* Active step indicator */}
-                      {isCurrent && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-primary to-purple-600 rounded-full animate-ping" />
-                      )}
-                    </div>
+        <div className="hidden md:flex items-center space-x-4 justify-center py-6">
+          {[
+            { id: "upload", name: "Upload", icon: Upload },
+            { id: "sections-review", name: "Review", icon: ListChecks },
+            { id: "business-details", name: "Details", icon: Building2 },
+            { id: "preview", name: "Generate", icon: EyeIcon },
+            { id: "sections-view", name: "Complete", icon: CheckCircle2 }
+          ].map((stepConfig, index) => {
+            const stepName = stepConfig.id;
+            const stepDisplayName = stepConfig.name;
+            const StepIcon = stepConfig.icon;
+            const isCompleted = step === "complete" || ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index;
+            const isCurrent = step === stepName;
+            const isPrevious = ["upload", "sections-review", "business-details", "preview", "sections-view"].indexOf(step) > index;
+            
+            return (
+              <div key={stepName} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  {/* Step Circle with Icon */}
+                  <div className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 transform ${
+                    isCurrent
+                      ? "bg-b2 text-white scale-110 shadow-lg" 
+                      : isCompleted
+                      ? "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}>
+                    {isCompleted ? (
+                      <CheckCircle className="w-6 h-6" />
+                    ) : (
+                      <StepIcon className={`w-5 h-auto ${isCurrent ? '' : ''}`} />
+                    )}
                     
-                    {/* Step Name */}
-                    <span className={`text-xs font-medium mt-2 transition-all duration-300 text-center max-w-20 leading-tight ${
-                      isCurrent 
-                        ? "text-primary font-semibold" 
-                        : isCompleted 
-                        ? "text-green-600 font-medium" 
-                        : "text-gray-500"
-                    }`}>
-                      {stepDisplayName}
-                    </span>
                   </div>
                   
-                  {/* Connector Line */}
-                  {index < 4 && (
-                    <div className={`w-20 h-1 mx-4 rounded-full transition-all duration-700 ${
-                      isCompleted
-                        ? "bg-gradient-to-r from-green-500 to-emerald-600"
-                        : "bg-gray-200"
-                    }`} />
-                  )}
+                  {/* Step Name */}
+                  <span className={`text-xs font-medium mt-2 transition-all duration-300 text-center max-w-20 leading-tight ${
+                    isCurrent 
+                      ? "text-b2 font-semibold" 
+                      : isCompleted 
+                      ? "text-gray-500" 
+                      : "text-gray-500"
+                  }`}>
+                    {stepDisplayName}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                
+                {/* Connector Line */}
+                {index < 4 && (
+                  <div className={`w-20 bg-gray-200 h-1 mx-4 rounded-full transition-all duration-700 ${
+                    isCompleted
+                      ? "bg-gradient-to-r from-green-500 to-emerald-600"
+                      : "bg-gray-200"
+                  }`} />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {step === "upload" && (
@@ -615,9 +613,7 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
       </DialogContent>
     </Dialog>
   )
-}
-
-function UploadStep({ 
+}function UploadStep({ 
   onFileUpload, 
   onFigmaUrl,
   onWebsiteUrl,
@@ -797,11 +793,11 @@ function UploadStep({
             <Card className="max-w-lg mx-auto bg-gradient-to-br from-green-50 to-emerald-50/50 border border-green-200 shadow-lg">
               <CardContent className="p-6">
                 <div className="text-center space-y-4">
-                  <div className="flex items-center justify-center space-x-3">
+                  <div className="flex items-center justify-center space-x-3 md:flex-row flex-col">
                     <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center shadow-lg">
                       <CheckCircle className="w-6 h-6 text-green-500" />
                     </div>
-                    <div className="text-left">
+                    <div className="md:text-left text-center">
                       <h3 className="text-lg font-semibold text-gray-800">
                         {uploadFile?.type === 'figma' ? 'Figma' : uploadFile?.type === 'url' ? 'Website' : 'PDF'} Analysis Complete!
                       </h3>
@@ -864,25 +860,32 @@ function UploadStep({
     // Show compact processing state
     return (
       <div className="px-6 pb-6">
-        <Card className="max-w-lg mx-auto bg-gradient-to-br from-blue-50 to-purple-50/50 border border-blue-200 shadow-lg">
+        <Card className="max-w-lg mx-auto bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200 shadow-lg">
           <CardContent className="p-6">
             <div className="text-center space-y-4">
               {/* Compact Processing Header */}
               <div className="flex items-center justify-center space-x-3">
                 <div className="relative w-12 h-12">
-                  <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-spin" style={{ animationDuration: '2s' }} />
-                  <div className="absolute inset-1 border-2 border-purple-300 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
-                  <div className="absolute inset-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <div className="absolute inset-0 border-2 border-gray-200 rounded-full animate-spin" style={{ animationDuration: '2s' }} />
+                  <div className="absolute inset-1 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}>
+                    <div className="w-full h-full rounded-full" style={{
+                      background: 'conic-gradient(from 0deg, #565656, #565656, #dddddd)',
+                      padding: '2px'
+                    }}>
+                      <div className="w-full h-full bg-b12 rounded-full"></div>
+                    </div>
+                  </div>
+                  <div className="absolute inset-2 bg-b12 rounded-full flex items-center justify-center">
                     {uploadFile?.type === 'figma' ? (
-                      <Figma className="w-4 h-4 text-white" />
+                      <Figma className="w-4 h-4 text-b2" />
                     ) : (
-                      <FileText className="w-4 h-4 text-white" />
+                      <FileText className="w-4 h-4 text-b2" />
                     )}
                   </div>
                 </div>
                 <div className="text-left">
                   <h3 className="text-lg font-semibold text-gray-800">
-                    Processing {uploadFile?.type === 'figma' ? 'Figma' : 'PDF'} Design
+                    Processing your {uploadFile?.type === 'figma' ? 'Figma File' : uploadFile?.type === 'url' ? 'Website Page' : 'PDF'} 
                   </h3>
                   <p className="text-sm text-gray-600">{currentStep}</p>
                 </div>
@@ -892,7 +895,7 @@ function UploadStep({
               <div className="space-y-2">
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500 ease-out"
+                    className="h-full bg-gradient-to-r from-gray-800 to-gray-900 rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${overallProgress}%` }}
                   />
                 </div>
@@ -906,11 +909,11 @@ function UploadStep({
               <div className="bg-white/60 rounded-lg p-3 border border-white/40">
                 <div className="flex items-center space-x-2 text-sm">
                   {uploadFile?.type === 'figma' ? (
-                    <Figma className="w-4 h-4 text-blue-600" />
+                    <Figma className="w-4 h-4 text-gray-600" />
                   ) : uploadFile?.type === 'url' ? (
-                    <Globe className="w-4 h-4 text-blue-600" />
+                    <Globe className="w-4 h-4 text-gray-600" />
                   ) : (
-                    <FileText className="w-4 h-4 text-blue-600" />
+                    <FileText className="w-4 h-4 text-gray-600" />
                   )}
                   <span className="text-gray-700 font-medium">
                     {uploadFile?.type === 'figma' || uploadFile?.type === 'url' ? uploadFile.url : uploadFile?.file?.name}
@@ -957,206 +960,53 @@ function UploadStep({
   }
 
   return (
-    <div className="space-y-6 px-6 pb-6">
-      {/* Website URL Input */}
-      <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center pb-3">
-          <div className="mx-auto w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
-            <Globe className="w-5 h-5 text-primary" />
-          </div>
-          <CardTitle className="text-lg font-semibold text-gray-800">Website URL</CardTitle>
-          <CardDescription className="text-gray-600">
-            Analyze any website to extract design structure and content
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex space-x-3">
-            <Input
-              type="url"
-              placeholder="https://example.com"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              className="flex-1 text-base border-2 border-gray-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-            />
-            <Button 
-              onClick={handleWebsiteSubmit}
-              disabled={!websiteUrl.trim()}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-            >
-              <Globe className="h-4 w-4 mr-2" />
-              Analyze
-            </Button>
-          </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-500 bg-blue-50/50 rounded-lg p-3">
-            <Sparkles className="w-4 h-4 text-blue-500" />
-            <span>Our AI will scrape and analyze the website to extract design sections</span>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6 md:px-6 pb-6">
+      <UrlInputCard
+        title="Website URL"
+        description="Analyze any website page to exact content structure and regenerate new content "
+        placeholder="https://example.com"
+        value={websiteUrl}
+        onChange={setWebsiteUrl}
+        onSubmit={handleWebsiteSubmit}
+        buttonText="Analyze"
+        buttonIcon={<Globe className="h-4 w-4 mr-2" />}
+        infoText="Our AI will scrape and analyze the website to extract design sections"
+        icon={<Globe className="w-5 h-5 text-b2" />}
+      />
 
-      {/* Enhanced Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-gray-200" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="bg-white px-6 text-sm font-semibold text-gray-500 uppercase tracking-wider">Or</span>
-        </div>
-      </div>
+      <Divider />
 
-      {/* Figma URL Input */}
-      <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center pb-3">
-          <div className="mx-auto w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
-            <Figma className="w-5 h-5 text-primary" />
-          </div>
-          <CardTitle className="text-lg font-semibold text-gray-800">Figma Design URL</CardTitle>
-          <CardDescription className="text-gray-600">
-            Import your Figma design to extract layout and design elements
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex space-x-3">
-            <Input
-              type="url"
-              placeholder="https://www.figma.com/file/..."
-              value={figmaUrl}
-              onChange={(e) => setFigmaUrl(e.target.value)}
-              className="flex-1 text-base border-2 border-gray-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-            />
-            <Button 
-              onClick={handleFigmaSubmit}
-              disabled={!figmaUrl.trim()}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-            >
-              <Link className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-          </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-500 bg-blue-50/50 rounded-lg p-3">
-            <Sparkles className="w-4 h-4 text-blue-500" />
-            <span>Our AI will analyze your design and extract the layout structure</span>
-          </div>
-        </CardContent>
-      </Card>
+      <UrlInputCard
+        title="Figma URL"
+        description="Import your design to extract content from the design "
+        placeholder="https://www.figma.com/file/..."
+        value={figmaUrl}
+        onChange={setFigmaUrl}
+        onSubmit={handleFigmaSubmit}
+        buttonText="Import"
+        buttonIcon={<Link className="h-4 w-4 mr-2" />}
+        infoText="Our AI will scrape and analyze the website to extract design sections"
+        icon={<Figma className="w-5 h-5 text-b2" />}
+      />
 
-      {/* Enhanced Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-gray-200" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="bg-white px-6 text-sm font-semibold text-gray-500 uppercase tracking-wider">Or</span>
-        </div>
-      </div>
+      <Divider />
 
-      {/* File Upload */}
-      <Card className="group border-2 border-dashed border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center pb-3">
-          <div className="mx-auto w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
-            <FileImage className="w-5 h-5 text-primary" />
-          </div>
-          <CardTitle className="text-lg font-semibold text-gray-800">Upload PDF File</CardTitle>
-          <CardDescription className="text-gray-600">
-            Drag and drop your PDF or browse to upload
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div
-            className={`border-2 border-dashed rounded-xl p-4 text-center transition-all duration-300 ${
-              dragActive 
-                ? "border-primary bg-gradient-to-r from-primary/5 to-purple-500/5 scale-105 shadow-lg shadow-primary/25" 
-                : selectedFile 
-                ? "border-green-500 bg-gradient-to-r from-green-50 to-emerald-50/50 shadow-md" 
-                : "border-gray-300 hover:border-primary/40 hover:bg-gray-50/50"
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            {selectedFile ? (
-              <div className="space-y-3">
-                <div className="mx-auto w-12 h-12 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <div className="flex items-center justify-center space-x-2 mb-2">
-                    <p className="text-base font-semibold text-gray-800">
-                      {selectedFile.name}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedFile(null)}
-                      className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1 h-6 w-6"
-                      disabled={isProcessingFile}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3 bg-green-100 rounded-full px-3 py-1 inline-block">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                  <Button 
-                    onClick={handleFileSubmit}
-                    disabled={isProcessingFile}
-                    className={`relative overflow-hidden bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
-                      isProcessingFile ? 'cursor-not-allowed opacity-90' : ''
-                    }`}
-                  >
-                    {/* Animated background for processing state */}
-                    {isProcessingFile && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-600/20 animate-pulse" />
-                    )}
-                    
-                    {/* Button content with loading state */}
-                    <div className="relative flex items-center">
-                      {isProcessingFile ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          <span>Processing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <ArrowRight className="h-4 w-4 mr-2" />
-                          <span>Process File</span>
-                        </>
-                      )}
-                    </div>
-                    
-                    {/* Ripple effect on click */}
-                    {isProcessingFile && (
-                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 to-purple-600/10 animate-ping" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="mx-auto w-12 h-12 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
-                  <Upload className="h-6 w-6 text-gray-500" />
-                </div>
-                <p className="text-base text-gray-700 mb-2 font-medium">
-                  Drag and drop your PDF here, or{" "}
-                  <label className="text-primary cursor-pointer hover:underline font-semibold">
-                    browse files
-                    <input
-                      type="file"
-                      accept="*/*"
-                      onChange={handleFileInput}
-                      className="hidden"
-                    />
-                  </label>
-                </p>
-                <p className="text-sm text-gray-500 bg-gray-100 rounded-full px-3 py-1 inline-block">
-                  Supports PDF files up to 10MB
-                </p>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <FileUploadCard
+        title="Upload PDF File"
+        description="Drag and drop your PDF or browse to upload"
+        selectedFile={selectedFile}
+        dragActive={dragActive}
+        isProcessing={isProcessingFile}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onFileInput={handleFileInput}
+        onFileSubmit={handleFileSubmit}
+        onRemoveFile={() => setSelectedFile(null)}
+        maxSizeText="Supports PDF files up to 10MB"
+        icon={<FileImage className="w-5 h-5 text-b2" />}
+      />
     </div>
   )
 }
@@ -1222,7 +1072,7 @@ function SectionsReviewStep({
     }
 
     const componentTypes = [
-      { key: 'title', label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+      { key: 'title', label: 'Title', icon: '📝', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' },
       { key: 'subtitle', label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
       { key: 'content', label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
       { key: 'buttons', label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
@@ -1360,15 +1210,12 @@ function SectionsReviewStep({
   }
 
   return (
-    <div className="py-6 px-6">
-      <div className="text-center mb-6">
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">
-          Review Extracted Sections
-        </h3>
-        <p className="text-gray-600 text-base max-w-lg mx-auto mb-4">
-          Review all the sections and design elements extracted from your design file before proceeding to the next step.
-        </p>
-      </div>
+    <div>
+      <SectionHeader
+        icon={<ListChecks className="w-8 h-8" />}
+        title="Review Extracted Content"
+        description="Review all the sections and content from your website/design/pdf before proceeding to the next step. "
+      />
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* PDF Analysis Results */}
@@ -1378,15 +1225,15 @@ function SectionsReviewStep({
             <div className="bg-gradient-to-r from-green-500 to-green-600 px-8 py-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <FileText className="w-7 h-7 text-white" />
+                  <div className="w-12 h-12 md:bg-b12 rounded-xl flex items-center justify-center">
+                    <FileText className="w-7 h-7 text-b2" />
                   </div>
                   <div>
                     <h4 className="text-2xl font-bold">PDF Analysis Results</h4>
                     <p className="text-green-100 text-sm">Design sections extracted from your PDF</p>
                   </div>
                 </div>
-                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                <Badge className="bg-b12 text-b2 px-3 py-1.5 text-sm font-normal">
                   {pdfAnalysis.sections?.length || 0} Sections Found
               </Badge>
               </div>
@@ -1418,7 +1265,7 @@ function SectionsReviewStep({
                     
                     {/* Search Input */}
                     <div className="relative">
-                      <input
+                      <Input
                         type="text"
                         placeholder="Search sections or components..."
                         value={searchTerm}
@@ -1466,50 +1313,36 @@ function SectionsReviewStep({
                       <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-green-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
                         {/* Section Header */}
                         <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4 flex-wrap">
                             {/* Section Icon */}
                             <div className="relative">
-                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
-                                index % 6 === 0 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
-                                index % 6 === 1 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
-                                index % 6 === 2 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
-                                index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
-                                index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
-                                'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
-                              }`}>
+                              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300">
                                 {section.name ? String(section.name).charAt(0).toUpperCase() : 'S'}
                               </div>
-                              <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
-                                index % 6 === 0 ? 'bg-blue-200 border-blue-400 text-black' :
-                                index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
-                                index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
-                                index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
-                                index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
-                                'bg-purple-200 border-purple-400 text-black'
-                              }`}>
+                              <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs bg-b8 font-bold shadow-lg border">
                                 {index + 1}
                               </div>
                             </div>
                             
                             {/* Section Info */}
-                        <div className="flex-1">
-                              <h6 className="text-xl font-bold text-gray-800 group-hover:text-green-700 transition-colors duration-200">
-                                {String(section.name || `Section ${index + 1}`)}
-                              </h6>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {section.components && typeof section.components === 'object' 
-                                  ? `${countActualComponents(section.components)} components extracted`
-                                  : 'No components available'
-                                }
-                              </p>
-                          </div>
+                            <div className="flex-1">
+                                <h6 className="text-xl font-bold text-gray-800 group-hover:text-green-700 transition-colors duration-200">
+                                  {String(section.name || `Section ${index + 1}`)}
+                                </h6>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {section.components && typeof section.components === 'object' 
+                                    ? `${countActualComponents(section.components)} components extracted`
+                                    : 'No components available'
+                                  }
+                                </p>
+                            </div>
                             
                             {/* Status Indicator */}
                             <div className="flex items-center space-x-2">
                               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                               <span className="text-sm text-gray-600 font-medium">Active</span>
+                            </div>
                         </div>
-                      </div>
                     </div>
                         
                         {/* Section Components */}
@@ -1536,27 +1369,22 @@ function SectionsReviewStep({
 
         {/* Figma Analysis Results */}
         {figmaAnalysis && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <Figma className="w-7 h-7 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-2xl font-bold text-white">Figma Analysis Results</h4>
-                    <p className="text-blue-100 text-sm">Design sections extracted from your Figma design</p>
-                  </div>
-                </div>
-                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium text-white">
-                  {figmaAnalysis.sections?.length || 0} Sections Found
-                </Badge>
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+              <h4 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Figma className="w-6 h-6 mr-3 text-gray-600" />
+                Figma Analysis Results
+              </h4>
+              <p className="text-blue-100 text-sm">Design sections extracted from your Figma design</p>
               </div>
+              <Badge className="bg-b12 text-gray-800 border-gray-200 hover:bg-b12">
+                {figmaAnalysis.sections?.length || 0} Sections
+              </Badge>
             </div>
 
             {/* Content */}
-            <div className="p-8">
+            <div className="py-3">
               {!figmaAnalysis.sections || figmaAnalysis.sections.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1574,21 +1402,20 @@ function SectionsReviewStep({
                         {searchTerm ? `${filteredSections.length} of ${figmaAnalysis.sections.length}` : `All ${figmaAnalysis.sections.length}`} Sections Extracted
                       </h5>
                       <div className="flex items-center space-x-2 text-sm text-gray-500">
-                        <span>Scroll to view all sections</span>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        Scroll to view all sections
                       </div>
                     </div>
                     
                     {/* Search Input */}
                     <div className="relative">
-                      <input
+                    <Input
                         type="text"
                         placeholder="Search sections or components..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        className="w-full px-4 py-2 pl-10 borderrounded-lg "
                       />
-                      <div className="absolute left-3 top-2.5">
+                      <div className="absolute left-3 top-3">
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
@@ -1596,7 +1423,7 @@ function SectionsReviewStep({
                       {searchTerm && (
                         <button
                           onClick={() => setSearchTerm('')}
-                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                          className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1609,12 +1436,12 @@ function SectionsReviewStep({
                   {filteredSections.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-8 h-8 text-b5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                       </div>
-                      <p className="text-gray-500 font-medium text-lg">No sections found</p>
-                      <p className="text-sm text-gray-400 mt-2">Try adjusting your search terms</p>
+                      <p className="text-b2 font-medium text-lg">No sections found</p>
+                      <p className="text-sm text-gray-400 mt-1">Try adjusting your search terms</p>
                       <button
                         onClick={() => setSearchTerm('')}
                         className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -1626,9 +1453,9 @@ function SectionsReviewStep({
                     filteredSections.map((section: any, index: number) => (
                       <div key={`figma-${section.id || section.name || section.title || 'section'}-${index}`} className="group relative">
                         {/* Section Card */}
-                        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                        <div className="rounded-2xl border border-gray-200 transition-all duration-300 overflow-hidden">
                           {/* Section Header */}
-                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                          <div className="px-6 py-4 border-b border-gray-200">
                             <div className="flex items-center space-x-4">
                               {/* Section Icon */}
                               <div className="relative">
@@ -1656,7 +1483,7 @@ function SectionsReviewStep({
                               
                               {/* Section Info */}
                               <div className="flex-1">
-                                <h6 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors duration-200">
+                              <h6 className="text-xl font-bold text-gray-800 group-hover:text-green-700 transition-colors duration-200">
                                   {String(section.title || section.name || `Section ${index + 1}`)}
                                 </h6>
                                 <p className="text-sm text-gray-500 mt-1">
@@ -1699,27 +1526,27 @@ function SectionsReviewStep({
 
         {/* URL Analysis Results */}
         {urlAnalysis && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl md:shadow-xl md:border border-gray-200 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6">
-              <div className="flex items-center justify-between">
+            <div className="md:px-6 md:pt-6">
+              <div className="flex md:items-center items-start md:justify-between md:flex-row flex-col">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <Globe className="w-7 h-7 text-white" />
+                  <div className="w-12 h-12 md:bg-b12 rounded-xl flex items-center justify-center">
+                    <Globe className="w-7 h-7 text-b2" />
                   </div>
                   <div>
-                    <h4 className="text-2xl font-bold">Website Analysis Results</h4>
-                    <p className="text-purple-100 text-sm">Design sections extracted from {urlAnalysis.sourceUrl}</p>
+                    <h4 className="text-lg font-bold">Website Analysis Result</h4>
+                    <p className="text-b2 text-sm">Content sections extracted from {urlAnalysis.sourceUrl}</p>
                   </div>
                 </div>
-                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                <Badge className="bg-b12 text-b2 px-3 py-1.5 text-sm font-normal my-2 md:my-0">
                   {urlAnalysis.sections?.length || 0} Sections Found
                 </Badge>
               </div>
             </div>
 
             {/* Content */}
-            <div className="p-8">
+            <div className="md:p-8 p-2">
               {!urlAnalysis.sections || urlAnalysis.sections.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1733,18 +1560,17 @@ function SectionsReviewStep({
                   {/* Search/Filter */}
                   <div className="flex items-center space-x-4">
                     <div className="flex-1 relative">
-                      <input
+                      <Input
                         type="text"
                         placeholder="Search sections..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
+                      />                      
                     </div>
                     {searchTerm && (
                       <button
                         onClick={() => setSearchTerm('')}
-                        className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                        className="border bg-white text-b2 px-4 py-2 rounded-md hover:bg-b2 hover:text-white transition-all duration-200 text-sm"
                       >
                         Clear Search
                       </button>
@@ -1769,27 +1595,14 @@ function SectionsReviewStep({
                         <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
                           {/* Section Header */}
                           <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-4 flex-wrap">
                               {/* Section Icon */}
                               <div className="relative">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
-                                  index % 6 === 0 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
-                                  index % 6 === 1 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
-                                  index % 6 === 2 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
-                                  index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
-                                  index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
-                                  'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
-                                }`}>
+                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300"
+                                >
                                   {section.name ? String(section.name).charAt(0).toUpperCase() : 'S'}
                                 </div>
-                                <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
-                                  index % 6 === 0 ? 'bg-blue-200 border-blue-400 text-black' :
-                                  index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
-                                  index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
-                                  index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
-                                  index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
-                                  'bg-purple-200 border-purple-400 text-black'
-                                }`}>
+                                <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs bg-b8 font-bold shadow-lg border">
                                   {index + 1}
                                 </div>
                               </div>
@@ -1815,7 +1628,7 @@ function SectionsReviewStep({
                           </div>
                           
                           {/* Section Components */}
-                          <div className="p-6">
+                          <div className="md:p-6 p-3">
                             {section.components && typeof section.components === 'object' ? 
                               renderSectionComponents(section.components) : 
                               <div className="text-center py-8">
@@ -1841,18 +1654,18 @@ function SectionsReviewStep({
         {(!pdfAnalysis && !figmaAnalysis && !urlAnalysis) && extractedSections && extractedSections.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+            <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-8 py-6 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 md:bg-b12 rounded-xl flex items-center justify-center">
                     <FileText className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <h4 className="text-2xl font-bold">Extracted Sections</h4>
-                    <p className="text-blue-100 text-sm">Design sections from your uploaded file</p>
+                    <h4 className="text-lg font-bold">Extracted Sections</h4>
+                    <p className="text-b2 text-sm">Design sections from your uploaded file</p>
                   </div>
                 </div>
-                <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+                <Badge className="bg-b12 px-3 py-1.5 text-sm font-normal">
                   {extractedSections.length} Sections Found
                 </Badge>
               </div>
@@ -1869,7 +1682,7 @@ function SectionsReviewStep({
                     </h5>
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
                       <span>Scroll to view all sections</span>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
                     </div>
                   </div>
                 </div>
@@ -1877,37 +1690,23 @@ function SectionsReviewStep({
                 {extractedSections.map((section: any, index: number) => (
                   <div key={`extracted-${section.name || 'section'}-${index}`} className="group relative">
                     {/* Section Card */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-gray-400 transition-all duration-300 hover:shadow-lg overflow-hidden">
                       {/* Section Header */}
                       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-4 flex-wrap">
                           {/* Section Icon */}
                           <div className="relative">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
-                              index % 6 === 0 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
-                              index % 6 === 1 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
-                              index % 6 === 2 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
-                              index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
-                              index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
-                              'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
-                            }`}>
+                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300">
                               {section.name ? String(section.name).charAt(0).toUpperCase() : 'S'}
                             </div>
-                            <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
-                              index % 6 === 0 ? 'bg-green-200 border-green-400 text-black' :
-                              index % 6 === 1 ? 'bg-blue-200 border-blue-400 text-black' :
-                              index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
-                              index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
-                              index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
-                              'bg-purple-200 border-purple-400 text-black'
-                            }`}>
+                            <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs bg-b8 font-bold shadow-lg border">
                               {index + 1}
                             </div>
                           </div>
                           
                           {/* Section Info */}
                           <div className="flex-1">
-                            <h6 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors duration-200">
+                            <h6 className="text-xl font-bold text-gray-800 group-hover:text-gray-700 transition-colors duration-200">
                               {String(section.name || `Section ${index + 1}`)}
                             </h6>
                             <p className="text-sm text-gray-500 mt-1">
@@ -1920,7 +1719,7 @@ function SectionsReviewStep({
                           
                           {/* Status Indicator */}
                           <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                            <div className="w-3 h-3 bg-gray-500 rounded-full animate-pulse"></div>
                             <span className="text-sm text-gray-600 font-medium">Active</span>
                           </div>
                         </div>
@@ -1962,17 +1761,17 @@ function SectionsReviewStep({
       </div>
 
       {/* Navigation Buttons */}
-      <div className="mt-8 flex justify-center space-x-4">
+      <div className="mt-8 flex justify-center md:space-x-4 flex-col md:flex-row space-y-4 md:space-y-0">
         <Button 
           variant="outline" 
           onClick={onBack} 
-          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+          className="px-5 py-2 border bg-white hover:bg-b2 hover:text-white transition-all duration-200 font-medium"
         >
           ← Back to Upload
         </Button>
         <Button 
           onClick={onNext} 
-          className="px-6 py-3 from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
+          className="px-5 py-2 bg-b2 text-white transition-all duration-200 font-medium hover:bg-b5"
         >
           Go to Next Step →
         </Button>
@@ -2113,16 +1912,16 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
 
   return (
     <div className="text-center py-6 px-6">
-      <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mb-4 shadow-lg">
-        <Eye className="w-8 h-8 text-blue-600" />
+      <div className="mx-auto w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4 shadow-lg">
+        <Eye className="w-8 h-8 text-gray-600" />
       </div>
       
       <h3 className="text-2xl font-bold text-gray-800 mb-3">
-        Generate & Preview Your Landing Page
+      Generate & Preview Your Content Page
       </h3>
       
       <p className="text-gray-600 mb-6 text-base max-w-lg mx-auto leading-relaxed">
-        Generate a dynamic landing page using AI, then preview it before downloading.
+      Generate a dynamic landing page content using Ai, then preview and edit it before downloading. 
       </p>
 
       <div className="max-w-md mx-auto space-y-4">
@@ -2130,7 +1929,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
           <Button 
             onClick={handleGenerateLandingPage}
             disabled={isGenerating}
-            className="w-full from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="border px-4 py-2 w-full bg-b2 text-white hover:bg-b5 hover:text-white transition-all duration-200"
           >
             {isGenerating ? (
               <>
@@ -2140,7 +1939,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate Landing Page
+                Generate Content
               </>
             )}
           </Button>
@@ -2149,7 +1948,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center justify-center space-x-2 text-green-700 mb-3">
                 <CheckCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Landing Page Generated!</span>
+                <span className="text-sm font-medium max-md:text-left">Landing Page Generated!</span>
               </div>
               <p className="text-sm text-green-600 mb-3">
                 Your dynamic landing page has been created using AI.
@@ -2161,18 +1960,18 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
         </div>
 
       {/* Navigation Buttons */}
-      <div className="mt-8 flex justify-center space-x-4">
+      <div className="mt-8 flex justify-center md:space-x-4 md:flex-row flex-col space-y-4 md:space-y-0">
         <Button 
           variant="outline" 
           onClick={onBack}
-          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+          className="px-5 py-2 border bg-white hover:bg-b2 hover:text-white transition-all duration-200 font-medium"
         >
           ← Back to Business Details
         </Button>
         <Button 
           onClick={onNext}
           disabled={!generationComplete}
-          className="px-6 py-3 from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-5 py-2 bg-b2 text-white transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-b5"
         >
           <Eye className="h-4 w-4 mr-2" />
           Get Preview
@@ -2212,7 +2011,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
     }
 
     const componentTypes = [
-      { key: 'title', label: 'Title', icon: '📝', color: 'blue', bgColor: 'blue-50', textColor: 'blue-700' },
+      { key: 'title', label: 'Title', icon: '📝', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' },
       { key: 'subtitle', label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
       { key: 'content', label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
       { key: 'buttons', label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
@@ -2609,7 +2408,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         body {
             font-family: 'Inter', sans-serif;
             line-height: 1.6;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             min-height: 100vh;
             color: #333;
             margin: 0;
@@ -2627,7 +2426,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
         /* Header Styles */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             color: white;
             padding: 2rem 2rem;
             position: relative;
@@ -2685,7 +2484,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
         }
 
         .business-details-header {
@@ -2700,7 +2499,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         .business-icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -2739,7 +2538,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
@@ -2747,7 +2546,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         .info-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .info-item:hover::before {
@@ -2772,7 +2571,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
         .info-value.brand-tone {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
@@ -2795,7 +2594,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         .info-item.clickable:hover {
             transform: translateY(-4px);
             box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .info-item.clickable:hover::before {
@@ -2811,7 +2610,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
         .click-hint {
             font-size: 0.75rem;
-            color: #667eea;
+            color: #000000;
             font-weight: 500;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -2886,7 +2685,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
             transform: scaleX(0);
             transform-origin: left;
             transition: transform 0.3s ease;
@@ -2952,7 +2751,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         .section-icon {
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -2972,7 +2771,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             content: '';
             position: absolute;
             inset: -2px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 22px;
             z-index: -1;
             opacity: 0.2;
@@ -3011,7 +2810,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         }
 
         .section-card:hover .section-title {
-            color: #667eea;
+            color: #000000;
             transform: translateY(-2px);
         }
 
@@ -3108,7 +2907,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         .section-modal-icon {
             width: 60px;
             height: 60px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 16px;
             display: flex;
             align-items: center;
@@ -3150,7 +2949,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             padding: 1rem;
             background: #f8fafc;
             border-radius: 8px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #000000;
         }
 
         .section-components-modal {
@@ -3950,27 +3749,27 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Generated Sections Results */}
       {generatedLandingPage && generatedLandingPage.sections && generatedLandingPage.sections.length > 0 ? (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl md:shadow-xl md:border border-gray-200 overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6">
-            <div className="flex items-center justify-between">
+          <div className="md:px-6 md:pt-6">
+            <div className="flex md:items-center items-start md:justify-between justify-start md:flex-row flex-col">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <FileText className="w-7 h-7 text-white" />
+                <div className="w-12 h-12 md:bg-b12 rounded-xl flex items-center justify-center">
+                  <FileText className="w-7 h-7 text-b2" />
                 </div>
                 <div>
-                  <h4 className="text-2xl font-bold">Generated Landing Page Sections</h4>
-                  <p className="text-purple-100 text-sm">AI-generated content for your landing page</p>
+                  <h4 className="text-lg font-bold">Generated Landing Page Sections</h4>
+                  <p className="text-b2 text-sm">AI-generated content for your landing page</p>
                 </div>
               </div>
-              <Badge className="bg-white/20 border-white/30 px-4 py-2 text-sm font-medium">
+              <Badge className="bg-b12 text-b2 border px-4 py-2 text-sm font-medium my-2 md:my-0">
                 {generatedLandingPage.sections.length} Sections Generated
               </Badge>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-8">
+          <div className="md:p-8 p-2">
             <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
               {/* Section Counter and Search */}
               <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 pb-4 border-b border-gray-200">
@@ -3978,9 +3777,8 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                   <h5 className="text-lg font-semibold text-gray-700">
                     All {generatedLandingPage.sections.length} Generated Sections
                   </h5>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <div className="hidden md:flex items-center space-x-2 text-sm text-gray-500">
                     <span>Scroll to view all sections</span>
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
                   </div>
                 </div>
               </div>
@@ -3991,27 +3789,13 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                   <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
                     {/* Section Header */}
                     <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-4 flex-wrap">
                         {/* Section Icon */}
                         <div className="relative">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
-                            index % 6 === 0 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
-                            index % 6 === 1 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
-                            index % 6 === 2 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
-                            index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
-                            index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
-                            'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
-                          }`}>
+                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300">
                             {section.title || section.name ? String(section.title || section.name).charAt(0).toUpperCase() : 'S'}
                           </div>
-                          <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
-                            index % 6 === 0 ? 'bg-blue-200 border-blue-400 text-black' :
-                            index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
-                            index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
-                            index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
-                            index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
-                            'bg-purple-200 border-purple-400 text-black'
-                          }`}>
+                          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs bg-b8 font-bold shadow-lg border">
                             {index + 1}
                           </div>
                         </div>
@@ -4038,7 +3822,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                     </div>
                     
                     {/* Section Components */}
-                    <div className="p-6">
+                    <div className="md:p-6 p-3">
                       {section.components && typeof section.components === 'object' ? 
                         renderSectionComponents(section.components) : 
                         <div className="text-center py-8">
@@ -4071,12 +3855,11 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
       {/* Action Buttons */}
       {generatedLandingPage && generatedLandingPage.sections && generatedLandingPage.sections.length > 0 && (
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex justify-center items-center md:flex-row flex-col md:space-x-2 md:space-y-0 space-y-2">
             {/* View All Sections Button */}
-            <div className="relative">
               <Button 
                 onClick={() => setShowSectionsModal(true)}
-                className="w-full from-purple-600 via-blue-600 to-indigo-600 hover:from-purple-700 hover:via-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
+                className="border bg-white px-4 py-2 text-b2 hover:bg-b2 hover:text-white transition-all duration-200"
               >
                 <div className="flex items-center justify-center space-x-2">
                   <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
@@ -4088,17 +3871,10 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                   </div>
                 </div>
               </Button>
-              
-              {/* Button Glow Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 rounded-xl blur-md opacity-25 -z-10"></div>
-            </div>
-
-            {/* Download Button */}
-            <div className="relative">
               <Button 
                 onClick={handleDownload}
                 disabled={isDownloading}
-                className="w-full from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 rounded-xl py-3 text-base font-semibold"
+                className="border bg-white px-4 py-2 text-b2 hover:bg-b2 hover:text-white transition-all duration-200"
               >
                 {isDownloading ? (
                   <>
@@ -4108,14 +3884,10 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-2" />
-                    Download Landing Page
+                    Download Content Page
                   </>
                 )}
               </Button>
-              
-              {/* Button Glow Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-700 rounded-xl blur-md opacity-25 -z-10"></div>
-            </div>
           </div>
         </div>
       )}
@@ -4125,7 +3897,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
         <Button 
           variant="outline" 
           onClick={onBack}
-          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+          className="px-5 py-2 border bg-white hover:bg-b2 hover:text-white transition-all duration-200 font-medium"
         >
           ← Back to Preview
         </Button>
@@ -4145,7 +3917,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             onNext()
           }}
           disabled={!generatedLandingPage || !generatedLandingPage.sections || generatedLandingPage.sections.length === 0}
-          className="px-6 py-3 from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-b2 text-white hover:bg-b5 hover:text-white transition-all duration-200"
         >
           <CheckCircle className="h-4 w-4 mr-2" />
           Complete
@@ -4310,7 +4082,7 @@ const DownloadStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => vo
           ) : (
             <>
               <Download className="h-5 w-5 mr-3" />
-              Download Landing Page
+              Download Content Page
             </>
           )}
         </Button>
@@ -4322,13 +4094,13 @@ const DownloadStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => vo
         <Button 
           variant="outline" 
           onClick={onBack}
-          className="px-6 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 transition-all duration-200 font-medium"
+          className="px-5 py-2 border bg-white hover:bg-b2 hover:text-white transition-all duration-200 font-medium"
         >
           ← Back to Preview
         </Button>
         <Button 
           onClick={onNext}
-          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
+          className="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
         >
           Complete →
         </Button>
@@ -4393,9 +4165,9 @@ const CompleteStep = ({ onClose, onComplete, completionData }: { onClose: () => 
   return (
     <div className="text-center py-8">
       {/* Icon */}
-      <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full flex items-center justify-center mb-6 shadow-lg">
+      <div className="mx-auto w-20 h-20 bg-b12 rounded-full flex items-center justify-center mb-6">
         {isGenerating ? (
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+          <Loader2 className="w-12 h-12 text-b2 animate-spin" />
         ) : (
         <CheckCircle className="w-12 h-12 text-green-600" />
         )}
@@ -4462,4 +4234,6 @@ function URLProcessor({ url, onAnalysisComplete, onError }: URLProcessorProps) {
 
   return null // This component doesn't render anything
 }
+
+
 

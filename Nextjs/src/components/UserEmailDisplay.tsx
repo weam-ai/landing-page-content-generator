@@ -16,10 +16,10 @@ export function UserEmailDisplay({ className = "" }: UserEmailDisplayProps) {
   return (
     <button
       onClick={handleBackToApp}
-      className={`flex items-center space-x-2 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg px-3 py-2 hover:from-primary/20 hover:to-purple-500/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 group cursor-pointer ${className}`}
+      className="flex items-center space-x-2 border px-3 py-2 rounded-md text-sm font-medium group hover:bg-b2 hover:text-white transition-all duration-300"
     >
-      <ArrowLeftCircle className="w-4 h-4 text-primary group-hover:animate-bounce transition-all duration-300" />
-      <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors duration-300">
+      <ArrowLeftCircle className="w-4 h-4" />
+      <span>
         Back to App
       </span>
     </button>

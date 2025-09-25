@@ -706,7 +706,7 @@ export function GeneratedSectionsModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader className="pb-4 flex-shrink-0">
-          <DialogTitle className="text-2xl font-bold text-primary flex items-center">
+          <DialogTitle className="text-2xl font-bold text-b2 flex items-center">
             <Edit3 className="h-6 w-6 mr-3" />
             Edit Landing Page Content
           </DialogTitle>
@@ -742,7 +742,7 @@ export function GeneratedSectionsModal({
             </div>
                 
             {editedSections.map((section, index) => (
-              <Card key={section.id} className="group hover:shadow-xl transition-all duration-300 ring-2 ring-blue-200 bg-gradient-to-br from-blue-50/30 to-purple-50/20 hover:ring-blue-400 hover:shadow-2xl">
+              <Card key={section.id} className="group transition-all duration-300 ring-2 ring-blue-200 bg-gradient-to-br from-blue-50/30 to-purple-50/20 hover:ring-blue-400 hover:shadow-2xl">
                 <CardHeader className="pb-6">
                   <div className="flex items-center space-x-4">
                     {/* Section Icon */}
@@ -757,7 +757,7 @@ export function GeneratedSectionsModal({
                       }`}>
                         {getSectionIcon(section.type)}
                       </div>
-                      <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg bg-primary">
+                      <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center text-b2 text-sm font-medium border shadow-lg bg-b12">
                         {index + 1}
                       </div>
                     </div>
@@ -846,7 +846,7 @@ export function GeneratedSectionsModal({
             <Button 
               variant="outline" 
               onClick={onClose}
-              className="hover:bg-gray-50 transition-all duration-200"
+              className="px-5 py-2 border bg-white hover:bg-b2 hover:text-white transition-all duration-200 font-medium"
             >
               Close Without Saving
             </Button>
@@ -854,7 +854,7 @@ export function GeneratedSectionsModal({
           
           <div className="flex space-x-3">
             <Button 
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-6"
+              className="px-5 py-2 bg-b2 text-white transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-b5"
               onClick={handleSave}
               disabled={isSaving}
             >

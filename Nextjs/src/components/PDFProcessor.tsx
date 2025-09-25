@@ -227,7 +227,7 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
         <CardHeader className="pb-3">
           <CardTitle className="text-lg text-blue-800 flex items-center">
             <FileText className="w-5 h-5 mr-2" />
-            Processing PDF Design
+            Processing your PDF
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
