@@ -25,6 +25,10 @@ export interface FigmaSection {
   figmaNodeId: string
   depth: number
   parentSection: string | null
+  // Add components field to store extracted component data
+  components?: {
+    [key: string]: any
+  }
 }
 
 export interface FigmaDesignToken {
@@ -116,35 +120,37 @@ export function FigmaProcessor({ figmaUrl, onAnalysisComplete, onError }: FigmaP
   const processingId = useRef<string | null>(null)
 
   useEffect(() => {
-    console.log('FigmaProcessor mounted with URL:', figmaUrl)
     
     // Only start processing if we haven't started yet or if the URL has changed
     if (!hasStartedProcessing.current || currentUrl.current !== figmaUrl) {
       hasStartedProcessing.current = true
       currentUrl.current = figmaUrl
       processingId.current = `figma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      console.log('🚀 Starting new Figma processing session:', processingId.current)
       processFigmaDesign()
     } else {
-      console.log('⏭️ Skipping duplicate Figma processing for URL:', figmaUrl)
     }
     
     // Cleanup function to reset processing state when component unmounts
     return () => {
-      console.log('FigmaProcessor cleanup - resetting processing state')
       hasStartedProcessing.current = false
     }
   }, [figmaUrl])
 
   const processFigmaDesign = async () => {
-    console.log('🎯 Starting Figma design processing for:', figmaUrl)
-    console.log('🆔 Processing ID:', processingId.current)
     
     // Prevent multiple simultaneous processing calls
     if (isProcessing && progress > 0) {
-      console.log('⚠️ Processing already in progress, skipping duplicate call')
       return
     }
+    
+    // Additional duplicate prevention - check for ongoing requests globally
+    const requestKey = `figma-processing-${figmaUrl}`;
+    if ((window as any)[requestKey]) {
+      return
+    }
+    
+    // Mark as processing globally
+    (window as any)[requestKey] = true;
     
     try {
       setIsProcessing(true)
@@ -200,13 +206,14 @@ export function FigmaProcessor({ figmaUrl, onAnalysisComplete, onError }: FigmaP
       setProcessingStage('processing')
       setStageProgress(0)
       
-      console.log('🔗 Calling Figma API with URL:', figmaUrl)
-      console.log('📊 Processing stage:', processingStage, 'Progress:', progress)
       const response = await apiService.extractFigmaDesign(figmaUrl)
-      console.log('✅ Figma API response received:', response.success ? 'SUCCESS' : 'FAILED')
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to extract Figma design')
+      }
+      
+      if (!response.sections || !Array.isArray(response.sections)) {
+        throw new Error('Invalid API response: sections not found')
       }
 
       setProgress(85)
@@ -214,41 +221,49 @@ export function FigmaProcessor({ figmaUrl, onAnalysisComplete, onError }: FigmaP
       setProcessingStage('finalizing')
       setCurrentStep('Processing design data...')
       
-      const extractedDesign = response.data
+      // The new API returns sections directly, not wrapped in data
+      // Transform the new response format to match frontend types
+      const transformedSections = response.sections.map((section: any, index: number) => {
+        const transformed = {
+          id: `figma-section-${index + 1}`,
+          title: section.name || `Section ${index + 1}`,
+          type: 'content' as const,
+          content: Object.values(section.components || {}).join(' ').substring(0, 200) || 'Design section from Figma',
+          order: index + 1,
+          boundingBox: { x: 0, y: index * 200, width: 800, height: 200 },
+          figmaNodeId: `node-${index}`,
+          depth: 0,
+          parentSection: null,
+          // Store the original components data for the sections review
+          components: section.components
+        }
+        return transformed
+      })
       
-      // Transform the data to match our frontend types
       const analysisResult: FigmaAnalysisResult = {
         designType: 'figma',
-        fileKey: extractedDesign.fileKey,
-        fileName: extractedDesign.fileName,
-        lastModified: new Date(extractedDesign.lastModified),
-        version: extractedDesign.version,
-        sections: extractedDesign.sections.map((section: any, index: number) => ({
-          id: section.id || `figma-section-${index + 1}`,
-          title: section.title || `Section ${index + 1}`,
-          type: section.type || 'content',
-          content: section.content || 'Design section from Figma',
-          order: section.order || index + 1,
-          boundingBox: section.boundingBox || { x: 0, y: 0, width: 800, height: 200 },
-          figmaNodeId: section.figmaNodeId || `node-${index}`,
-          depth: section.depth || 0,
-          parentSection: section.parentSection || null
-        })),
+        fileKey: extractFileKeyFromUrl(figmaUrl) || 'unknown',
+        fileName: 'Figma Design',
+        lastModified: new Date(),
+        version: '1.0',
+        sections: transformedSections,
         designTokens: {
-          colors: extractedDesign.designTokens?.colors || [],
-          typography: extractedDesign.designTokens?.typography || [],
-          spacing: extractedDesign.designTokens?.spacing || [],
-          shadows: extractedDesign.designTokens?.shadows || []
+          colors: [],
+          typography: [],
+          spacing: [],
+          shadows: []
         },
-        layoutAnalysis: extractedDesign.layoutAnalysis || {
-          layoutType: 'unknown',
+        layoutAnalysis: {
+          layoutType: 'multi-section',
           gridSystem: false,
           responsive: false,
-          sections: 0,
-          components: 0
+          sections: response.sections.length,
+          components: response.sections.reduce((total: number, section: any) => {
+            return total + (section.components ? Object.keys(section.components).length : 0)
+          }, 0)
         },
-        totalSections: extractedDesign.totalSections || 0,
-        extractedAt: new Date(extractedDesign.extractedAt || Date.now())
+        totalSections: response.sections.length,
+        extractedAt: new Date()
       }
 
       // Step 5: Complete processing
@@ -259,16 +274,21 @@ export function FigmaProcessor({ figmaUrl, onAnalysisComplete, onError }: FigmaP
       setAnalysis(analysisResult)
       setIsProcessing(false)
       
-      console.log('Figma analysis complete:', analysisResult)
       onAnalysisComplete(analysisResult)
       
+      // Clean up global processing flag on success
+      const requestKey = `figma-processing-${figmaUrl}`;
+      delete (window as any)[requestKey];
     } catch (err) {
-      console.error('Figma processing error:', err)
       
       const errorMessage = err instanceof Error ? err.message : 'Failed to process Figma design'
       setError(errorMessage)
       setIsProcessing(false)
       onError(errorMessage)
+    } finally {
+      // Clean up global processing flag
+      const requestKey = `figma-processing-${figmaUrl}`;
+      delete (window as any)[requestKey];
     }
   }
 

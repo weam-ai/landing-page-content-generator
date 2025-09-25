@@ -111,19 +111,15 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   }
 
   const handlePDFAnalysisComplete = (result: PDFAnalysisResult) => {
-    console.log('PDF Analysis Complete - Result:', result)
-    console.log('PDF Analysis Complete - Sections:', result.sections)
     
     setPdfAnalysis(result)
     setIsProcessing(false) // Processing complete
     
     // Preserve all sections from the analysis
     if (result.sections && result.sections.length > 0) {
-      console.log('Setting extracted sections:', result.sections)
       // Store all sections without filtering
       setExtractedSections(result.sections)
     } else {
-      console.log('No sections found in result')
       setExtractedSections([])
     }
     
@@ -162,15 +158,12 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
   }
 
   const handleURLAnalysisComplete = (result: URLAnalysisResult) => {
-    console.log('URL Analysis Complete - Result:', result)
-    console.log('URL Analysis Complete - Sections:', result.sections)
     
     setUrlAnalysis(result)
     setIsProcessing(false) // Processing complete
     
     // Preserve all sections from the analysis
     if (result.sections && result.sections.length > 0) {
-      console.log('Setting extracted URL sections:', result.sections)
       // Store all sections without filtering
       setExtractedUrlSections(result.sections)
       
@@ -184,12 +177,9 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
           extractedAt: new Date().toISOString()
         }
         localStorage.setItem('extractedDesignStructure', JSON.stringify(designStructure))
-        console.log('URL analysis results saved to localStorage')
       } catch (error) {
-        console.error('Failed to save URL analysis to localStorage:', error)
       }
     } else {
-      console.log('No sections found in URL result')
       setExtractedUrlSections([])
     }
     
@@ -215,101 +205,37 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     // Store business details for later use in createLandingPage
     setBusinessDetails(details)
     
+    // Get the correct extracted sections based on upload type
+    const currentSections = uploadFile?.type === 'figma' ? extractedFigmaSections : 
+                           uploadFile?.type === 'url' ? extractedUrlSections : 
+                           extractedSections;
+    
+    
     // Store in window context for PreviewStep to access
     ;(window as any).modalBusinessDetails = details
     ;(window as any).modalExtractedData = {
-      sections: uploadFile?.type === 'figma' ? extractedFigmaSections : 
-                uploadFile?.type === 'url' ? extractedUrlSections : 
-                extractedSections
+      sections: currentSections,
+      designType: uploadFile?.type || 'unknown',
+      metadata: {
+        extractedAt: new Date().toISOString(),
+        sourceType: uploadFile?.type || 'unknown'
+      }
     }
     ;(window as any).modalDesignType = uploadFile?.type || 'unknown'
-    
     // Move directly to preview step
     setStep("preview")
   }
 
 
-  const createLandingPage = async () => {
-    try {
-      
-      // Get the actual extracted sections from the appropriate source
-      let extractedSectionsData = uploadFile?.type === 'figma' ? extractedFigmaSections : extractedSections
-      
-      // Process and enhance sections with business information
-      const enhancedSections = await processSectionsWithBusinessInfo(extractedSectionsData, businessDetails)
-      
-      // Create landing page with real data
-      const newPage = {
-        id: Date.now().toString(),
-        title: businessDetails?.businessName ? 
-          (businessDetails.businessName.length > 80 ? 
-            `${businessDetails.businessName.substring(0, 80)}... Landing Page` : 
-            `${businessDetails.businessName} Landing Page`).substring(0, 100) : 
-          `Landing Page ${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // Include business details
-        businessName: businessDetails?.businessName || '',
-        businessOverview: businessDetails?.businessOverview || '',
-        targetAudience: businessDetails?.targetAudience || '',
-        brandTone: businessDetails?.brandTone || 'professional',
-        customContentLength: businessDetails?.customContentLength || 150,
-        // Use enhanced sections with real content
-        sections: enhancedSections,
-        designSource: {
-          type: uploadFile?.type || 'unknown',
-          url: uploadFile?.url || '',
-          fileName: uploadFile?.file?.name || '',
-          processedAt: new Date()
-        },
-        // Include analysis metadata
-        analysisData: {
-          pdfAnalysis: pdfAnalysis,
-          figmaAnalysis: figmaAnalysis,
-          totalSections: enhancedSections.length,
-          designType: uploadFile?.type
-        }
-      }
-      
-      
-      // Call onSuccess to create the landing page
-      onSuccess(newPage)
-      
-    } catch (error) {
-      // Create a fallback landing page with available data
-      const fallbackSections = createFallbackSections(businessDetails, uploadFile?.type)
-      
-      const newPage = {
-        id: Date.now().toString(),
-        title: businessDetails?.businessName ? 
-          (businessDetails.businessName.length > 80 ? 
-            `${businessDetails.businessName.substring(0, 80)}... Landing Page` : 
-            `${businessDetails.businessName} Landing Page`).substring(0, 100) : 
-          `Landing Page ${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        businessName: businessDetails?.businessName || '',
-        businessOverview: businessDetails?.businessOverview || '',
-        targetAudience: businessDetails?.targetAudience || '',
-        brandTone: businessDetails?.brandTone || 'professional',
-        sections: fallbackSections,
-        designSource: {
-          type: uploadFile?.type || 'unknown',
-          url: uploadFile?.url || '',
-          fileName: uploadFile?.file?.name || '',
-          processedAt: new Date()
-        }
-      }
-      
-      onSuccess(newPage)
-    }
-  }
+  // Note: Landing page creation is now handled by the PreviewStep API call
+  // which creates the database record and returns the proper ID
 
   // Helper function to process sections with business information
   const processSectionsWithBusinessInfo = async (sections: any[], businessInfo: any) => {
     
+    // CRITICAL: NEVER create fallback sections - always use extracted sections
     if (!sections || sections.length === 0) {
-      return createBusinessFocusedSections(businessInfo)
+      return []
     }
     
     return sections.map((section, index) => {
@@ -482,9 +408,9 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     return [heroSection, aboutSection, servicesSection, contactSection]
   }
 
-  // Helper function to create fallback sections
+  // Helper function to create fallback sections - DISABLED to preserve design integrity
   const createFallbackSections = (businessInfo: any, designType?: string) => {
-    return createBusinessFocusedSections(businessInfo)
+    return []
   }
 
   const resetModal = () => {
@@ -499,6 +425,15 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     setBusinessDetails(null)
     setFinalSections([])
     setError(null) // Clear any errors
+    
+    // CRITICAL: Clear window context to prevent data leakage between sessions
+    ;(window as any).modalBusinessDetails = null
+    ;(window as any).modalExtractedData = null
+    ;(window as any).modalDesignType = null
+    
+    // Clear localStorage to prevent stale data
+    localStorage.removeItem('extractedDesignStructure')
+    
   }
 
   const handleClose = () => {
@@ -654,12 +589,22 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
             onClose={handleClose}
             onComplete={onSuccess}
             completionData={(() => {
+            // Get the database record ID from window context (set by PreviewStep)
+            const dbId = (window as any).modalDatabaseRecordId
+            
             // Get the latest landing page data from localStorage
             try {
               const savedData = localStorage.getItem('latestLandingPage')
-              return savedData ? JSON.parse(savedData) : null
+              if (savedData) {
+                const parsedData = JSON.parse(savedData)
+                // Ensure we use the actual database ID
+                if (dbId) {
+                  parsedData.id = dbId
+                }
+                return parsedData
+              }
+              return null
             } catch (error) {
-              console.error('Failed to load data from localStorage:', error)
               return null
             }
             })()}
@@ -1082,10 +1027,7 @@ function SectionsReviewStep({
   onBack: () => void;
   onNext: () => void;
 }): JSX.Element {
-  // Debug logging
-  console.log('SectionsReviewStep - pdfAnalysis:', pdfAnalysis)
-  console.log('SectionsReviewStep - figmaAnalysis:', figmaAnalysis)
-  console.log('SectionsReviewStep - urlAnalysis:', urlAnalysis)
+// Debug logging - enhanced
   
   // State for search/filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -1438,14 +1380,15 @@ function SectionsReviewStep({
               </Badge>
             </div>
 
-            {/* All Sections List */}
-            <div className="space-y-4">
-              <h5 className="text-lg font-semibold text-gray-700 mb-4">Extracted Design Sections</h5>
+            {/* Content */}
+            <div className="p-8">
               {!figmaAnalysis.sections || figmaAnalysis.sections.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <Figma className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">No sections extracted from Figma</p>
-                  <p className="text-sm text-gray-400">The AI couldn't identify any sections in this design</p>
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Figma className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium text-lg">No sections extracted from Figma</p>
+                  <p className="text-sm text-gray-400 mt-2">The AI couldn't identify any sections in this design</p>
                 </div>
               ) : (
                 <div className="grid gap-4">
@@ -1746,26 +1689,28 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [generatedLandingPage, setGeneratedLandingPage] = useState<any>(null)
   const [generationComplete, setGenerationComplete] = useState(false)
+  const [databaseRecordId, setDatabaseRecordId] = useState<string | null>(null)
 
   const handleGenerateLandingPage = async () => {
     setIsGenerating(true)
     try {
       // Get business details and extracted data from the modal context
       const businessDetails = (window as any).modalBusinessDetails || {}
-      const extractedData = (window as any).modalExtractedData || {}
+      let extractedData = (window as any).modalExtractedData || {}
       const designType = (window as any).modalDesignType || 'unknown'
       
-      // Get extracted design structure from localStorage if available
-      const extractedDesignStructure = localStorage.getItem('extractedDesignStructure')
-      if (extractedDesignStructure) {
-        try {
-          const designStructure = JSON.parse(extractedDesignStructure)
-          // Merge the design structure with extracted data
-          extractedData.sections = designStructure.sections
-          extractedData.sectionTypes = designStructure.sectionTypes
-        } catch (error) {
-          console.error('Error parsing extracted design structure:', error)
-        }
+      // CRITICAL: Always use the fresh extracted data from the current session, not localStorage
+      // Clear any stale localStorage data to prevent data corruption
+      localStorage.removeItem('extractedDesignStructure')
+      
+      // Validate that we have the correct extracted data
+      if (!extractedData.sections || extractedData.sections.length === 0) {
+        // Log the issue and use empty array to preserve integrity
+        extractedData = {
+          ...extractedData,
+          sections: [],
+          designType: designType
+        };
       }
 
 
@@ -1790,9 +1735,17 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
       if (result.success) {
         setGeneratedLandingPage(result.data.landingPageContent)
         setGenerationComplete(true)
+        
+        // Store the actual database record ID
+        const dbId = result.data.id
+        setDatabaseRecordId(dbId)
+        
+        // Store the database ID in window context for later use
+        ;(window as any).modalDatabaseRecordId = dbId
+        
         // Automatically save to localStorage for immediate access
         const previewData = {
-          id: result.data.id || 'generated-landing-page', // Use the actual database ID
+          id: dbId, // Use the actual database ID
           title: result.data.landingPageContent.meta?.title || 'Generated Landing Page',
           businessName: (window as any).modalBusinessDetails?.businessName || 'Your Business',
           businessOverview: (window as any).modalBusinessDetails?.businessOverview || 'Professional services',
@@ -1852,7 +1805,6 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
       localStorage.setItem('latestLandingPage', JSON.stringify(previewData))
       setPreviewUrl('/preview/landing-page')
     } catch (error) {
-      console.error('Preview generation failed:', error)
     } finally {
       setIsPreviewing(false)
     }
@@ -2128,7 +2080,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
 
       // Save to database if the landing page has an ID
       if (generatedLandingPage.id) {
-        console.log('Saving sections to database for landing page:', generatedLandingPage.id)
         
         // Import the API service
         const { apiService } = await import('@/lib/api')
@@ -2175,20 +2126,17 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
           }
         })
         
-        console.log('Transformed sections for API:', transformedSections)
         
         // Call the API to update sections in the database
         let response
         try {
           response = await apiService.updateLandingPageSections(generatedLandingPage.id, transformedSections)
         } catch (apiError) {
-          console.error('API call failed:', apiError)
           const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown API error'
           throw new Error(`API call failed: ${errorMessage}`)
         }
         
         if (response.success) {
-          console.log('Successfully saved sections to database:', response.data)
           
           // Update the landing page with the response data from the database
           const dbUpdatedLandingPage = {
@@ -2205,15 +2153,11 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
             lastUpdated: Date.now()
           }))
         } else {
-          console.error('Failed to save sections to database:', response.error)
-          console.error('Response details:', response)
           throw new Error(response.error || 'Failed to save sections to database')
         }
       } else {
-        console.log('No landing page ID found, skipping database save')
       }
     } catch (error) {
-      console.error('Error saving sections:', error)
       // Still update local state even if database save fails
       // The user can try to save again later
       throw error
@@ -3475,7 +3419,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                         copyText.textContent = 'Copy Content';
                     }, 2000);
                 }).catch(err => {
-                    console.error('Failed to copy content: ', err);
                     // Fallback for older browsers
                     const textArea = document.createElement('textarea');
                     textArea.value = content;
@@ -3490,7 +3433,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                             copyText.textContent = 'Copy Content';
                         }, 2000);
                     } catch (fallbackErr) {
-                        console.error('Fallback copy failed: ', fallbackErr);
                         copyText.textContent = 'Copy Failed';
                         setTimeout(() => {
                             copyText.textContent = 'Copy Content';
@@ -3559,7 +3501,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                         copyText.textContent = 'Copy Content';
                     }, 2000);
                 }).catch(err => {
-                    console.error('Failed to copy content: ', err);
                     // Fallback for older browsers
                     const textArea = document.createElement('textarea');
                     textArea.value = content;
@@ -3574,7 +3515,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                             copyText.textContent = 'Copy Content';
                         }, 2000);
                     } catch (fallbackErr) {
-                        console.error('Fallback copy failed: ', fallbackErr);
                         copyText.textContent = 'Copy Failed';
                         setTimeout(() => {
                             copyText.textContent = 'Copy Content';
@@ -3610,7 +3550,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
       document.body.removeChild(link)
       
     } catch (error) {
-      console.error('Download failed:', error)
       alert('Download failed. Please try again.')
     } finally {
       setIsDownloading(false)
@@ -3874,7 +3813,6 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                   setGeneratedLandingPage(latestData)
                 }
               } catch (error) {
-                console.error('Failed to load latest sections from localStorage:', error)
               }
             }
             onNext()
@@ -3973,7 +3911,6 @@ const DownloadStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => vo
         return
       }
     } catch (error) {
-      console.error('Download preparation failed:', error)
       alert('Failed to prepare download. Please try again.')
     } finally {
       setIsPreparing(false)
@@ -4179,9 +4116,7 @@ function URLProcessor({ url, onAnalysisComplete, onError }: URLProcessorProps) {
 
       setIsProcessing(true)
       try {
-        console.log('Starting URL analysis for:', url)
         const result = await apiService.extractDesignFromUrl(url)
-        console.log('URL analysis result:', result)
         
         if (result.success && result.sections) {
           onAnalysisComplete(result)
@@ -4189,7 +4124,6 @@ function URLProcessor({ url, onAnalysisComplete, onError }: URLProcessorProps) {
           onError('Failed to extract design sections from URL')
         }
       } catch (error) {
-        console.error('URL analysis error:', error)
         onError(error instanceof Error ? error.message : 'Failed to analyze URL')
       } finally {
         setIsProcessing(false)
