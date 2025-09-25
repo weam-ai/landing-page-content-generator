@@ -8,13 +8,15 @@ interface TooltipProps {
   content: string
   position?: "top" | "bottom" | "left" | "right"
   className?: string
+  maxWidth?: string
 }
 
 export function Tooltip({ 
   children, 
   content, 
   position = "top",
-  className 
+  className,
+  maxWidth = "350px"
 }: TooltipProps) {
   const [isVisible, setIsVisible] = React.useState(false)
 
@@ -35,10 +37,11 @@ export function Tooltip({
       {isVisible && (
         <div
           className={cn(
-            "absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg whitespace-nowrap",
+            "absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg",
             positionClasses[position],
             className
           )}
+          style={{ maxWidth, whiteSpace: 'normal' }}
         >
           {content}
           <div

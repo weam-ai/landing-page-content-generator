@@ -37,6 +37,18 @@ export interface LandingPageSection {
   title: string
   content: string
   order: number
+  components?: {
+    [key: string]: any
+  }
+  metadata?: any
+  name?: string
+  pageNumber?: number
+  boundingBox?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
 }
 
 // Comprehensive Analysis Types
@@ -199,7 +211,7 @@ export interface BusinessDetails {
 }
 
 export interface UploadFile {
-  type: 'figma' | 'pdf'
+  type: 'figma' | 'pdf' | 'url'
   url?: string
   file?: File
 }

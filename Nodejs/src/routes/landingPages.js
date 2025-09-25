@@ -4,6 +4,126 @@ const { body, validationResult } = require('express-validator');
 const LandingPage = require('../models/LandingPage');
 const logger = require('../utils/logger');
 
+// Helper functions to extract components from content
+function extractButtonsFromContent(content) {
+  const buttonPatterns = [
+    /(?:button|btn|cta|call to action)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:click|tap|press)\s+([^.!?\n]+)/gi,
+    /(?:get started|learn more|view|explore|discover|try|start|begin)[\s\w]*/gi,
+    /(?:sign up|sign in|login|register|subscribe|download|buy|purchase)[\s\w]*/gi
+  ];
+  
+  const buttons = [];
+  buttonPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const cleanMatch = match.replace(/(?:button|btn|cta|call to action|click|tap|press)[\s\w]*:?\s*/gi, '').trim();
+        if (cleanMatch && cleanMatch.length > 2 && cleanMatch.length < 50) {
+          buttons.push(cleanMatch);
+        }
+      });
+    }
+  });
+  
+  return [...new Set(buttons)]; // Remove duplicates
+}
+
+function extractImagesFromContent(content) {
+  const imagePatterns = [
+    /([a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|gif|svg|webp))/gi,
+    /([a-zA-Z0-9_-]+_icon\.(?:jpg|jpeg|png|gif|svg|webp))/gi,
+    /([a-zA-Z0-9_-]+_image\.(?:jpg|jpeg|png|gif|svg|webp))/gi,
+    /([a-zA-Z0-9_-]+_logo\.(?:jpg|jpeg|png|gif|svg|webp))/gi,
+    /([a-zA-Z0-9_-]+_bg\.(?:jpg|jpeg|png|gif|svg|webp))/gi,
+    /([a-zA-Z0-9_-]+_thumbnail\.(?:jpg|jpeg|png|gif|svg|webp))/gi
+  ];
+  
+  const images = [];
+  imagePatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        if (match && match.length > 3) {
+          images.push(match);
+        }
+      });
+    }
+  });
+  
+  return [...new Set(images)]; // Remove duplicates
+}
+
+function extractLinksFromContent(content) {
+  const linkPatterns = [
+    /(?:link|url|href)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:navigate|go to|visit|check out)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:home|products|solutions|pricing|about|contact|support|help|documentation|blog|news)[\s\w]*/gi,
+    /(?:facebook|twitter|linkedin|instagram|youtube|github|discord)[\s\w]*/gi
+  ];
+  
+  const links = [];
+  linkPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const cleanMatch = match.replace(/(?:link|url|href|navigate|go to|visit|check out)[\s\w]*:?\s*/gi, '').trim();
+        if (cleanMatch && cleanMatch.length > 2 && cleanMatch.length < 50) {
+          links.push(cleanMatch);
+        }
+      });
+    }
+  });
+  
+  return [...new Set(links)]; // Remove duplicates
+}
+
+function extractMessagesFromContent(content) {
+  const messagePatterns = [
+    /(?:message|notification|alert|banner)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:welcome|hello|hi|greeting)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:success|error|warning|info)[\s\w]*:?\s*([^.!?\n]+)/gi
+  ];
+  
+  const messages = [];
+  messagePatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const cleanMatch = match.replace(/(?:message|notification|alert|banner|welcome|hello|hi|greeting|success|error|warning|info)[\s\w]*:?\s*/gi, '').trim();
+        if (cleanMatch && cleanMatch.length > 2 && cleanMatch.length < 100) {
+          messages.push(cleanMatch);
+        }
+      });
+    }
+  });
+  
+  return [...new Set(messages)]; // Remove duplicates
+}
+
+function extractItemsFromContent(content) {
+  const itemPatterns = [
+    /(?:item|feature|benefit|advantage|point)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:list|bullet|checklist)[\s\w]*:?\s*([^.!?\n]+)/gi,
+    /(?:step|phase|stage)[\s\w]*:?\s*([^.!?\n]+)/gi
+  ];
+  
+  const items = [];
+  itemPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const cleanMatch = match.replace(/(?:item|feature|benefit|advantage|point|list|bullet|checklist|step|phase|stage)[\s\w]*:?\s*/gi, '').trim();
+        if (cleanMatch && cleanMatch.length > 2 && cleanMatch.length < 100) {
+          items.push(cleanMatch);
+        }
+      });
+    }
+  });
+  
+  return [...new Set(items)]; // Remove duplicates
+}
+
 const router = express.Router();
 
 // Public routes - no authentication required
@@ -150,28 +270,75 @@ router.post('/', [
     // Validate and clean sections before saving
     if (req.body.sections && Array.isArray(req.body.sections)) {
       
-      // Filter out sections with no content and ensure all required fields
+      // Process sections to handle both old and new formats
       req.body.sections = req.body.sections
         .filter(section => {
-          const hasContent = section && section.content && section.content.trim().length > 0
+          // Check if section has content or components
+          const hasContent = section && (
+            (section.content && section.content.trim().length > 0) ||
+            (section.components && Object.keys(section.components).length > 0)
+          )
           if (!hasContent) {
+            logger.warn('Filtering out section with no content or components:', section.id || 'unknown')
           }
           return hasContent
         })
-        .map((section, index) => ({
-          id: section.id || `section-${index + 1}`,
-          title: section.title || `Section ${index + 1}`,
-          type: section.type || 'content',
-          content: section.content.trim(),
-          order: section.order || index + 1,
-          pageNumber: section.pageNumber || 1,
-          boundingBox: section.boundingBox || {
-            x: 0,
-            y: index * 120,
-            width: 800,
-            height: 200
+        .map((section, index) => {
+          // Handle new format with components
+          if (section.components) {
+            // Extract content from components for the main content field
+            const mainContent = section.components.content || 
+                               section.components.title || 
+                               section.components.subtitle || 
+                               'Generated content';
+            
+            return {
+              id: section.id || `section-${index + 1}`,
+              name: section.name,
+              type: section.name?.toLowerCase().replace(/\s+/g, '-') || 'content',
+              title: section.name || 'Section',
+              content: mainContent,
+              components: section.components,
+              order: section.order || index + 1,
+              pageNumber: section.pageNumber || 1,
+              boundingBox: section.boundingBox || {
+                x: 0,
+                y: index * 200,
+                width: 800,
+                height: 200
+              },
+              extractedAt: new Date().toISOString()
+            };
+          } else {
+            // Handle old format - create components from content
+            const content = section.content ? section.content.trim() : `Content for ${section.title || section.type}`;
+            return {
+              id: section.id || `section-${index + 1}`,
+              name: section.name || section.title || `Section ${index + 1}`,
+              type: section.type || 'content',
+              title: section.title || `Section ${index + 1}`,
+              content: content,
+              components: new Map(Object.entries({
+                title: section.title || `Section ${index + 1}`,
+                content: content,
+                buttons: extractButtonsFromContent(content),
+                images: extractImagesFromContent(content),
+                links: extractLinksFromContent(content),
+                messages: extractMessagesFromContent(content),
+                items: extractItemsFromContent(content)
+              })),
+              order: section.order || index + 1,
+              pageNumber: section.pageNumber || 1,
+              boundingBox: section.boundingBox || {
+                x: 0,
+                y: index * 200,
+                width: 800,
+                height: 200
+              },
+              extractedAt: new Date().toISOString()
+            };
           }
-        }))
+        })
       
       
       // Ensure we have at least one section
@@ -302,28 +469,40 @@ router.put('/:id', [
 // @route   PUT /api/landing-pages/:id/sections
 // @access  Public
 router.put('/:id/sections', [
-  body('sections')
-    .isArray()
-    .withMessage('Sections must be an array'),
-  body('sections.*.id')
-    .trim()
-    .notEmpty()
-    .withMessage('Section ID is required'),
-  body('sections.*.title')
-    .trim()
-    .notEmpty()
-    .withMessage('Section title is required'),
-  body('sections.*.content')
-    .trim()
-    .notEmpty()
-    .withMessage('Section content is required'),
-  body('sections.*.type')
-    .trim()
-    .notEmpty()
-    .withMessage('Section type is required'),
-  body('sections.*.order')
-    .isInt({ min: 1 })
-    .withMessage('Section order must be a positive integer')
+  // Custom validation to handle both array directly or wrapped in sections property
+  body().custom((value, { req }) => {
+    const sections = req.body.sections || req.body;
+    if (!Array.isArray(sections)) {
+      throw new Error('Sections must be an array');
+    }
+    if (sections.length === 0) {
+      throw new Error('At least one section is required');
+    }
+    return true;
+  }),
+  // Validate individual section properties
+  body().custom((value, { req }) => {
+    const sections = req.body.sections || req.body;
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      if (!section.id || typeof section.id !== 'string' || section.id.trim() === '') {
+        throw new Error(`Section ${i + 1}: ID is required`);
+      }
+      if (!section.name && !section.title) {
+        throw new Error(`Section ${i + 1}: Name or title is required`);
+      }
+      // Content validation is more flexible - can be in content field or components
+      const hasContent = section.content && section.content.trim().length > 0;
+      const hasComponents = section.components && Object.keys(section.components).length > 0;
+      if (!hasContent && !hasComponents) {
+        throw new Error(`Section ${i + 1}: Content or components are required`);
+      }
+      if (section.order && (!Number.isInteger(section.order) || section.order < 1)) {
+        throw new Error(`Section ${i + 1}: Order must be a positive integer`);
+      }
+    }
+    return true;
+  })
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -348,30 +527,76 @@ router.put('/:id/sections', [
     // No ownership check required for public access
 
     // Validate and clean sections before updating
-    if (req.body.sections && Array.isArray(req.body.sections)) {
+    const sectionsToProcess = req.body.sections || req.body;
+    if (sectionsToProcess && Array.isArray(sectionsToProcess)) {
       
       // Filter out sections with no content and ensure all required fields
-      req.body.sections = req.body.sections
+      req.body.sections = sectionsToProcess
         .filter(section => {
-          const hasContent = section && section.content && section.content.trim().length > 0
+          // Check for content in either content field or components
+          const hasContent = section && (
+            (section.content && section.content.trim().length > 0) ||
+            (section.components && Object.keys(section.components).length > 0)
+          )
           if (!hasContent) {
+            console.log('Filtering out section with no content:', section);
           }
           return hasContent
         })
-        .map((section, index) => ({
-          id: section.id || `section-${index + 1}`,
-          title: section.title || `Section ${index + 1}`,
-          type: section.type || 'content',
-          content: section.content.trim(),
-          order: section.order || index + 1,
-          pageNumber: section.pageNumber || 1,
-          boundingBox: section.boundingBox || {
-            x: 0,
-            y: index * 120,
-            width: 800,
-            height: 200
+        .map((section, index) => {
+          // Extract content from components if content field is empty
+          let sectionContent = section.content || ''
+          if (!sectionContent && section.components) {
+            // Combine all component content into a single content string
+            const componentContent = Object.values(section.components)
+              .filter(component => component && String(component).trim())
+              .map(component => {
+                if (Array.isArray(component)) {
+                  return component.filter(item => item && String(item).trim()).join(' ')
+                }
+                return String(component).trim()
+              })
+              .join(' ')
+            sectionContent = componentContent
           }
-        }))
+          
+          // Create components from content if they don't exist
+          let components = new Map();
+          if (section.components) {
+            components = new Map(Object.entries(section.components));
+          } else {
+            // Extract components from content
+            const content = sectionContent || `Content for ${section.title || `Section ${index + 1}`}`;
+            components = new Map(Object.entries({
+              title: section.title || `Section ${index + 1}`,
+              content: content,
+              buttons: extractButtonsFromContent(content),
+              images: extractImagesFromContent(content),
+              links: extractLinksFromContent(content),
+              messages: extractMessagesFromContent(content),
+              items: extractItemsFromContent(content)
+            }));
+          }
+          
+          return {
+            id: section.id || `section-${index + 1}`,
+            name: section.name || section.title || `Section ${index + 1}`,
+            title: section.title || section.name || `Section ${index + 1}`,
+            type: section.type || 'content',
+            content: sectionContent || `Content for ${section.title || `Section ${index + 1}`}`,
+            order: section.order || index + 1,
+            pageNumber: section.pageNumber || 1,
+            boundingBox: section.boundingBox || {
+              x: 0,
+              y: index * 120,
+              width: 800,
+              height: 200
+            },
+            // Store components properly in the components field
+            components: components,
+            extractedAt: new Date().toISOString()
+          }
+        })
       
       
       // Ensure we have at least one section
@@ -393,15 +618,27 @@ router.put('/:id/sections', [
       }
     }
 
-    // Update sections
+    // Store both transformed sections (for database schema) and original sections (for frontend)
     landingPage.sections = req.body.sections;
+    
+    // Store original sections in a separate field for frontend compatibility
+    if (req.body.originalSections) {
+      landingPage.originalSections = req.body.originalSections;
+    }
+    
     await landingPage.save();
 
     logger.info('Landing page sections updated', { landingPageId: req.params.id });
 
+    // Return the original sections if available, otherwise return transformed sections
+    const responseData = {
+      ...landingPage.toObject(),
+      sections: landingPage.originalSections || landingPage.sections
+    };
+
     res.json({
       success: true,
-      data: landingPage
+      data: responseData
     });
   } catch (error) {
     logger.error('Update landing page sections failed:', error);

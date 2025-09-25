@@ -10,6 +10,7 @@ interface UseLandingPagesReturn {
   totalPages: number;
   totalCount: number; // Add total count to interface
   currentPage: number;
+  isAuthorized: boolean; // Add authorization status
   refreshData: () => Promise<void>;
   createPage: (data: Partial<LandingPage>) => Promise<LandingPage>;
   updatePage: (id: string, data: Partial<LandingPage>) => Promise<LandingPage>;
@@ -24,6 +25,7 @@ export const useLandingPages = (): UseLandingPagesReturn => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0); // Add total count state
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAuthorized, setIsAuthorized] = useState(false); // Add authorization state
 
   const fetchLandingPages = useCallback(async (page: number = 1) => {
     try {
@@ -36,9 +38,13 @@ export const useLandingPages = (): UseLandingPagesReturn => {
         const userResponse = await getSessionData();
         if (userResponse.success && userResponse.data) {
           companyId = userResponse.data.companyId;
+          setIsAuthorized(true);
+        } else {
+          setIsAuthorized(false);
         }
       } catch (error) {
         console.warn('Could not get user session, showing all pages:', error);
+        setIsAuthorized(false);
         // Continue without companyId to show all pages
       }
       
@@ -67,7 +73,7 @@ export const useLandingPages = (): UseLandingPagesReturn => {
         
         setLandingPages(transformedPages);
         setTotalCount(response.count || 0); // Set total count from backend
-        setTotalPages(Math.ceil(response.count / 18)); // Calculate total pages based on 18 items per page
+        setTotalPages(Math.ceil(response.count / 15)); // Calculate total pages based on 15 items per page
       } else {
         throw new Error(response.error || 'Failed to fetch landing pages');
       }
@@ -178,6 +184,7 @@ export const useLandingPages = (): UseLandingPagesReturn => {
     totalPages,
     totalCount,
     currentPage,
+    isAuthorized,
     refreshData,
     createPage,
     updatePage,
