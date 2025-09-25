@@ -386,7 +386,7 @@ export function FigmaProcessor({ figmaUrl, onAnalysisComplete, onError }: FigmaP
         <CardHeader className="pb-3">
           <CardTitle className="text-lg text-blue-800 flex items-center">
             <Figma className="w-5 h-5 mr-2" />
-            Processing Figma Design
+            Processing your Figma File 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

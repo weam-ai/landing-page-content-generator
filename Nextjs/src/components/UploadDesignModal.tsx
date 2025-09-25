@@ -454,11 +454,11 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
       <DialogContent className="md:max-w-4xl rounded-md max-w-[calc(100%-30px)] max-h-[91vh] overflow-y-auto">
         <DialogHeader className="text-left p-3 border-b">
           <DialogTitle className="font-semibold flex items-center flex-wrap gap-x-1">
-            Create New Landing Page
+          Create New Content for the Page
           </DialogTitle>
           {step === "upload" && (
             <DialogDescription className="">
-              Upload your design file or provide a Figma URL to get started with AI-powered content generation
+              Paste your website URL or Figma Design URL or upload design pdf to write or rewrite the content with the AI powered content builder. 
             </DialogDescription>
           )}
         </DialogHeader>
@@ -885,7 +885,7 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
                 </div>
                 <div className="text-left">
                   <h3 className="text-lg font-semibold text-gray-800">
-                    Processing {uploadFile?.type === 'figma' ? 'Figma' : 'PDF'} Design
+                    Processing your {uploadFile?.type === 'figma' ? 'Figma File' : uploadFile?.type === 'url' ? 'Website Page' : 'PDF'} 
                   </h3>
                   <p className="text-sm text-gray-600">{currentStep}</p>
                 </div>
@@ -963,7 +963,7 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
     <div className="space-y-6 md:px-6 pb-6">
       <UrlInputCard
         title="Website URL"
-        description="Analyze any website to extract design structure and content"
+        description="Analyze any website page to exact content structure and regenerate new content "
         placeholder="https://example.com"
         value={websiteUrl}
         onChange={setWebsiteUrl}
@@ -977,8 +977,8 @@ export function UploadDesignModal({ isOpen, onClose, onSuccess }: UploadDesignMo
       <Divider />
 
       <UrlInputCard
-        title="Figma Design URL"
-        description="Import your Figma design to extract layout and design elements"
+        title="Figma URL"
+        description="Import your design to extract content from the design "
         placeholder="https://www.figma.com/file/..."
         value={figmaUrl}
         onChange={setFigmaUrl}
@@ -1213,8 +1213,8 @@ function SectionsReviewStep({
     <div>
       <SectionHeader
         icon={<ListChecks className="w-8 h-8" />}
-        title="Review Extracted Sections"
-        description="Review all the sections and design elements extracted from your design file before proceeding to the next step."
+        title="Review Extracted Content"
+        description="Review all the sections and content from your website/design/pdf before proceeding to the next step. "
       />
 
       <div className="max-w-6xl mx-auto space-y-6">
@@ -1535,8 +1535,8 @@ function SectionsReviewStep({
                     <Globe className="w-7 h-7 text-b2" />
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold">Website Analysis Results</h4>
-                    <p className="text-b2 text-sm">Design sections extracted from {urlAnalysis.sourceUrl}</p>
+                    <h4 className="text-lg font-bold">Website Analysis Result</h4>
+                    <p className="text-b2 text-sm">Content sections extracted from {urlAnalysis.sourceUrl}</p>
                   </div>
                 </div>
                 <Badge className="bg-b12 text-b2 px-3 py-1.5 text-sm font-normal my-2 md:my-0">
@@ -1917,11 +1917,11 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
       </div>
       
       <h3 className="text-2xl font-bold text-gray-800 mb-3">
-        Generate & Preview Your Landing Page
+      Generate & Preview Your Content Page
       </h3>
       
       <p className="text-gray-600 mb-6 text-base max-w-lg mx-auto leading-relaxed">
-        Generate a dynamic landing page using AI, then preview it before downloading.
+      Generate a dynamic landing page content using Ai, then preview and edit it before downloading. 
       </p>
 
       <div className="max-w-md mx-auto space-y-4">
@@ -1939,7 +1939,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate Landing Page
+                Generate Content
               </>
             )}
           </Button>
@@ -3884,7 +3884,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-2" />
-                    Download Landing Page
+                    Download Content Page
                   </>
                 )}
               </Button>
@@ -4082,7 +4082,7 @@ const DownloadStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => vo
           ) : (
             <>
               <Download className="h-5 w-5 mr-3" />
-              Download Landing Page
+              Download Content Page
             </>
           )}
         </Button>

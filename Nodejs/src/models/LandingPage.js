@@ -147,7 +147,7 @@ const LandingPageSchema = new mongoose.Schema({
   },
   currentStep: {
     type: String,
-    enum: ['Upload', 'Review', 'Details', 'Generate', 'Complete', 'Extract Design', 'Plan Content', 'Analyze Design', 'Generate Content', 'Generate Landing Page', 'Preview Landing Page', 'Download Landing Page'],
+    enum: ['Upload', 'Review', 'Details', 'Generate', 'Complete', 'Extract Design', 'Plan Content', 'Analyze Design', 'Generate Content', 'Generate Content Page', 'Preview Content Page', 'Download Content Page'],
     default: 'Upload'
   }
 }, {

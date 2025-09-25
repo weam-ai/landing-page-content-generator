@@ -37,7 +37,7 @@ export function AuthorizationMessage({}: AuthorizationMessageProps) {
                 
                 <div>
                   <h1 className="text-3xl font-black">
-                    AI Landing Page Generator
+                    AI Content Builder 
                   </h1>
                   <div className="flex items-center justify-center space-x-2 mt-1">
                     <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Weam AI-Powered Platform</span>

@@ -505,7 +505,7 @@ export default function SolutionsPage() {
                 
                 <div>
                   <h1 className="md:text-2xl text-lg font-black text-b2 leading-tight">
-                    AI Landing Page Generator
+                    AI Content Builder 
                   </h1>
                   <div className="flex items-center space-x-2 mt-1 text-sm text-b6">
                     Weam AI-Powered Platform
@@ -546,8 +546,7 @@ export default function SolutionsPage() {
               </div>
               
               <p className="text-sm text-b5 leading-relaxed font-medium mt-2">
-                  Transform your designs into stunning landing pages with 
-                  <span className="font-semibold"> AI-powered content generation</span>
+              Turn websites, PDFs, and designs into structured content your team can actually use
               </p>
             </div>
             
@@ -3126,7 +3125,7 @@ function LandingPageCard({
             
             {/* Action Icons */}
             <div className="flex items-center space-x-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-              <Tooltip content="Download Landing Page" position="top">
+              <Tooltip content="Download Content Page" position="top">
                 <Button
                   variant="ghost"
                   size="sm"
