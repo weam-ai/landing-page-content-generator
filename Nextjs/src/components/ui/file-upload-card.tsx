@@ -2,6 +2,7 @@ import React from 'react'
 import { Upload, CheckCircle, X, ArrowRight, Loader2, FileImage } from 'lucide-react'
 import { Button } from './button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card'
+import { Input } from "@/components/ui/input"
 
 interface FileUploadCardProps {
   title: string
@@ -127,7 +128,7 @@ export function FileUploadCard({
                 Drag and drop your file here, or{" "}
                 <label className="cursor-pointer hover:underline font-semibold underline">
                   browse files
-                  <input
+                  <Input
                     type="file"
                     accept="*/*"
                     onChange={onFileInput}

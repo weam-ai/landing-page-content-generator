@@ -1370,18 +1370,21 @@ function SectionsReviewStep({
         {/* Figma Analysis Results */}
         {figmaAnalysis && (
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between">
+              <div>
               <h4 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Figma className="w-6 h-6 mr-3 text-gray-600" />
                 Figma Analysis Results
               </h4>
-              <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+              <p className="text-blue-100 text-sm">Design sections extracted from your Figma design</p>
+              </div>
+              <Badge className="bg-b12 text-gray-800 border-gray-200 hover:bg-b12">
                 {figmaAnalysis.sections?.length || 0} Sections
               </Badge>
             </div>
 
             {/* Content */}
-            <div className="p-8">
+            <div className="py-3">
               {!figmaAnalysis.sections || figmaAnalysis.sections.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1391,34 +1394,130 @@ function SectionsReviewStep({
                   <p className="text-sm text-gray-400 mt-2">The AI couldn't identify any sections in this design</p>
                 </div>
               ) : (
-                <div className="grid gap-4">
-                  {figmaAnalysis.sections.map((section: any, index: number) => (
-                    <div key={`figma-${section.id || section.name || section.title || 'section'}-${index}`} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-5 border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="w-8 h-8 bg-b12 rounded-lg flex items-center justify-center text-b2 text-sm font-bold">
-                              {(section.title || section.name) ? (section.title || section.name).charAt(0).toUpperCase() : 'S'}
-                            </div>
-                            <h6 className="text-lg font-semibold text-gray-800">{section.title || section.name || `Section ${index + 1}`}</h6>
-                            <Badge variant="outline" className="text-xs">
-                              #{index + 1}
-                            </Badge>
-                          </div>
-                          
-                          {/* Section Content */}
-                          {section.content && (
-                            <div className="ml-11">
-                              <div className="flex items-start space-x-2">
-                                <span className="text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1 rounded">Content:</span>
-                                <span className="text-sm text-gray-700 line-clamp-2">{section.content}</span>
-                          </div>
-                            </div>
-                          )}
-                        </div>
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                  {/* Section Counter and Search */}
+                  <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 pb-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-lg font-semibold text-gray-700">
+                        {searchTerm ? `${filteredSections.length} of ${figmaAnalysis.sections.length}` : `All ${figmaAnalysis.sections.length}`} Sections Extracted
+                      </h5>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        Scroll to view all sections
                       </div>
                     </div>
-                  ))}
+                    
+                    {/* Search Input */}
+                    <div className="relative">
+                    <Input
+                        type="text"
+                        placeholder="Search sections or components..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 pl-10 borderrounded-lg "
+                      />
+                      <div className="absolute left-3 top-3">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {filteredSections.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-b5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-b2 font-medium text-lg">No sections found</p>
+                      <p className="text-sm text-gray-400 mt-1">Try adjusting your search terms</p>
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  ) : (
+                    filteredSections.map((section: any, index: number) => (
+                      <div key={`figma-${section.id || section.name || section.title || 'section'}-${index}`} className="group relative">
+                        {/* Section Card */}
+                        <div className="rounded-2xl border border-gray-200 transition-all duration-300 overflow-hidden">
+                          {/* Section Header */}
+                          <div className="px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center space-x-4">
+                              {/* Section Icon */}
+                              <div className="relative">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-black text-xl font-bold shadow-xl border-2 group-hover:scale-110 transition-transform duration-300 ${
+                                  index % 6 === 0 ? 'bg-gradient-to-br from-blue-200 to-blue-300 border-blue-400 text-black' :
+                                  index % 6 === 1 ? 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400 text-black' :
+                                  index % 6 === 2 ? 'bg-gradient-to-br from-green-200 to-green-300 border-green-400 text-black' :
+                                  index % 6 === 3 ? 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400 text-black' :
+                                  index % 6 === 4 ? 'bg-gradient-to-br from-red-200 to-red-300 border-red-400 text-black' :
+                                  'bg-gradient-to-br from-indigo-200 to-indigo-300 border-indigo-400 text-black'
+                                }`}>
+                                  {(section.title || section.name) ? String(section.title || section.name).charAt(0).toUpperCase() : 'S'}
+                                </div>
+                                <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg border ${
+                                  index % 6 === 0 ? 'bg-purple-200 border-purple-400 text-black' :
+                                  index % 6 === 1 ? 'bg-green-200 border-green-400 text-black' :
+                                  index % 6 === 2 ? 'bg-orange-200 border-orange-400 text-black' :
+                                  index % 6 === 3 ? 'bg-red-200 border-red-400 text-black' :
+                                  index % 6 === 4 ? 'bg-indigo-200 border-indigo-400 text-black' :
+                                  'bg-blue-200 border-blue-400 text-black'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                              </div>
+                              
+                              {/* Section Info */}
+                              <div className="flex-1">
+                              <h6 className="text-xl font-bold text-gray-800 group-hover:text-green-700 transition-colors duration-200">
+                                  {String(section.title || section.name || `Section ${index + 1}`)}
+                                </h6>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {section.components && typeof section.components === 'object' 
+                                    ? `${countActualComponents(section.components)} components extracted`
+                                    : 'No components available'
+                                  }
+                                </p>
+                              </div>
+                              
+                              {/* Status Indicator */}
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                                <span className="text-sm text-gray-600 font-medium">Active</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Section Components */}
+                          <div className="p-6">
+                            {section.components && typeof section.components === 'object' ? 
+                              renderSectionComponents(section.components) : 
+                              <div className="text-center py-8">
+                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                  <span className="text-gray-400 text-lg">📝</span>
+                                </div>
+                                <p className="text-sm text-gray-500 italic">No components available</p>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
