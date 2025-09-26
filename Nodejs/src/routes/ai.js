@@ -83,8 +83,7 @@ let model = null;
 if (GEMINI_API_KEY) {
   try {
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    logger.info('Google Generative AI initialized successfully with gemini-2.5-flash');
+    model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
   } catch (error) {
     logger.error('Failed to initialize Google Generative AI:', error);
   }
@@ -1133,7 +1132,7 @@ router.post('/generate-landing-page', [
       tags: ['ai-generated', 'extracted-data'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       analytics: {
         views: 0,
         conversions: 0
@@ -2095,7 +2094,7 @@ router.post('/generate', [
       tags: ['ai-generated', 'extracted-data', 'step-by-step'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       currentStep: 'Complete',
       processSteps: {
         validation: {
@@ -2355,7 +2354,7 @@ router.post('/generate-dynamic-landing-page', async (req, res) => {
       tags: ['ai-generated'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       meta: {
         title: `${businessInfo.businessName} - Professional Services`.substring(0, 100),
         description: businessInfo.businessOverview,
@@ -3352,7 +3351,7 @@ router.post('/generate-content', [
       data: {
         sections: generatedContent,
         generatedAt: new Date(),
-        model: 'gemini-pro'
+        model: 'gemini-2.0-flash'
       }
     });
   } catch (error) {
@@ -3421,7 +3420,7 @@ router.post('/regenerate-section', [
         sectionType,
         content: regeneratedContent,
         regeneratedAt: new Date(),
-        model: 'gemini-pro'
+        model: 'gemini-2.0-flash'
       }
     });
   } catch (error) {
@@ -3495,7 +3494,7 @@ router.post('/generate-landing-page', [
       tags: ['ai-generated', 'extracted-data'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       analytics: {
         views: 0,
         conversions: 0
@@ -3671,7 +3670,7 @@ Please generate new, improved content for this section that is more engaging and
 async function callGeminiAPI(prompt) {
   try {
     const response = await axios.post(
-      `${GEMINI_API_URL}/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{
           parts: [{

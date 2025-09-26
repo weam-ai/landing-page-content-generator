@@ -131,7 +131,7 @@ const LandingPageSchema = new mongoose.Schema({
   },
   model: {
     type: String,
-    default: 'gemini-pro'
+    default: 'gemini-2.0-flash'
   },
   meta: {
     title: String,
@@ -147,7 +147,7 @@ const LandingPageSchema = new mongoose.Schema({
   },
   currentStep: {
     type: String,
-    enum: ['Upload', 'Review', 'Details', 'Generate', 'Complete', 'Extract Design', 'Plan Content', 'Analyze Design', 'Generate Content', 'Generate Content Page', 'Preview Content Page', 'Download Content Page'],
+    enum: ['Upload', 'Review', 'Details', 'Generate', 'Complete', 'Extract Design', 'Plan Content', 'Analyze Design', 'Generate Content', 'Generate Content Page', 'Preview Content Page', 'Download Content Page', 'Generate Landing Page', 'Preview Landing Page', 'Download Landing Page'],
     default: 'Upload'
   }
 }, {

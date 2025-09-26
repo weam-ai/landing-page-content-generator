@@ -1855,7 +1855,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
           customJS: result.data.landingPageContent.js || '',
           meta: result.data.landingPageContent.meta || {},
           generatedAt: new Date().toISOString(),
-          model: 'gemini-pro',
+          model: 'gemini-2.0-flash',
           completeHTML: result.data.landingPageContent.html || '',
           lastUpdated: Date.now()
         }
@@ -1893,7 +1893,7 @@ const PreviewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () => voi
         customJS: generatedLandingPage.js || '',
         meta: generatedLandingPage.meta || {},
         generatedAt: new Date().toISOString(),
-        model: 'gemini-pro',
+        model: 'gemini-2.0-flash',
         // Store the complete HTML for preview
         completeHTML: generatedLandingPage.html || '',
         // Add timestamp to ensure fresh data
