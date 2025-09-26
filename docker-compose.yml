@@ -22,8 +22,8 @@ services:
     build:
       context: ./Nextjs
       dockerfile: Dockerfile
-      args:  # YEH ADD KARO
-        - NEXT_PUBLIC_API_URL=https://os.weam.ai/ai-landing-page-generator-api
+      args: 
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
         - NEXT_PUBLIC_ENVIRONMENT=production
         - NEXT_PUBLIC_BASE_PATH=/ai-landing-page-generator
         - NEXT_PUBLIC_COOKIE_PASSWORD=${NEXT_PUBLIC_COOKIE_PASSWORD}
@@ -32,7 +32,7 @@ services:
     ports:
       - "4001:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=https://os.weam.ai/ai-landing-page-generator-api
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_COOKIE_NAME=${NEXT_PUBLIC_COOKIE_NAME}
       - NEXT_PUBLIC_COOKIE_PASSWORD=${NEXT_PUBLIC_COOKIE_PASSWORD}
     networks:
