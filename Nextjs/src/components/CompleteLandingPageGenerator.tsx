@@ -181,7 +181,7 @@ export function CompleteLandingPageGenerator({
           keywords: `${businessInfo.businessName}, services, ${businessInfo.targetAudience}`
         },
         generatedAt: new Date(),
-        model: 'gemini-pro'
+        model: 'gemini-2.0-flash'
       }
       
       setGeneratedLandingPage(landingPageData)

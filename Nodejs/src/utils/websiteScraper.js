@@ -9,8 +9,7 @@ class WebsiteScraper {
     
     // Use the working model from our test
     try {
-      this.model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      logger.info('Gemini model initialized successfully: gemini-1.5-flash');
+      this.model = this.gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
     } catch (error) {
       logger.error('Failed to initialize Gemini model:', error);
       throw new Error('Unable to initialize Gemini AI model. Please check your API key and model configuration.');
