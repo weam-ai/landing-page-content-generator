@@ -2,16 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Eye, Edit, Trash2, FileText, Calendar, Building2, Sparkles, Clock, Users, X, Loader2, Zap, Globe, Search, Download, Save } from "lucide-react"
+import { Plus, Eye, Edit, Trash2, FileText, Calendar, Building2, Sparkles, Clock, Users, X, Loader2, Zap, Globe, Search, Download, Save, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { ToastContainer, ToastProps } from "@/components/ui/toast"
 import { UploadDesignModal } from "@/components/UploadDesignModal"
 import { UserEmailDisplay } from "@/components/UserEmailDisplay"
 import { BusinessInfoModal } from "@/components/BusinessInfoModal"
+import { AuthorizationMessage } from "@/components/AuthorizationMessage"
 import { LandingPage } from "@/types"
 import { useLandingPages } from "@/hooks/useLandingPages"
 import apiService from "@/lib/api"
@@ -19,6 +23,7 @@ import { api } from "@/lib/utils"
 
 export default function SolutionsPage() {
   const router = useRouter()
+  const [storageUsage, setStorageUsage] = useState<{localStorage: number, sessionStorage: number, total: number} | null>(null)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -39,6 +44,8 @@ export default function SolutionsPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false)
   const [selectedSection, setSelectedSection] = useState<any>(null)
+  const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false)
+  const [newSection, setNewSection] = useState<any>(null)
   // Remove local pagination variables since we're using backend pagination
   const itemsPerPage = 15 // Updated to 15 pages per page
 
@@ -50,6 +57,7 @@ export default function SolutionsPage() {
     totalPages,
     totalCount, // Add total count from hook
     currentPage,
+    isAuthorized,
     refreshData,
     createPage,
     updatePage,
@@ -158,7 +166,7 @@ export default function SolutionsPage() {
       try {
         const section = JSON.parse(currentValue)
         setEditingSection(section)
-        setSectionTitle(section.title || '')
+        setSectionTitle(section.name || section.title || '')
         setSectionContent(section.content || '')
         setSectionType(section.type || 'hero')
         setEditValue('') // Clear editValue for section editing
@@ -192,7 +200,144 @@ export default function SolutionsPage() {
 
   const handleSectionClick = (section: any) => {
     setSelectedSection(section)
+    setSectionTitle(section.name || section.title || '')
+    setSectionContent(section.content || '')
     setIsSectionModalOpen(true)
+  }
+
+  const handleAddSectionClick = () => {
+    // Create a new empty section
+    const emptySection = {
+      id: `section-${Date.now()}`,
+      name: '',
+      title: '',
+      type: 'hero',
+      content: '',
+      order: (selectedPage?.sections?.length || 0) + 1,
+      pageNumber: 1,
+      components: {
+        title: '',
+        subtitle: '',
+        content: '',
+        buttons: [],
+        images: [],
+        links: [],
+        messages: [],
+        items: []
+      }
+    }
+    setNewSection(emptySection)
+    setSectionTitle('')
+    setSectionContent('')
+    setIsAddSectionModalOpen(true)
+  }
+
+  const handleSaveSection = async () => {
+    if (!selectedSection || !selectedPage) return
+    
+    try {
+      // Update the section with all the new values including components
+      const updatedSection = {
+        ...selectedSection,
+        name: sectionTitle || selectedSection.name || selectedSection.title,
+        title: sectionTitle || selectedSection.name || selectedSection.title,
+        // Keep the updated components from the form
+        components: selectedSection.components
+      }
+      
+      // Update the landing page with the new section data
+      const updatedPage = { ...selectedPage }
+      updatedPage.sections = updatedPage.sections?.map(section => 
+        section.id === selectedSection.id ? updatedSection : section
+      )
+      
+      // Update the selectedPage state
+      setSelectedPage(updatedPage)
+      
+      // Save to backend
+      const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedPage),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save section')
+      }
+      
+      // Close the modal
+      setIsSectionModalOpen(false)
+      
+      // Show success message
+      addToast({
+        title: 'Success',
+        description: 'Section updated successfully',
+        type: 'success'
+      })
+      
+    } catch (error) {
+      console.error('Error saving section:', error)
+      addToast({
+        title: 'Error',
+        description: 'Failed to save section changes',
+        type: 'error'
+      })
+    }
+  }
+
+  const handleSaveNewSection = async () => {
+    if (!newSection || !selectedPage) return
+    
+    try {
+      // Update the new section with all the form values
+      const updatedNewSection = {
+        ...newSection,
+        name: sectionTitle || 'New Section',
+        title: sectionTitle || 'New Section',
+        // Keep the updated components from the form
+        components: newSection.components
+      }
+      
+      // Add the new section to the landing page
+      const updatedPage = { ...selectedPage }
+      updatedPage.sections = [...(updatedPage.sections || []), updatedNewSection]
+      
+      // Update the selectedPage state
+      setSelectedPage(updatedPage)
+      
+      // Save to backend
+      const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedPage),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to add section')
+      }
+      
+      // Close the modal
+      setIsAddSectionModalOpen(false)
+      
+      // Show success message
+      addToast({
+        title: 'Success',
+        description: 'New section added successfully',
+        type: 'success'
+      })
+      
+    } catch (error) {
+      console.error('Error adding section:', error)
+      addToast({
+        title: 'Error',
+        description: 'Failed to add new section',
+        type: 'error'
+      })
+    }
   }
 
   const handleEditFieldSave = async () => {
@@ -336,58 +481,41 @@ export default function SolutionsPage() {
     }
   }
 
+  // Show authorization message if user is not authorized
+  if (!isAuthorized && !loading) {
+    return <AuthorizationMessage />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       {/* Header */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-white via-gray-50/50 to-primary/5 border-b border-gray-200/60 sticky top-0 z-10 shadow-sm">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(147,51,234,0.08),transparent_50%)] opacity-60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.06),transparent_50%)] opacity-60" />
-        
-        {/* Decorative Elements */}
-        <div className="absolute top-0 left-1/4 w-32 h-32 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-full blur-3xl opacity-30" />
-        <div className="absolute top-0 right-1/4 w-40 h-40 bg-gradient-to-r from-purple-500/20 to-primary/20 rounded-full blur-3xl opacity-30" />
-        
+      <header className="bg-b13 border-b-2">
         <div className="container mx-auto px-6 py-6 relative">
           
-          <div className="flex items-center justify-between">
+          <div className="flex lg:items-center justify-between lg:flex-row flex-col">
             <div className="flex-1">
               {/* Enhanced Title Section */}
               <div className="flex items-center space-x-3 mb-2">
                 <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary via-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-xl shadow-primary/25">
-                    <div className="w-8 h-8 bg-white/90 rounded-lg flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                  </div>
+                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-b11 p-2">
+                      <FileText className="w-6 h-auto text-b2" />
+                    </div>                  
                   {/* Floating accent dots */}
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse" />
-                  <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
                 </div>
                 
                 <div>
-                  <h1 className="text-4xl font-black bg-gradient-to-r from-gray-900 via-primary to-purple-700 bg-clip-text text-transparent leading-tight">
-                    AI Landing Page Generator
+                  <h1 className="md:text-2xl text-lg font-black text-b2 leading-tight">
+                    AI Content Builder 
                   </h1>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <div className="w-2 h-2 bg-gradient-to-r from-primary to-purple-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Weam AI-Powered Platform</span>
+                  <div className="flex items-center space-x-2 mt-1 text-sm text-b6">
+                    Weam AI-Powered Platform
                   </div>
                 </div>
               </div>
               
-              {/* Enhanced Subtitle */}
-              <div className="max-w-2xl">
-                <p className="text-lg text-gray-600 leading-relaxed font-medium">
-                  Transform your designs into stunning landing pages with 
-                  <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent font-semibold"> AI-powered content generation</span>
-                </p>
-              </div>
-              
-              {/* Four Step Process - Centered */}
-              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-2 lg:gap-6 mt-6">
+              <div className="w-full sm:flex hidden flex-row flex-wrap items-center gap-4 sm:gap-2 lg:gap-6 mt-5">
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">I</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Figma URL | Upload Design</span>
@@ -395,7 +523,7 @@ export default function SolutionsPage() {
                 
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">II</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">AI Content Analysis</span>
@@ -403,34 +531,34 @@ export default function SolutionsPage() {
                 
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">III</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Customize Content</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">IV</span>
                   </div>
                   <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Landing Page Craft</span>
                 </div>
               </div>
+              
+              <p className="text-sm text-b5 leading-relaxed font-medium mt-2">
+              Turn websites, PDFs, and designs into structured content your team can actually use
+              </p>
             </div>
             
             {/* Action Buttons */}
-            <div className="flex space-x-4">
+            <div className="flex space-x-4 lg:mt-0 mt-5">
               {/* Enhanced CTA Button */}
               <div className="relative">
                 <Button 
                   onClick={() => setIsUploadModalOpen(true)}
-                  className="relative bg-gradient-to-r from-primary via-purple-600 to-purple-700 hover:from-primary/90 hover:via-purple-600/90 hover:to-purple-700/90 text-white shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 px-6 py-4 text-base font-bold rounded-xl border-0 overflow-hidden group"
+                  className="relative bg-black text-white shadow-xl shadow-b10 hover:bg-b5 transition-all duration-300 transform px-6 py-4 text-base font-bold rounded-xl border-0 overflow-hidden group"
                   size="lg"
                 >
-                  {/* Button Background Pattern */}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  {/* Button Content */}
                   <div className="relative flex items-center space-x-2">
                     <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm relative">
                       <Sparkles className="h-4 w-4 text-white animate-spin" style={{ animationDuration: '2s' }} />
@@ -443,22 +571,13 @@ export default function SolutionsPage() {
                     </div>
                     <span>Generate New Landing Page</span>
                   </div>
-                  
-                  {/* Button Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </Button>
                 
-                {/* Floating notification badge */}
-                <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-r from-primary via-purple-600 to-purple-700 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30 border-2 border-white animate-pulse">
-                  <span className="text-sm text-white font-bold">{totalCount}</span>
-                </div>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Bottom accent line */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
       </header>
 
       {/* Main Content */}
@@ -467,7 +586,7 @@ export default function SolutionsPage() {
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin text-b2 mx-auto mb-4" />
               <p className="text-muted-foreground">Loading your landing pages...</p>
             </div>
           </div>
@@ -501,35 +620,33 @@ export default function SolutionsPage() {
           <>
             {/* Stats Section with Back to App - Always show */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
-              <div className="flex items-center justify-between">
+              <div className="flex md:items-center justify-between flex-col md:flex-row">
                 {/* Left Side - Back to App */}
                 <div className="flex items-center">
                   <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
                 </div>
 
                 {/* Right Side - Stats */}
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-6 md:mt-0 mt-4">
                   {/* Total Pages */}
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border border-primary/20">
-                      <FileText className="h-5 w-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-primary/20">
+                      <FileText className="h-5 w-5 text-b5" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                      <p className="md:text-2xl text-lg font-bold text-gray-900">{totalCount}</p>
                       <p className="text-xs text-gray-500">Total Pages</p>
                     </div>
                   </div>
 
-                  {/* Divider */}
                   <div className="w-px h-12 bg-gray-200" />
 
-                  {/* Updated This Week */}
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
-                      <Zap className="h-5 w-5 text-green-600" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-primary/20">
+                      <Zap className="h-5 w-5 text-b5" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="md:text-2xl text-lg font-bold text-gray-900">
                         {landingPages.filter(p => p.updatedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
                       </p>
                       <p className="text-xs text-gray-500">Updated This Week</p>
@@ -546,26 +663,23 @@ export default function SolutionsPage() {
 
                 {/* Landing Pages Grid */}
                 <div>
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-1 h-8 bg-gradient-to-b from-primary to-purple-600 rounded-full" />
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Your Landing Pages</h2>
-                    </div>
+                  <div className="flex sm:items-center justify-between mb-8 flex-col sm:flex-row">
+                    <h2 className="text-2xl font-bold text-b2 mb-2 md:mb-0">Your Landing Pages</h2>
                     
                     {/* Modern Search Bar */}
                     <div className="relative max-w-sm group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/15 to-purple-600/15 rounded-xl blur-sm group-hover:blur-md transition-all duration-300"></div>
-                      <div className="relative bg-white/95 backdrop-blur-sm rounded-xl shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/15 transition-all duration-300 group-hover:scale-[1.01] border border-white/40 ring-1 ring-primary/20 group-hover:ring-primary/30">
-                        <div className="flex items-center px-3 py-2">
-                          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-r from-primary/15 to-purple-600/15 mr-2 group-hover:from-primary/25 group-hover:to-purple-600/25 transition-all duration-300 ring-1 ring-primary/10 group-hover:ring-primary/20">
-                            <Search className="h-3.5 w-3.5 text-primary group-hover:text-primary/90 transition-colors duration-300" />
+                      <div className="absolute inset-0 rounded-lg transition-all duration-300"></div>
+                      <div className="relative bg-white rounded-lg transition-all duration-300 border border-b10 ">
+                        <div className="flex items-center px-3 py-0">
+                          <div className="flex items-center justify-center w-6 h-6">
+                            <Search className="h-3.5 w-3.5 text-b7 group-hover:text-b2 transition-colors duration-300" />
                           </div>
-                          <input
+                          <Input
                             type="text"
                             placeholder="Search pages"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="flex-1 bg-transparent text-gray-700 placeholder-gray-500 focus:outline-none text-sm font-medium"
+                            className="border-none"
                           />
                           {searchQuery && (
                             <button
@@ -612,8 +726,8 @@ export default function SolutionsPage() {
                     ) : (
                       <div className="col-span-full text-center py-12">
                         <div className="max-w-md mx-auto">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-xl flex items-center justify-center ring-1 ring-primary/20">
-                            <Search className="h-8 w-8 text-primary/70" />
+                          <div className="w-16 h-16 mx-auto mb-4 rounded-lg flex items-center justify-center border bg-b12">
+                            <Search className="h-8 w-8 text-b2" />
                           </div>
                           <h3 className="text-xl font-bold text-gray-900 mb-2">
                             {searchQuery ? 'No Results Found' : 'No Landing Pages'}
@@ -621,7 +735,7 @@ export default function SolutionsPage() {
                           <p className="text-gray-600 mb-4">
                             {searchQuery ? (
                               <>
-                                No results found for <span className="font-semibold text-primary">"{searchQuery}"</span>. 
+                                No results found for <span className="font-semibold text-b2">"{searchQuery}"</span>. 
                                 Try a different search term.
                               </>
                             ) : (
@@ -632,7 +746,7 @@ export default function SolutionsPage() {
                             <Button
                               onClick={() => setSearchQuery('')}
                               variant="outline"
-                              className="bg-white/90 backdrop-blur-sm border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/30 px-6 py-2 rounded-lg shadow-md shadow-primary/5 hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 ring-1 ring-primary/10 hover:ring-primary/20"
+                              className="border bg-white hover:bg-b2 hover:text-white transition-all duration-200"
                             >
                               <X className="h-4 w-4 mr-2" />
                               Clear Search
@@ -684,8 +798,8 @@ export default function SolutionsPage() {
                                     onClick={() => setCurrentPage(pageNum)}
                                     className={`w-6 h-6 flex items-center justify-center text-xs font-semibold rounded-full transition-all duration-200 ${
                                       isCurrentPage
-                                        ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-sm'
-                                        : 'text-gray-600 hover:text-primary hover:bg-primary/10'
+                                        ? 'bg-b2 text-white'
+                                        : 'text-gray-600 hover:text-b2 hover:bg-b12'
                                     }`}
                                   >
                                     {pageNum}
@@ -766,22 +880,22 @@ export default function SolutionsPage() {
           setIsViewModalOpen(open)
           if (!open) setExpandedCard(null)
         }}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50/30">
+        <DialogContent className="md:max-w-5xl max-w-[calc(100%-30px)] rounded-md max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50/30">
           {selectedPage && (
             <div className="h-full overflow-hidden">
-              <DialogHeader className="border-b border-gray-200/50 pb-4 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-xl">
+              <DialogHeader className="border-b border-b10 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent flex items-center mb-2">
-                      <div className="w-10 h-10 bg-gradient-to-r from-primary to-purple-600 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-                        <FileText className="h-5 w-5 text-white" />
+                    <DialogTitle className="text-xl font-bold flex items-center mb-2">
+                      <div className="w-10 h-10 bg-b12 rounded-lg flex items-center justify-center mr-3">
+                        <FileText className="h-5 w-5 text-b2" />
                       </div>
                       {selectedPage.title}
                     </DialogTitle>
-                    <DialogDescription className="text-base text-muted-foreground font-medium">
+                    <DialogDescription className="text-base text-muted-foreground">
                       Complete landing page details and sections
                       {selectedPage.sections && selectedPage.sections.length > 0 && (
-                        <span className="ml-2 text-primary font-semibold">
+                        <span className="ml-2 text-b2 font-semibold">
                           • {selectedPage.sections.length} sections available
                         </span>
                       )}
@@ -795,15 +909,15 @@ export default function SolutionsPage() {
                 <div className="space-y-6 max-w-3xl mx-auto">
                   {/* Business Information & Overview */}
                   <div 
-                    className="bg-gradient-to-r from-indigo-50 via-blue-50 to-cyan-50 p-6 rounded-xl border border-indigo-200/50 shadow-md backdrop-blur-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+                    className="border px-4 py-3 rounded-md cursor-pointer"
                     onClick={() => setIsBusinessInfoModalOpen(true)}
                   >
                      <div className="flex items-center">
-                       <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-blue-700 rounded-lg flex items-center justify-center mr-4 shadow-lg">
-                         <Building2 className="h-6 w-6 text-white" />
+                       <div className="w-12 h-12 bg-b12 rounded-lg flex items-center justify-center mr-4">
+                         <Building2 className="h-6 w-6 text-b2" />
                        </div>
                        <div>
-                         <h2 className="text-xl font-bold text-primary">Business Information & Overview</h2>
+                         <h2 className="md:text-xl text-lg font-bold text-b2">Business Information & Overview</h2>
                          <p className="text-sm text-muted-foreground mt-1">Click to view and edit all business details</p>
                        </div>
                      </div>
@@ -812,105 +926,73 @@ export default function SolutionsPage() {
 
 
                   {/* Landing Page Sections */}
-                  <div className="bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 p-6 rounded-xl border border-green-200/50 shadow-md backdrop-blur-sm">
+                  <div className="bg-gradient-to-r px-4 py-3 rounded-md border">
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-bold text-primary flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-                          <Sparkles className="h-5 w-5 text-white" />
+                      <h2 className="md:text-xl text-lg font-bold text-b2 flex items-center">
+                        <div className="w-10 h-10 bg-b12 rounded-lg flex items-center justify-center mr-3">
+                          <Sparkles className="h-5 w-5 text-b2" />
                         </div>
                         Landing Page Sections
                       </h2>
-                      <Badge variant="outline" className="text-base px-4 py-2 bg-white/90 backdrop-blur-sm border-green-200 text-green-700 font-bold">
+                      <Badge variant="outline" className="px-3 py-2 border md:text-sm text-xs md:text-left text-center max-md:rounded-md">
                         {selectedPage.sections?.length || 0} sections
                       </Badge>
                     </div>
                     
                     {/* Clickable Sections Overview Card */}
                     <div 
-                      className="flex items-center space-x-3 p-4 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 cursor-pointer mb-4"
+                      className="flex items-center space-x-3 px-3 py-2 rounded-md cursor-pointer mb-4"
                       onClick={() => setExpandedCard(expandedCard === 'landingPageSections' ? null : 'landingPageSections')}
                     >
                       <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0"
-                        style={{ backgroundColor: '#059669' }}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-b12"
                       >
-                        <Sparkles className="h-5 w-5 text-white" />
+                        <Sparkles className="h-5 w-5 text-b2" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-muted-foreground font-medium mb-1">Landing Page Sections</p>
-                        <p className="text-base font-bold text-foreground break-words">Click to view all sections</p>
+                        <p className="text-xs underline text-foreground break-words">Click to view all sections</p>
                       </div>
                     </div>
                     
                     {/* Expanded Sections View */}
                     {expandedCard === 'landingPageSections' && selectedPage.sections && selectedPage.sections.length > 0 && (
-                      <div className="mt-4 p-3 bg-white/90 backdrop-blur-sm rounded-lg shadow-md border border-green-100 max-h-[60vh] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-base font-semibold text-primary">All Landing Page Sections</h3>
+                      <div className="mt-4 p-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-md border border-green-100 max-h-[60vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-primary">All Landing Page Sections</h3>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 px-2 py-1 text-xs">
+                            <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 px-3 py-1 text-sm font-medium">
                               {selectedPage.sections.length} sections
                             </Badge>
-                            <Tooltip content="Add New Section">
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleEditField('addSection', '')}
-                                variant="ghost"
-                                className="text-green-600 hover:text-green-700 hover:bg-transparent p-1"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
+                            <Button 
+                              size="sm" 
+                              onClick={handleAddSectionClick}
+                              variant="ghost"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className={`${selectedPage.sections.length > 6 ? 'grid grid-cols-2 gap-3' : 'space-y-2'}`}>
+                        
+                        {/* Clean Grid Layout - Only Section Titles */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {selectedPage.sections.map((section, index) => (
-                            <div key={section.id} className={`bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 p-3 hover:shadow-md transition-all duration-200 cursor-pointer ${selectedPage.sections.length > 6 ? 'min-h-[120px]' : ''}`}
-                              onClick={() => handleSectionClick(section)}>
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center space-x-3 flex-1">
-                                  <div className="w-8 h-8 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                            <div 
+                              key={section.id} 
+                              className="bg-white rounded-md border p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                              onClick={() => handleSectionClick(section)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                  <div className="w-10 h-10 bg-b12 rounded-md border flex items-center justify-center text-b5 text-sm font-bold flex-shrink-0">
                                     {index + 1}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-semibold text-foreground mb-1 truncate">{section.title}</h4>
-                                    <div className="flex items-center space-x-2 mb-2">
-                                      <span className="text-xs text-muted-foreground">Order: {section.order}</span>
-                                    </div>
-                                    <p className="text-xs text-foreground leading-relaxed line-clamp-2">
-                                      {section.content}
-                                    </p>
+                                    <h4 className="text-base font-semibold text-foreground truncate group-hover:text-green-700 transition-colors">
+                                      {section.name || section.title || 'Untitled Section'}
+                                    </h4>
                                   </div>
-                                </div>
-                                <div className="flex items-center space-x-1 ml-2">
-                                  <Tooltip content="View Full Content">
-                                    <Button size="sm" 
-                                      onClick={(e) => { e.stopPropagation(); handleSectionClick(section); }}
-                                      variant="ghost"
-                                      className="text-blue-600 hover:text-blue-700 hover:bg-transparent p-1">
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip content="Edit Section">
-                                    <Button 
-                                      size="sm" 
-                                      onClick={(e) => { e.stopPropagation(); handleEditField('editSection', JSON.stringify(section)); }}
-                                      variant="ghost"
-                                      className="text-green-600 hover:text-green-700 hover:bg-transparent p-1"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip content="Delete Section">
-                                    <Button 
-                                      size="sm" 
-                                      onClick={(e) => { e.stopPropagation(); handleEditField('deleteSection', JSON.stringify(section)); }}
-                                      variant="ghost"
-                                      className="text-red-600 hover:text-red-700 hover:bg-transparent p-1"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </Tooltip>
                                 </div>
                               </div>
                             </div>
@@ -939,7 +1021,7 @@ export default function SolutionsPage() {
                   {/* Page Dates - Inline */}
                   <div className="flex items-center justify-center space-x-6 text-xs text-muted-foreground py-2">
                     <div className="flex items-center space-x-2">
-                      <Calendar className="h-3 w-3 text-blue-600" />
+                      <Calendar className="h-3 w-3 text-gray-600" />
                       <span>Created: {formatDate(selectedPage.createdAt)}</span>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -960,11 +1042,11 @@ export default function SolutionsPage() {
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent className="max-w-md border-0 shadow-2xl">
           {/* Background Pattern */}
-          <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50 to-pink-50 rounded-lg opacity-50"></div>
+          
           
           <DialogHeader className="relative">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
                 <span className="text-white text-xl">🗑️</span>
               </div>
               <div>
@@ -989,7 +1071,7 @@ export default function SolutionsPage() {
             </Button>
             <Button 
               onClick={confirmDelete}
-              className="px-6 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              className="px-6 py-2 bg-b2 text-white hover:bg-b5 transition-all duration-200"
             >
               <span className="flex items-center space-x-2">
                 <span>🗑️</span>
@@ -1005,11 +1087,11 @@ export default function SolutionsPage() {
         <DialogContent className={`${editingField === 'deleteSection' ? 'max-w-sm' : 'max-w-2xl'} max-h-[90vh] overflow-hidden`}>
           {/* Enhanced Header with Gradient Background */}
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-t-lg"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 rounded-t-lg"></div>
             <DialogHeader className="relative p-6 pb-4">
               {editingField === 'deleteSection' ? null : (
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl shadow-lg">
+                  <div className="w-12 h-12 bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl flex items-center justify-center text-white text-xl shadow-lg">
                     {editingField === 'addSection' ? '➕' : 
                      editingField === 'editSection' ? '✏️' : '📝'}
                   </div>
@@ -1035,14 +1117,14 @@ export default function SolutionsPage() {
               <div className="space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-gray-700 flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
                     <span>Section Title</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={sectionTitle}
                     onChange={(e) => setSectionTitle(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                     placeholder="Enter section title..."
                   />
                 </div>
@@ -1064,14 +1146,14 @@ export default function SolutionsPage() {
               <div className="space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-gray-700 flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
                     <span>Section Title</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={sectionTitle}
                     onChange={(e) => setSectionTitle(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                     placeholder="Enter section title..."
                   />
                 </div>
@@ -1114,7 +1196,7 @@ export default function SolutionsPage() {
                       placeholder={`Enter ${editingField?.toLowerCase().replace(/([A-Z])/g, ' $1')}...`}
                     />
                   ) : (
-                    <input
+                    <Input
                       type="text"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
@@ -1148,7 +1230,7 @@ export default function SolutionsPage() {
               ) : (
                 <Button 
                   onClick={handleEditFieldSave} 
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  className="px-6 py-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   {editingField === 'addSection' ? (
                     <>
@@ -1217,46 +1299,499 @@ export default function SolutionsPage() {
         />
       )}
       
-      {/* Section Content Modal */}
+      {/* Enhanced Section Edit Modal */}
       <Dialog open={isSectionModalOpen} onOpenChange={setIsSectionModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
           {selectedSection && (
             <div className="h-full overflow-hidden">
-              <DialogHeader className="border-b border-gray-200/50 pb-4">
+              <DialogHeader className="border-b pb-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                      {selectedSection.title ? selectedSection.title.charAt(0).toUpperCase() : 'S'}
+                    <div className="w-12 h-12 md:bg-b12 md:border rounded-xl flex items-center justibg-b12 text-lg font-bold md:shadow-lg">
+              b2      {selectedSection.title ? selectedSection.title.charAt(0).toUpperCase() : 'S'}
                     </div>
                     <div>
-                      <DialogTitle className="text-2xl font-bold text-gray-900">
-                        {selectedSection.title || 'Section Title'}
+                      <DialogTitle className="md:text-2xl font-bold text-gray-900 max-md:text-left">
+                        Edit Section
                       </DialogTitle>
-                      <DialogDescription className="text-gray-600 mt-1">
-                        Section content and details
+                      <DialogDescription className="text-gray-600 mt-1 max-md:text-left">
+                        Modify section details and content
                       </DialogDescription>
                     </div>
                   </div>
                 </div>
               </DialogHeader>
               
-              <div className="overflow-y-auto max-h-[60vh] pr-2 py-6">
+              <div className="overflow-y-auto max-h-[75vh] pr-2 py-6">
                 <div className="space-y-6">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200/50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Content</h3>
-                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {selectedSection.content || selectedSection.description || selectedSection.text || 'No content available for this section.'}
+                  {/* Section Basic Info */}
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200/50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Edit className="h-5 w-5 mr-2 text-gray-600" />
+                      Section Basic Info
+                    </h3>
+                    <div>
+                      <Label htmlFor="section-title" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Section Title
+                      </Label>
+                      <Input
+                        id="section-title"
+                        value={sectionTitle}
+                        onChange={(e) => setSectionTitle(e.target.value)}
+                        placeholder="Enter section title"
+                        className="w-full"
+                      />
                     </div>
                   </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 mb-2">Section ID</h4>
-                    <p className="text-sm text-gray-600 font-mono">
-                      {selectedSection.id || 'N/A'}
-                    </p>
+
+                  {/* Section Components Editor */}
+                  {selectedSection.components && Object.keys(selectedSection.components).length > 0 && (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200/50">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Sparkles className="h-5 w-5 mr-2 text-purple-600" />
+                        Section Components
+                      </h3>
+                      <div className="space-y-4">
+                        {Object.entries(selectedSection.components).map(([componentKey, componentValue]) => {
+                          const componentTypes = {
+                            title: { label: 'Title', icon: '📝', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' },
+                            subtitle: { label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
+                            content: { label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
+                            buttons: { label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
+                            images: { label: 'Images', icon: '🖼️', color: 'indigo', bgColor: 'indigo-50', textColor: 'indigo-700' },
+                            links: { label: 'Links', icon: '🔗', color: 'cyan', bgColor: 'cyan-50', textColor: 'cyan-700' },
+                            messages: { label: 'Messages', icon: '💬', color: 'pink', bgColor: 'pink-50', textColor: 'pink-700' },
+                            items: { label: 'Items', icon: '📋', color: 'teal', bgColor: 'teal-50', textColor: 'teal-700' },
+                            forms: { label: 'Forms', icon: '📝', color: 'amber', bgColor: 'amber-50', textColor: 'amber-700' },
+                            ctas: { label: 'CTAs', icon: '🎯', color: 'red', bgColor: 'red-50', textColor: 'red-700' }
+                          }
+                          
+                          const config = componentTypes[componentKey as keyof typeof componentTypes] || { 
+                            label: componentKey, icon: '📄', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' 
+                          }
+
+                          return (
+                            <div key={componentKey} className={`bg-${config.bgColor} rounded-xl p-4 border border-${config.color}-200`}>
+                              <div className="flex items-center space-x-3 mb-3">
+                                <div className={`w-8 h-8 bg-${config.color}-100 rounded-lg flex items-center justify-center`}>
+                                  <span className="text-lg">{config.icon}</span>
+                                </div>
+                                <div>
+                                  <h6 className={`font-semibold text-${config.textColor} text-sm`}>{config.label}</h6>
+                                  <p className="text-xs text-gray-500">
+                                    {Array.isArray(componentValue) ? `${componentValue.length} items` : '1 item'}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                {Array.isArray(componentValue) ? (
+                                  <div className="space-y-2">
+                                    {componentValue.map((item: any, idx: number) => {
+                                      if (typeof item === 'object' && item !== null) {
+                                        return (
+                                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200 space-y-2`}>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                              {Object.entries(item).map(([key, value]) => (
+                                                <div key={key}>
+                                                  <Label className="text-xs font-medium text-gray-600 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                  </Label>
+                                                  <Input
+                                                    value={String(value)}
+                                                    onChange={(e) => {
+                                                      const newComponents = {...selectedSection.components}
+                                                      const newArray = [...(newComponents[componentKey] as any[])]
+                                                      newArray[idx] = {...newArray[idx], [key]: e.target.value}
+                                                      newComponents[componentKey] = newArray
+                                                      setSelectedSection({...selectedSection, components: newComponents})
+                                                    }}
+                                                    className="text-sm"
+                                                    placeholder={`Enter ${key}`}
+                                                  />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )
+                                      } else {
+                                        return (
+                                          <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                            <Input
+                                              value={String(item)}
+                                              onChange={(e) => {
+                                                const newComponents = {...selectedSection.components}
+                                                const newArray = [...(newComponents[componentKey] as any[])]
+                                                newArray[idx] = e.target.value
+                                                newComponents[componentKey] = newArray
+                                                setSelectedSection({...selectedSection, components: newComponents})
+                                              }}
+                                              className="text-sm"
+                                              placeholder={`Enter ${config.label.toLowerCase()}`}
+                                            />
+                                          </div>
+                                        )
+                                      }
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                    <Textarea
+                                      value={String(componentValue)}
+                                      onChange={(e) => {
+                                        const newComponents = {...selectedSection.components}
+                                        newComponents[componentKey] = e.target.value
+                                        setSelectedSection({...selectedSection, components: newComponents})
+                                      }}
+                                      className="text-sm resize-none"
+                                      rows={3}
+                                      placeholder={`Enter ${config.label.toLowerCase()}`}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Add New Item Button for Arrays */}
+                                {Array.isArray(componentValue) && (
+                                  <div className="flex items-center space-x-2 md:flex-row flex-col md:space-x-2 md:space-y-0 space-y-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const newComponents = {...selectedSection.components}
+                                        const newArray = [...(newComponents[componentKey] as any[]), '']
+                                        newComponents[componentKey] = newArray
+                                        setSelectedSection({...selectedSection, components: newComponents})
+                                      }}
+                                      className={`text-${config.textColor} border-${config.color}-200 hover:bg-${config.color}-50`}
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Add {config.label.slice(0, -1)}
+                                    </Button>
+                                    {componentValue.length > 0 && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          const newComponents = {...selectedSection.components}
+                                          const newArray = (newComponents[componentKey] as any[]).slice(0, -1)
+                                          newComponents[componentKey] = newArray
+                                          setSelectedSection({...selectedSection, components: newComponents})
+                                        }}
+                                        className="text-red-600 border-red-200 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-3 w-3 mr-1" />
+                                        Remove Last
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+                {/* Action Buttons */}
+                <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
+                  <div className="flex items-center justify-end">
+                    <div className="flex items-center space-x-3 flex-wrap">
+                      <Button 
+                        onClick={() => setIsSectionModalOpen(false)}
+                        variant="outline"
+                        className="border bg-white hover:bg-b5 hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                      <Tooltip content="Delete Section">
+                        <Button 
+                          onClick={async () => {
+                            if (!selectedSection || !selectedPage) return
+                            
+                            try {
+                              // Remove the section from the landing page
+                              const updatedPage = { ...selectedPage }
+                              updatedPage.sections = updatedPage.sections?.filter(
+                                section => section.id !== selectedSection.id
+                              )
+                              
+                              // Update the selectedPage state
+                              setSelectedPage(updatedPage)
+                              
+                              // Save to backend
+                              const response = await fetch(api(`/landing-pages/${selectedPage.id}`), {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(updatedPage),
+                              })
+                              
+                              if (!response.ok) {
+                                throw new Error('Failed to delete section')
+                              }
+                              
+                              // Close the modal
+                              setIsSectionModalOpen(false)
+                              
+                              // Show success message
+                              addToast({
+                                title: 'Success',
+                                description: 'Section deleted successfully',
+                                type: 'success'
+                              })
+                              
+                            } catch (error) {
+                              console.error('Error deleting section:', error)
+                              addToast({
+                                title: 'Error',
+                                description: 'Failed to delete section',
+                                type: 'error'
+                              })
+                            }
+                          }}
+                          variant="outline"
+                          className="border bg-white hover:bg-b5 hover:text-white"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </Tooltip>
+                      <Button 
+                        onClick={handleSaveSection}
+                        className="bg-b2 text-white hover:bg-b5 hover:text-white max-md:mt-1"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>             
+              
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Section Modal */}
+      <Dialog open={isAddSectionModalOpen} onOpenChange={setIsAddSectionModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
+          {newSection && (
+            <div className="h-full overflow-hidden">
+              <DialogHeader className="border-b pb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center md:space-x-4 space-x-2">
+                    <div className="w-16 h-16 rounded-xl flex items-center justify-center text-b2 text-2xl font-bold md:bg-b12 md:border">
+                      +
+                    </div>
+                    <div>
+                      <DialogTitle className="text-2xl font-bold text-gray-900 max-md:text-left">
+                        Add New Section
+                      </DialogTitle>
+                      <DialogDescription className="text-gray-600 mt-1 max-md:text-left">
+                        Create a new section for your landing page
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="overflow-y-auto max-h-[75vh] pr-2 py-6">
+                <div className="space-y-6">
+                  {/* Section Basic Info */}
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200/50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Edit className="h-5 w-5 mr-2 text-gray-600" />
+                      Section Basic Info
+                    </h3>
+                    <div>
+                      <Label htmlFor="new-section-title" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Section Title
+                      </Label>
+                      <Input
+                        id="new-section-title"
+                        value={sectionTitle}
+                        onChange={(e) => setSectionTitle(e.target.value)}
+                        placeholder="Enter section title"
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section Components Editor */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200/50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Sparkles className="h-5 w-5 mr-2 text-purple-600" />
+                      Section Components
+                    </h3>
+                    <div className="space-y-4">
+                      {Object.entries(newSection.components).map(([componentKey, componentValue]) => {
+                        const componentTypes = {
+                            title: { label: 'Title', icon: '📝', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' },
+                          subtitle: { label: 'Subtitle', icon: '📄', color: 'purple', bgColor: 'purple-50', textColor: 'purple-700' },
+                          content: { label: 'Content', icon: '📋', color: 'green', bgColor: 'green-50', textColor: 'green-700' },
+                          buttons: { label: 'Buttons', icon: '🔘', color: 'orange', bgColor: 'orange-50', textColor: 'orange-700' },
+                          images: { label: 'Images', icon: '🖼️', color: 'indigo', bgColor: 'indigo-50', textColor: 'indigo-700' },
+                          links: { label: 'Links', icon: '🔗', color: 'cyan', bgColor: 'cyan-50', textColor: 'cyan-700' },
+                          messages: { label: 'Messages', icon: '💬', color: 'pink', bgColor: 'pink-50', textColor: 'pink-700' },
+                          items: { label: 'Items', icon: '📋', color: 'teal', bgColor: 'teal-50', textColor: 'teal-700' },
+                          forms: { label: 'Forms', icon: '📝', color: 'amber', bgColor: 'amber-50', textColor: 'amber-700' },
+                          ctas: { label: 'CTAs', icon: '🎯', color: 'red', bgColor: 'red-50', textColor: 'red-700' }
+                        }
+                        
+                        const config = componentTypes[componentKey as keyof typeof componentTypes] || { 
+                          label: componentKey, icon: '📄', color: 'gray', bgColor: 'gray-50', textColor: 'gray-700' 
+                        }
+
+                        return (
+                          <div key={componentKey} className={`bg-${config.bgColor} rounded-xl p-4 border border-${config.color}-200`}>
+                            <div className="flex items-center space-x-3 mb-3">
+                              <div className={`w-8 h-8 bg-${config.color}-100 rounded-lg flex items-center justify-center`}>
+                                <span className="text-lg">{config.icon}</span>
+                              </div>
+                              <div>
+                                <h6 className={`font-semibold text-${config.textColor} text-sm`}>{config.label}</h6>
+                                <p className="text-xs text-gray-500">
+                                  {Array.isArray(componentValue) ? `${componentValue.length} items` : '1 item'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {Array.isArray(componentValue) ? (
+                                <div className="space-y-2">
+                                  {componentValue.map((item: any, idx: number) => {
+                                    if (typeof item === 'object' && item !== null) {
+                                      return (
+                                        <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200 space-y-2`}>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                            {Object.entries(item).map(([key, value]) => (
+                                              <div key={key}>
+                                                <Label className="text-xs font-medium text-gray-600 capitalize">
+                                                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </Label>
+                                                <Input
+                                                  value={String(value)}
+                                                  onChange={(e) => {
+                                                    const newComponents = {...newSection.components}
+                                                    const newArray = [...(newComponents[componentKey] as any[])]
+                                                    newArray[idx] = {...newArray[idx], [key]: e.target.value}
+                                                    newComponents[componentKey] = newArray
+                                                    setNewSection({...newSection, components: newComponents})
+                                                  }}
+                                                  className="text-sm"
+                                                  placeholder={`Enter ${key}`}
+                                                />
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )
+                                    } else {
+                                      return (
+                                        <div key={idx} className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                          <Input
+                                            value={String(item)}
+                                            onChange={(e) => {
+                                              const newComponents = {...newSection.components}
+                                              const newArray = [...(newComponents[componentKey] as any[])]
+                                              newArray[idx] = e.target.value
+                                              newComponents[componentKey] = newArray
+                                              setNewSection({...newSection, components: newComponents})
+                                            }}
+                                            className="text-sm"
+                                            placeholder={`Enter ${config.label.toLowerCase()}`}
+                                          />
+                                        </div>
+                                      )
+                                    }
+                                  })}
+                                </div>
+                              ) : (
+                                <div className={`bg-white rounded-lg p-3 border border-${config.color}-200`}>
+                                  <Textarea
+                                    value={String(componentValue)}
+                                    onChange={(e) => {
+                                      const newComponents = {...newSection.components}
+                                      newComponents[componentKey] = e.target.value
+                                      setNewSection({...newSection, components: newComponents})
+                                    }}
+                                    className="text-sm resize-none"
+                                    rows={3}
+                                    placeholder={`Enter ${config.label.toLowerCase()}`}
+                                  />
+                                </div>
+                              )}
+                              
+                              {/* Add New Item Button for Arrays */}
+                              {Array.isArray(componentValue) && (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const newComponents = {...newSection.components}
+                                      const newArray = [...(newComponents[componentKey] as any[]), '']
+                                      newComponents[componentKey] = newArray
+                                      setNewSection({...newSection, components: newComponents})
+                                    }}
+                                    className={`text-${config.textColor} border-${config.color}-200 hover:bg-${config.color}-50`}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add {config.label.slice(0, -1)}
+                                  </Button>
+                                  {componentValue.length > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const newComponents = {...newSection.components}
+                                        const newArray = (newComponents[componentKey] as any[]).slice(0, -1)
+                                        newComponents[componentKey] = newArray
+                                        setNewSection({...newSection, components: newComponents})
+                                      }}
+                                      className="text-red-600 border-red-200 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Remove Last
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+                {/* Action Buttons */}
+                <div className="border-t border-gray-200/50 pt-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50">
+                  <div className="flex items-center justify-end">
+                    <div className="flex items-center space-x-3 flex-wrap">
+                      <Button 
+                        onClick={() => setIsAddSectionModalOpen(false)}
+                        variant="outline"
+                        className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleSaveNewSection}
+                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Section
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              
             </div>
           )}
         </DialogContent>
@@ -1365,7 +1900,7 @@ function LandingPageCard({
         body {
             font-family: 'Inter', sans-serif;
             line-height: 1.6;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             min-height: 100vh;
             color: #333;
             margin: 0;
@@ -1383,7 +1918,7 @@ function LandingPageCard({
 
         /* Header Styles */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             color: white;
             padding: 2rem 2rem;
             position: relative;
@@ -1441,7 +1976,7 @@ function LandingPageCard({
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
         }
 
         .business-details-header {
@@ -1456,7 +1991,7 @@ function LandingPageCard({
         .business-icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -1495,7 +2030,7 @@ function LandingPageCard({
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
@@ -1503,7 +2038,7 @@ function LandingPageCard({
         .info-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .info-item:hover::before {
@@ -1528,7 +2063,7 @@ function LandingPageCard({
 
         .info-value.brand-tone {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
@@ -1551,7 +2086,7 @@ function LandingPageCard({
         .info-item.clickable:hover {
             transform: translateY(-4px);
             box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .info-item.clickable:hover::before {
@@ -1567,7 +2102,7 @@ function LandingPageCard({
 
         .click-hint {
             font-size: 0.75rem;
-            color: #667eea;
+            color: #000000;
             font-weight: 500;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -1617,7 +2152,7 @@ function LandingPageCard({
         .section-card {
             background: white;
             border-radius: 16px;
-            padding: 2rem;
+            padding: 1.5rem;
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(255,255,255,0.2);
@@ -1626,13 +2161,27 @@ function LandingPageCard({
             animation: cardSlideIn 0.8s ease-out forwards;
             opacity: 0;
             transform: translateY(40px) scale(0.95);
-            min-height: 160px;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .section-card-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .section-card-content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            text-align: center;
+            margin-top: 0.75rem;
         }
 
         .section-card::before {
@@ -1642,7 +2191,7 @@ function LandingPageCard({
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #000000, #333333);
             transform: scaleX(0);
             transform-origin: left;
             transition: transform 0.3s ease;
@@ -1724,28 +2273,29 @@ function LandingPageCard({
 
         /* Icon Styles */
         .section-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 14px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #000000, #333333);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
+            margin: 0 auto 0.75rem;
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 700;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             position: relative;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             animation: iconPulse 2s ease-in-out infinite;
+            flex-shrink: 0;
         }
 
         .section-icon::after {
             content: '';
             position: absolute;
             inset: -2px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 22px;
             z-index: -1;
             opacity: 0.2;
@@ -1766,19 +2316,37 @@ function LandingPageCard({
 
         /* Typography */
         .section-title {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: #2d3748;
             text-align: center;
-            margin-bottom: 0.5rem;
-            line-height: 1.3;
+            line-height: 1.2;
             transition: all 0.3s ease;
             position: relative;
             z-index: 2;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .section-content {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #64748b;
+            margin-top: 0.75rem;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
         .section-card:hover .section-title {
-            color: #667eea;
+            color: #000000;
             transform: translateY(-2px);
         }
 
@@ -1844,7 +2412,7 @@ function LandingPageCard({
         .section-modal-icon {
             width: 60px;
             height: 60px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #000000, #333333);
             border-radius: 16px;
             display: flex;
             align-items: center;
@@ -1879,6 +2447,65 @@ function LandingPageCard({
             line-height: 1.8;
             color: #4a5568;
             margin-bottom: 2rem;
+        }
+
+        .section-main-content {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            border-left: 4px solid #000000;
+        }
+
+        .section-main-content h4 {
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .section-components-modal {
+            margin-top: 2rem;
+        }
+
+        .section-components-modal h4 {
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .component-section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .component-section h5 {
+            color: #4a5568;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            text-transform: capitalize;
+        }
+
+        .component-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .component-item {
+            padding: 0.5rem 0.75rem;
+            background: #f7fafc;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #2d3748;
+            border-left: 3px solid #000000;
         }
 
         .section-modal-footer {
@@ -2012,18 +2639,19 @@ function LandingPageCard({
             }
             
             .section-card {
-                padding: 1.5rem;
-                min-height: 140px;
+                padding: 1.25rem;
+                height: 160px;
             }
             
             .section-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+                margin-bottom: 0.5rem;
             }
             
             .section-title {
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
         }
 
@@ -2072,18 +2700,19 @@ function LandingPageCard({
             }
             
             .section-card {
-                padding: 1.5rem;
-                min-height: 120px;
+                padding: 1rem;
+                height: 140px;
             }
             
             .section-icon {
-                width: 45px;
-                height: 45px;
-                font-size: 1.2rem;
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
             }
             
             .section-title {
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
         }
 
@@ -2159,14 +2788,20 @@ function LandingPageCard({
             <!-- Sections Grid -->
             <div class="sections-grid">
                 ${latestPage.sections && latestPage.sections.length > 0 ? latestPage.sections.map((section: any, index: number) => {
-                    let icon = section.title ? section.title.charAt(0).toUpperCase() : 'S';
-                    let sectionType = section.type || 'section';
+                    const sectionTitle = section.title || section.name || `Section ${index + 1}`;
+                    const icon = sectionTitle ? sectionTitle.charAt(0).toUpperCase() : 'S';
+                    const sectionType = section.type || 'section';
+                    const sectionContent = section.content ? section.content.substring(0, 60) + (section.content.length > 60 ? '...' : '') : 'Click to view content';
                     
                     return `
                     <div class="section-card" onclick="openSectionModal(${JSON.stringify(section).replace(/"/g, '&quot;')})">
-                        <div class="section-icon">${icon}</div>
-                        <h2 class="section-title">${section.title || 'Section Title'}</h2>
-                        <div class="section-content">${section.content ? section.content.substring(0, 100) + (section.content.length > 100 ? '...' : '') : 'Click to view content'}</div>
+                        <div class="section-card-header">
+                            <div class="section-icon">${icon}</div>
+                            <h2 class="section-title">${sectionTitle}</h2>
+                        </div>
+                        <div class="section-card-content">
+                            <div class="section-content">${sectionContent}</div>
+                        </div>
                     </div>
                     `;
                 }).join('') : `
@@ -2238,9 +2873,52 @@ function LandingPageCard({
             const modalContent = document.getElementById('modalContent');
             
             // Set modal content
-            modalIcon.textContent = section.title ? section.title.charAt(0).toUpperCase() : 'S';
-            modalTitle.textContent = section.title || 'Section Title';
-            modalContent.textContent = section.content || section.description || section.text || 'No content available for this section.';
+            const sectionTitle = section.title || section.name || 'Section Title';
+            modalIcon.textContent = sectionTitle ? sectionTitle.charAt(0).toUpperCase() : 'S';
+            modalTitle.textContent = sectionTitle;
+            
+            // Build detailed content with components
+            let contentHTML = '';
+            
+            // Main section content
+            if (section.content) {
+                contentHTML += '<div class="section-main-content">';
+                contentHTML += '<h4>Section Content</h4>';
+                contentHTML += '<p>' + section.content + '</p>';
+                contentHTML += '</div>';
+            }
+            
+            // Section components
+            if (section.components && Object.keys(section.components).length > 0) {
+                contentHTML += '<div class="section-components-modal">';
+                contentHTML += '<h4>Section Components</h4>';
+                
+                Object.entries(section.components).forEach(([key, value]) => {
+                    if (value && (Array.isArray(value) ? value.length > 0 : String(value).trim())) {
+                        contentHTML += '<div class="component-section">';
+                        contentHTML += '<h5>' + key.charAt(0).toUpperCase() + key.slice(1) + '</h5>';
+                        contentHTML += '<div class="component-items">';
+                        
+                        if (Array.isArray(value)) {
+                            value.forEach(item => {
+                                contentHTML += '<div class="component-item">' + item + '</div>';
+                            });
+                        } else {
+                            contentHTML += '<div class="component-item">' + value + '</div>';
+                        }
+                        
+                        contentHTML += '</div></div>';
+                    }
+                });
+                
+                contentHTML += '</div>';
+            }
+            
+            if (!contentHTML) {
+                contentHTML = '<p>No content available for this section.</p>';
+            }
+            
+            modalContent.innerHTML = contentHTML;
             
             // Show modal
             modal.style.display = 'flex';
@@ -2420,17 +3098,14 @@ function LandingPageCard({
   return (
     <Card className="group relative overflow-hidden bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 rounded-xl cursor-pointer" onClick={onView}>
       {/* Left accent line */}
-      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      
-      <div className="p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between md:p-4 py-1 px-3">
           {/* Left side - Icon and Title */}
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4 h-4 text-primary" />
+            <div className="w-8 h-8 rounded-lg bg-b11 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-b2" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors duration-200">
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-b2 transition-colors duration-200 text-wrap">
                 {page.title}
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -2440,48 +3115,49 @@ function LandingPageCard({
           </div>
           
           {/* Right side - Badge and Action Icons */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-2 flex-shrink-0 flex-col md:flex-row md:space-y-0 space-y-2">
             <Badge 
               variant={getBrandToneColor(page.brandTone)} 
-              className="px-2 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-primary/10 to-purple-500/10 text-primary border-0"
+              className="px-2 py-1 text-xs font-medium rounded-full bg-b12 text-b2 border-0"
             >
               {page.brandTone || 'Not Set'}
             </Badge>
             
             {/* Action Icons */}
-            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownload}
-                className="w-8 h-8 p-0 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-green-200/50 group border border-transparent hover:border-green-200"
-                title="Download Landing Page"
-              >
-                <div className="relative">
-                  <Download className="w-4 h-4 text-green-600 group-hover:text-green-700 transition-all duration-300 group-hover:animate-pulse" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+            <div className="flex items-center space-x-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+              <Tooltip content="Download Content Page" position="top">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="w-8 h-8 p-0 hover:bg-green-50 rounded-lg transition-all duration-300 group border"
+                >
+                  <div className="relative">
+                    <Download className="w-4 h-4 text-green-600 group-hover:text-green-700 transition-all duration-300" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+                    </div>
                   </div>
-                </div>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="w-8 h-8 p-0 hover:bg-red-50 rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-md hover:shadow-red-200/50 group border border-transparent hover:border-red-200"
-                title="Delete Landing Page"
-              >
-                <div className="relative">
-                  <Trash2 className="w-4 h-4 text-red-600 group-hover:text-red-700 transition-all duration-300 group-hover:animate-pulse" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+                </Button>
+              </Tooltip>
+              <Tooltip content="Delete Landing Page" position="top">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="w-8 h-8 p-0 hover:bg-red-50 rounded-lg transition-all duration-300 group border"
+                >
+                  <div className="relative">
+                    <Trash2 className="w-4 h-4 text-red-600 group-hover:text-red-700 transition-all duration-300" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300"></div>
+                    </div>
                   </div>
-                </div>
-              </Button>
+                </Button>
+              </Tooltip>
             </div>
           </div>
         </div>
-      </div>
     </Card>
   )
 }

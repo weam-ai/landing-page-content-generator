@@ -26,7 +26,11 @@ const DesignStructureDisplay: React.FC<DesignStructureDisplayProps> = ({
   data, 
   onSectionSelect 
 }) => {
-  const getSectionIcon = (sectionType: string) => {
+  const getSectionIcon = (sectionType: string | undefined) => {
+    if (!sectionType) {
+      return '📋';
+    }
+    
     switch (sectionType.toLowerCase()) {
       case 'header':
         return '🔝';
@@ -47,7 +51,11 @@ const DesignStructureDisplay: React.FC<DesignStructureDisplayProps> = ({
     }
   };
 
-  const getSectionColor = (sectionType: string) => {
+  const getSectionColor = (sectionType: string | undefined) => {
+    if (!sectionType) {
+      return 'bg-indigo-50 border-indigo-200 text-indigo-800';
+    }
+    
     switch (sectionType.toLowerCase()) {
       case 'header':
         return 'bg-blue-50 border-blue-200 text-blue-800';
