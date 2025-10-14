@@ -28,12 +28,12 @@ export interface FrontendConfig {
 
 // Centralized route configuration variables
 const API_ROUTE_PREFIX = process.env.NEXT_PUBLIC_API_ROUTE_PREFIX || 'page-revamp-api';
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || 'page-revamp';
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '/page-revamp';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || `http://localhost:5000/${API_ROUTE_PREFIX}`;
 
 const frontendConfig: FrontendConfig = {
   environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
-  basePath: `/${BASE_PATH}`,
+  basePath: BASE_PATH,
   apiRoutePrefix: API_ROUTE_PREFIX,
   apiUrl: API_BASE_URL,
   cookieName: process.env.NEXT_PUBLIC_COOKIE_NAME || 'weam',
