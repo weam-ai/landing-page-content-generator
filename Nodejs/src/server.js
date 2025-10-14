@@ -21,6 +21,9 @@ const businessInfoRoutes = require('./routes/businessInfo');
 const app = express();
 const PORT = config.port;
 
+// Centralized API route prefix configuration
+const API_ROUTE_PREFIX = config.apiRoutePrefix;
+
 // Connect to MongoDB
 connectDB();
 
@@ -58,7 +61,7 @@ if (config.isDevelopment) {
 }
 
 // Health check endpoint
-app.get('/ai-landing-page-generator-api/health', (req, res) => {
+app.get(`/${API_ROUTE_PREFIX}/health`, (req, res) => {
   const statusCode = 200;
   res.status(statusCode).json({
     status: statusCode,
@@ -84,11 +87,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // API routes
-app.use('/ai-landing-page-generator-api/auth', authRoutes);
-app.use('/ai-landing-page-generator-api/landing-pages', landingPageRoutes);
-app.use('/ai-landing-page-generator-api/upload', uploadRoutes);
-app.use('/ai-landing-page-generator-api/ai', aiRoutes);
-app.use('/ai-landing-page-generator-api/business-info', businessInfoRoutes);
+app.use(`/${API_ROUTE_PREFIX}/auth`, authRoutes);
+app.use(`/${API_ROUTE_PREFIX}/landing-pages`, landingPageRoutes);
+app.use(`/${API_ROUTE_PREFIX}/upload`, uploadRoutes);
+app.use(`/${API_ROUTE_PREFIX}/ai`, aiRoutes);
+app.use(`/${API_ROUTE_PREFIX}/business-info`, businessInfoRoutes);
 
 // 404 handler
 app.use(notFound);
@@ -99,7 +102,8 @@ app.use(errorHandler);
 // Start server
 const server = app.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT} in ${config.environment} mode`);
-  logger.info(`📊 Health check available at http://localhost:${PORT}/ai-landing-page-generator-api/health`);
+  logger.info(`📊 Health check available at http://localhost:${PORT}/${API_ROUTE_PREFIX}/health`);
+  console.log(`🔗 [Server] API Route Prefix: /${API_ROUTE_PREFIX}`);
   console.log('🔐 [Server] Session management system initialized');
   console.log('🔐 [Server] Iron session middleware ready');
   console.log('🔐 [Server] getAccessToken helper function available');
