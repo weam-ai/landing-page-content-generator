@@ -1539,7 +1539,7 @@ function SectionsReviewStep({
                     <p className="text-b2 text-sm">Content sections extracted from {urlAnalysis.sourceUrl}</p>
                   </div>
                 </div>
-                <Badge className="bg-b12 text-b2 px-3 py-1.5 text-sm font-normal my-2 md:my-0">
+                <Badge className="bg-b12 text-b2 hover:bg-b12 px-3 py-1.5 text-sm font-normal my-2 md:my-0">
                   {urlAnalysis.sections?.length || 0} Sections Found
                 </Badge>
               </div>
@@ -3762,7 +3762,7 @@ const SectionsViewStep = ({ onBack, onNext }: { onBack: () => void; onNext: () =
                   <p className="text-b2 text-sm">AI-generated content for your landing page</p>
                 </div>
               </div>
-              <Badge className="bg-b12 text-b2 border px-4 py-2 text-sm font-medium my-2 md:my-0">
+              <Badge className="bg-b12 hover:bg-b12 text-b2 border px-4 py-2 text-sm font-medium my-2 md:my-0">
                 {generatedLandingPage.sections.length} Sections Generated
               </Badge>
             </div>
