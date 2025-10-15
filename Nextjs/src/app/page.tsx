@@ -20,6 +20,7 @@ import { LandingPage } from "@/types"
 import { useLandingPages } from "@/hooks/useLandingPages"
 import apiService from "@/lib/api"
 import { api } from "@/lib/utils"
+import Mainlogo from "@/components/icons/Logo"
 
 export default function SolutionsPage() {
   const router = useRouter()
@@ -487,93 +488,29 @@ export default function SolutionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="bg-b13 border-b-2">
-        <div className="container mx-auto px-6 py-6 relative">
-          
-          <div className="flex lg:items-center justify-between lg:flex-row flex-col">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center">
             <div className="flex-1">
               {/* Enhanced Title Section */}
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="relative">
-                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-b11 p-2">
-                      <FileText className="w-6 h-auto text-b2" />
-                    </div>                  
-                  {/* Floating accent dots */}
-                </div>
-                
+              <div className="flex items-center space-x-3">                
+                  <Mainlogo width={32} height={32} className="w-8 h-auto text-b2" />
                 <div>
-                  <h1 className="md:text-2xl text-lg font-black text-b2 leading-tight">
-                    AI Content Builder 
+                  <h1 className="md:text-xl text-lg font-bold text-b2 leading-tight">
+                    Weam AI
                   </h1>
-                  <div className="flex items-center space-x-2 mt-1 text-sm text-b6">
-                    Weam AI-Powered Platform
-                  </div>
                 </div>
               </div>
               
-              <div className="w-full sm:flex hidden flex-row flex-wrap items-center gap-4 sm:gap-2 lg:gap-6 mt-5">
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xs font-bold">I</span>
-                  </div>
-                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Figma URL | Upload Design</span>
-                </div>
-                
-                
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xs font-bold">II</span>
-                  </div>
-                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">AI Content Analysis</span>
-                </div>
-                
-                
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xs font-bold">III</span>
-                  </div>
-                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Customize Content</span>
-                </div>
-                
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xs font-bold">IV</span>
-                  </div>
-                  <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Landing Page Craft</span>
-                </div>
-              </div>
               
-              <p className="text-sm text-b5 leading-relaxed font-medium mt-2">
-              Turn websites, PDFs, and designs into structured content your team can actually use
-              </p>
             </div>
             
             {/* Action Buttons */}
-            <div className="flex space-x-4 lg:mt-0 mt-5">
-              {/* Enhanced CTA Button */}
-              <div className="relative">
-                <Button 
-                  onClick={() => setIsUploadModalOpen(true)}
-                  className="relative bg-black text-white shadow-xl shadow-b10 hover:bg-b5 transition-all duration-300 transform px-6 py-4 text-base font-bold rounded-xl border-0 overflow-hidden group"
-                  size="lg"
-                >
-                  <div className="relative flex items-center space-x-2">
-                    <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm relative">
-                      <Sparkles className="h-4 w-4 text-white animate-spin" style={{ animationDuration: '2s' }} />
-                      {/* Star animation particles */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-1 h-1 bg-white rounded-full animate-ping absolute -top-1 -right-1" style={{ animationDelay: '0.5s' }}></div>
-                        <div className="w-1 h-1 bg-white rounded-full animate-ping absolute -bottom-1 -left-1" style={{ animationDelay: '1s' }}></div>
-                        <div className="w-1 h-1 bg-white rounded-full animate-ping absolute top-0 left-0" style={{ animationDelay: '1.5s' }}></div>
-                      </div>
-                    </div>
-                    <span>Generate New Landing Page</span>
-                  </div>
-                </Button>
-                
-              </div>
+            <div className="flex space-x-4">
+              {/* User Email Display */}
+                <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
             </div>
           </div>
         </div>
@@ -582,6 +519,7 @@ export default function SolutionsPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
+
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
@@ -619,11 +557,12 @@ export default function SolutionsPage() {
         {!loading && !error && (
           <>
             {/* Stats Section with Back to App - Always show */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
+            <div className="bg-white rounded-md border border-gray-100 p-4 mb-6">
               <div className="flex md:items-center justify-between flex-col md:flex-row">
-                {/* Left Side - Back to App */}
-                <div className="flex items-center">
-                  <UserEmailDisplay className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-gray-200/50" />
+                {/* Left Side - Generate New Landing Page Button */}
+                <div>
+                    <h2 className="font-bold">AI Content Builder </h2>
+                    <p className="text-sm text-b6">Weam AI-Powered Platform</p>
                 </div>
 
                 {/* Right Side - Stats */}
@@ -654,6 +593,51 @@ export default function SolutionsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="flex lg:items-center items-start flex-col lg:flex-row justify-between bg-white rounded-md border border-gray-100 p-4 mb-6">
+              <div>
+                <p className="font-bold leading-relaxed my-2">
+                Turn websites, PDFs, and designs into structured content your team can actually use
+                </p>
+                <div className="w-full sm:flex hidden flex-row flex-wrap items-center gap-4 sm:gap-2 lg:gap-6 mb-5">
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">I</span>
+                    </div>
+                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Figma URL | Upload Design</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">II</span>
+                    </div>
+                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">AI Content Analysis</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">III</span>
+                    </div>
+                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Customize Content</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <div className="w-6 h-6 bg-b6 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">IV</span>
+                    </div>
+                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Landing Page Craft</span>
+                  </div>
+                </div>
+              </div>
+          
+              <Button 
+                onClick={() => setIsUploadModalOpen(true)}
+                className="relative bg-black text-white hover:bg-b5 transition-all duration-300 px-6 py-2 text-sm font-bold rounded-md border-0 overflow-hidden group"
+                size="default"
+              >
+                Generate New Landing Page
+              </Button>
             </div>
 
             {landingPages.length === 0 ? (
@@ -876,7 +860,7 @@ export default function SolutionsPage() {
       />
 
       {/* View Landing Page Modal */}
-              <Dialog open={isViewModalOpen} onOpenChange={(open) => {
+      <Dialog open={isViewModalOpen} onOpenChange={(open) => {
           setIsViewModalOpen(open)
           if (!open) setExpandedCard(null)
         }}>
@@ -1035,7 +1019,6 @@ export default function SolutionsPage() {
           )}
         </DialogContent>
       </Dialog>
-
 
 
       {/* Delete Confirmation Modal */}
@@ -1816,7 +1799,7 @@ function EmptyState({ onAddNew }: { onAddNew: () => void }) {
         <Button 
           onClick={onAddNew} 
           size="default" 
-          className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 px-6 py-2"
+          className="text-white transition-all duration-200 px-6 py-2"
         >
           <Plus className="h-4 w-4 mr-2" />
           Create Your First Page
