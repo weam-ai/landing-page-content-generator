@@ -83,8 +83,7 @@ let model = null;
 if (GEMINI_API_KEY) {
   try {
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-    logger.info('Google Generative AI initialized successfully');
+    model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
   } catch (error) {
     logger.error('Failed to initialize Google Generative AI:', error);
   }
@@ -125,388 +124,580 @@ router.post('/extract-pdf', async (req, res) => {
       });
     }
 
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      logger.error('PDF extraction failed: File not found', { filePath });
+      return res.status(404).json({
+        success: false,
+        error: 'File not found'
+      });
+    }
 
     // Log file information before processing
     const filename = path.basename(filePath);
-    const directory = path.dirname(filePath);
-    const uploadsDir = config.uploadDir;
+    const fileSize = fs.statSync(filePath).size;
     
     logger.info('PDF extraction request received:', {
       requestedFilePath: filePath,
       filename: filename,
-      directory: directory,
-      uploadsDirectory: uploadsDir,
-      fileExists: fs.existsSync(filePath),
-      uploadsDirExists: fs.existsSync(uploadsDir),
-      currentWorkingDirectory: process.cwd()
-    });
-
-    // Log file path details
-    logger.info('File path details:', {
-      filePath: filePath,
-      filename: filename,
-      uploadsDir: uploadsDir
+      fileSize: fileSize,
+      fileExists: true
     });
 
     // Read PDF file
-    logger.info('Attempting to read PDF file:', {
-      filePath: filePath,
-      fileExists: fs.existsSync(filePath),
-      fileSize: fs.existsSync(filePath) ? fs.statSync(filePath).size : 'unknown'
-    });
-    
-    const dataBuffer = fs.readFileSync(filePath);
+    const pdfBytes = fs.readFileSync(filePath);
     logger.info('PDF file read successfully:', {
-      bufferSize: dataBuffer.length,
+      bufferSize: pdfBytes.length,
       filePath: filePath
     });
-    
-    let pdfData, pdfText;
-    
-    try {
-      logger.info('Starting PDF parsing...');
-      pdfData = await pdfParse(dataBuffer);
-      pdfText = pdfData.text;
-      
-      logger.info('PDF parsing completed:', {
-        pages: pdfData.numpages,
-        textLength: pdfText ? pdfText.length : 0,
-        hasText: !!pdfText,
-        info: pdfData.info,
-        metadata: pdfData.metadata
-      });
-      
-      // Log PDF text status (OCR will handle content extraction)
-      if (!pdfText || pdfText.trim().length === 0) {
-        logger.warn('PDF has no extractable text, will rely on OCR');
-        pdfText = '';
-      }
-    } catch (parseError) {
-      logger.error('PDF parsing failed, using fallback:', {
-        error: parseError.message,
-        filePath: filePath
-      });
-      pdfText = '';
-      
-      pdfData = {
-        numpages: 1,
-        info: {},
-        metadata: {}
-      };
-    }
 
-    logger.info('PDF text extracted successfully', {
-      filePath,
-      pages: pdfData.numpages,
-      textLength: pdfText.length
-    });
-
-    
-    // Instructions for Gemini OCR + layout extraction
-    const SECTION_TITLES_INSTRUCTIONS = `
+    // New comprehensive prompt for design section extraction
+    const SECTION_EXTRACTION_PROMPT = `
 You are an OCR + layout extraction agent for UI/UX design PDFs. 
-Analyze the PDF and identify distinct sections. For each section, provide:
-1. A descriptive section name (like 'Hero', 'Features', 'Testimonials', 'Pricing', 'FAQ', etc.)
-2. The main title/heading text from that section.
-If a section doesn't have a clear section name, use a short descriptive name based on the content.
-Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive section name", "title": "main title/heading text"}]}.
+Analyze the PDF and identify distinct sections. For each section, detect ALL possible design elements. 
+Possible fields include (but are not limited to):
+- section_name (Hero, Features, Pricing, FAQ, etc.)
+- title (main heading)
+- subtitle (supporting heading)
+- content (paragraphs, descriptions, messages)
+- buttons (array of button labels)
+- links (array of link texts or URLs)
+- images (array of image/icon names or descriptions)
+- messages/alerts (any special notices, banners, error/info messages)
+- lists (bullet points, numbered items)
+- forms/inputs (fields, placeholders, labels)
+- CTAs (special calls-to-action)
+
+⚠️ Rules:
+- Include ONLY the fields that actually exist in the content.
+- Do NOT add placeholders, dummy data, null, or empty arrays.
+- Use arrays for multiple values (buttons, images, links, lists).
+- Keep JSON clean and valid.
+
+Return ONLY JSON with this structure:
+{
+  "sections": [
+    {
+      "section_name": "Hero",
+      "title": "Welcome to Our Service",
+      "subtitle": "Fast, Reliable, Secure",
+      "content": "Supporting text...",
+      "buttons": ["Get Started", "Learn More"],
+      "images": ["hero_banner.png"],
+      "messages": ["Limited-time offer"]
+    }
+  ]
+}
 `;
-    
-    logger.info('Starting Gemini AI processing:', {
+
+    logger.info('Starting Gemini AI processing with new prompt:', {
       filePath: filePath,
-      instructionLength: SECTION_TITLES_INSTRUCTIONS.length,
-      pdfBufferSize: dataBuffer.length,
-      base64Size: Buffer.from(dataBuffer).toString("base64").length
+      promptLength: SECTION_EXTRACTION_PROMPT.length,
+      pdfBufferSize: pdfBytes.length,
+      base64Size: Buffer.from(pdfBytes).toString("base64").length
     });
 
     try {
       logger.info('Calling Gemini AI model...');
       const result = await model.generateContent([
-        SECTION_TITLES_INSTRUCTIONS,
+        { text: SECTION_EXTRACTION_PROMPT },
         {
           inlineData: {
             mimeType: "application/pdf",
-            data: Buffer.from(dataBuffer).toString("base64"),
+            data: Buffer.from(pdfBytes).toString("base64"),
           },
         },
       ]);
+      
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
+      
+      if (!text) {
+        throw new Error("Empty response from Gemini.");
+      }
       
       logger.info('Gemini AI response received:', {
         responseLength: text.length,
         filePath: filePath,
         responsePreview: text.substring(0, 200) + '...'
       });
-      
-      
-      // Parse Gemini AI OCR response
-      let parsedResponse;
+
+      // Clean JSON (strip markdown fences if any)
+      let cleaned = text.trim();
+      if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+      if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+      cleaned = cleaned.trim();
+
+      let data;
       try {
-        logger.info('Parsing Gemini AI JSON response...');
-        
-        // Clean JSON response
-        let cleaned = text.trim();
-        logger.info('Raw response cleaning:', {
-          originalLength: text.length,
-          cleanedLength: cleaned.length,
-          startsWithJson: cleaned.startsWith("```json"),
-          endsWithBackticks: cleaned.endsWith("```")
-        });
-        
-        if (cleaned.startsWith("```json")) {
-          cleaned = cleaned.slice(7);
-        }
-        if (cleaned.endsWith("```")) {
-          cleaned = cleaned.slice(0, -3);
-        }
-        cleaned = cleaned.trim();
-        
-        logger.info('Attempting to parse JSON:', {
-          cleanedLength: cleaned.length,
-          filePath: filePath,
-          jsonPreview: cleaned.substring(0, 100) + '...'
-        });
-        
-        parsedResponse = JSON.parse(cleaned);
+        data = JSON.parse(cleaned);
         logger.info('JSON parsing successful:', {
-          hasSections: !!parsedResponse.sections_with_titles,
-          sectionsCount: parsedResponse.sections_with_titles ? parsedResponse.sections_with_titles.length : 0,
+          hasSections: !!data.sections,
+          sectionsCount: data.sections ? data.sections.length : 0,
           filePath: filePath
         });
-        
-        // Transform OCR response to match existing format
-        if (parsedResponse.sections_with_titles && Array.isArray(parsedResponse.sections_with_titles)) {
-          parsedResponse.sections = parsedResponse.sections_with_titles.map((item, index) => ({
-            id: `section-${index + 1}`,
-            name: item.section_name,
-            title: item.title,
-            type: mapSectionTypeFromName(item.section_name)
-          }));
-          delete parsedResponse.sections_with_titles; // Remove the original key
-        }
-        
-        
-      } catch (parseError) {
-        logger.warn('Failed to parse Gemini AI response as JSON, using fallback:', {
-          error: parseError.message,
-          filePath: filePath,
-          responseText: text.substring(0, 500)
-        });
-        
-        // Create comprehensive fallback analysis from PDF content
-        logger.info('Creating fallback analysis from PDF text...');
-        const fallbackSections = createFallbackSections(pdfText);
-        const fallbackAnalysis = createComprehensiveFallbackAnalysis(pdfText, fallbackSections);
-        
-        logger.info('Fallback analysis created:', {
-          sectionsCount: fallbackSections.length,
-          filePath: filePath,
-          hasVisualElements: !!fallbackAnalysis.visualElements,
-          hasContentMapping: !!fallbackAnalysis.contentMapping
-        });
-        
-        parsedResponse = {
-          sections: fallbackSections,
-          ...fallbackAnalysis
-        };
+      } catch (err) {
+        throw new Error(`Failed to parse JSON: ${err.message}\nRaw: ${cleaned}`);
       }
 
-      
-      // Check if we got valid sections from OCR
-      if (parsedResponse.sections && parsedResponse.sections.length > 0) {
+      // Filter out empty sections
+      const rawSections = Array.isArray(data.sections) ? data.sections : [];
+      const filteredSections = rawSections.filter(section =>
+        Object.values(section).some(v => (Array.isArray(v) ? v.length > 0 : !!v))
+      );
+
+      logger.info('Sections filtered and processed:', {
+        originalCount: rawSections.length,
+        filteredCount: filteredSections.length,
+        filePath: filePath
+      });
+
+      // Transform sections to match the exact format requested
+      const sections = filteredSections.map((section) => {
+        const components = {};
         
-        // Map section types to ensure they're valid for the database
-        parsedResponse.sections = parsedResponse.sections.map((section, index) => {
-          const mappedType = mapSectionType(section.type);
-          return { 
-            id: section.id || `section-${index + 1}`,
-            title: section.name,
-            type: mappedType,
-            content: `Content for ${section.name} section`,
-            order: index + 1,
-            pageNumber: 1,
-            boundingBox: {
-              x: 0,
-              y: 0,
-              width: 1200,
-              height: 200
-            }
-          };
-        });
-      } else {
-        // If no sections from OCR, create sections from comprehensive analysis
-        parsedResponse.sections = createSectionsFromAnalysis(parsedResponse, pdfText);
-      }
-        
-      // Check if we still have no sections after all processing
-      if (!parsedResponse.sections || parsedResponse.sections.length === 0) {
-        const fallbackSections = createFallbackSections(pdfText);
-        const fallbackAnalysis = createComprehensiveFallbackAnalysis(pdfText, fallbackSections);
-        
-        parsedResponse = {
-          sections: fallbackSections,
-          ...fallbackAnalysis
-        };
-      }
-      
-      // Enhance sections with metadata
-      const enhancedSections = enhanceSections(parsedResponse.sections || []);
-      
-      const analysisResult = {
-        sections: enhancedSections,
-        totalPages: pdfData.numpages,
-        designType: determineDesignType(pdfText, enhancedSections),
-        designName: parsedResponse.designName || pdfData.info?.Title || 'PDF Document',
-        extractedText: pdfText,
-        metadata: {
-          title: parsedResponse.designName || pdfData.info?.Title || 'PDF Document',
-          author: pdfData.info?.Author,
-          subject: pdfData.info?.Subject,
-          keywords: pdfData.info?.Keywords ? pdfData.info.Keywords.split(',').map(k => k.trim()) : []
-        },
-        // Comprehensive analysis data
-        visualElements: parsedResponse.visualElements || null,
-        contentMapping: parsedResponse.contentMapping || null,
-        layoutAnalysis: parsedResponse.layoutAnalysis || null,
-        designTokens: parsedResponse.designTokens || null,
-        comprehensiveAnalysis: {
-          visualElementsCount: {
-            textBlocks: parsedResponse.visualElements?.textBlocks?.length || 0,
-            images: parsedResponse.visualElements?.images?.length || 0,
-            buttons: parsedResponse.visualElements?.buttons?.length || 0,
-            forms: parsedResponse.visualElements?.forms?.length || 0
-          },
-          contentMappingCount: {
-            headlines: parsedResponse.contentMapping?.headlines?.length || 0,
-            bodyText: parsedResponse.contentMapping?.bodyText?.length || 0,
-            ctaButtons: parsedResponse.contentMapping?.ctaButtons?.length || 0,
-            navigation: parsedResponse.contentMapping?.navigation?.length || 0,
-            features: parsedResponse.contentMapping?.features?.length || 0,
-            testimonials: parsedResponse.contentMapping?.testimonials?.length || 0
-          },
-          layoutAnalysis: {
-            gridSystem: parsedResponse.layoutAnalysis?.gridSystem?.type || 'unknown',
-            responsiveBreakpoints: parsedResponse.layoutAnalysis?.responsiveBreakpoints?.length || 0,
-            alignment: parsedResponse.layoutAnalysis?.alignment?.primary || 'unknown',
-            pageStructure: parsedResponse.layoutAnalysis?.pageStructure || {}
-          },
-          designTokensCount: {
-            colors: parsedResponse.designTokens?.colors?.length || 0,
-            typography: parsedResponse.designTokens?.typography?.length || 0,
-            spacing: parsedResponse.designTokens?.spacing?.length || 0
-          }
+        // Add title if present
+        if (section.title) {
+          components.title = section.title;
         }
-      };
-      
+        
+        // Add subtitle if present
+        if (section.subtitle) {
+          components.subtitle = section.subtitle;
+        }
+        
+        // Add content if present
+        if (section.content) {
+          components.content = section.content;
+        }
+        
+        // Add buttons if present
+        if (section.buttons && section.buttons.length > 0) {
+          components.buttons = section.buttons;
+        }
+        
+        // Add images if present
+        if (section.images && section.images.length > 0) {
+          components.images = section.images;
+        }
+        
+        // Add links if present
+        if (section.links && section.links.length > 0) {
+          components.links = section.links;
+        }
+        
+        // Add messages if present
+        if (section.messages && section.messages.length > 0) {
+          components.messages = section.messages;
+        }
+        
+        // Add lists if present
+        if (section.lists && section.lists.length > 0) {
+          components.items = section.lists;
+        }
+        
+        // Add forms if present
+        if (section.forms && section.forms.length > 0) {
+          components.forms = section.forms;
+        }
+        
+        // Add CTAs if present
+        if (section.ctas && section.ctas.length > 0) {
+          components.ctas = section.ctas;
+        }
+
+        return {
+          name: section.section_name,
+          components: components
+        };
+      });
 
       logger.info('PDF analysis completed successfully', {
         filePath,
-        sections: enhancedSections.length,
-        designType: analysisResult.designType,
-        totalPages: analysisResult.totalPages,
-        extractedTextLength: analysisResult.extractedText ? analysisResult.extractedText.length : 0
+        sectionsCount: sections.length
       });
 
       logger.info('=== PDF EXTRACTION COMPLETED SUCCESSFULLY ===', {
         filePath: filePath,
-        responseData: {
-          sectionsCount: analysisResult.sections.length,
-          designType: analysisResult.designType,
-          totalPages: analysisResult.totalPages,
-          hasMetadata: !!analysisResult.metadata,
-          hasVisualElements: !!analysisResult.visualElements,
-          hasContentMapping: !!analysisResult.contentMapping
-        }
+        sectionsCount: sections.length
       });
 
       res.json({
-        success: true,
-        data: analysisResult
+        sections: sections
       });
 
     } catch (geminiError) {
-      logger.error('OCR processing failed, using fallback:', {
+      logger.error('Gemini AI processing failed:', {
         error: geminiError.message,
         errorCode: geminiError.code,
         filePath: filePath,
         stack: geminiError.stack
       });
       
-      // Fallback: create basic sections from text chunks
+      // Fallback: create basic sections
       logger.info('Creating fallback analysis due to Gemini error...');
-      const fallbackSections = createFallbackSections(pdfText);
+      const fallbackSections = createFallbackSections('');
       
-      logger.info('Fallback analysis created for Gemini error:', {
-        sectionsCount: fallbackSections.length,
-        filePath: filePath
+      // Transform fallback sections to match the exact format
+      const sections = fallbackSections.map((section) => {
+        return {
+          name: section.name || section.title || 'Unknown Section',
+          components: {
+            title: section.title || section.name || 'Section Title',
+            content: section.content || 'Section content not available'
+          }
+        };
       });
-      
-      const analysisResult = {
-        sections: fallbackSections,
-        totalPages: pdfData.numpages,
-        designType: 'unknown',
-        designName: pdfData.info?.Title || 'PDF Document',
-        extractedText: pdfText,
-        metadata: {
-          title: pdfData.info?.Title || 'PDF Document',
-          author: pdfData.info?.Author,
-          subject: pdfData.info?.Subject,
-          keywords: pdfData.info?.Keywords ? pdfData.info.Keywords.split(',').map(k => k.trim()) : []
-        },
-        // Fallback comprehensive analysis data
-        visualElements: null,
-        contentMapping: null,
-        layoutAnalysis: null,
-        designTokens: null,
-        comprehensiveAnalysis: {
-          visualElementsCount: { textBlocks: 0, images: 0, buttons: 0, forms: 0 },
-          contentMappingCount: { headlines: 0, bodyText: 0, ctaButtons: 0, navigation: 0, features: 0, testimonials: 0 },
-          layoutAnalysis: { gridSystem: 'unknown', responsiveBreakpoints: 0, alignment: 'unknown', pageStructure: {} },
-          designTokensCount: { colors: 0, typography: 0, spacing: 0 }
-        }
-      };
 
       logger.info('=== PDF EXTRACTION COMPLETED WITH FALLBACK ===', {
         filePath: filePath,
         reason: 'Gemini AI error',
-        responseData: {
-          sectionsCount: analysisResult.sections.length,
-          designType: analysisResult.designType,
-          totalPages: analysisResult.totalPages
-        }
+        sectionsCount: sections.length
       });
 
       res.json({
-        success: true,
-        data: analysisResult
+        sections: sections
       });
     }
 
   } catch (error) {
-    // Enhanced error logging for file-related issues
-    const { filePath } = req.body || {};
-    const filename = filePath ? path.basename(filePath) : 'unknown';
-    const directory = filePath ? path.dirname(filePath) : 'unknown';
-    
-    logger.error('PDF extraction failed - detailed error information:', {
-      errorMessage: error.message,
+    logger.error('PDF extraction failed:', {
+      error: error.message,
       errorCode: error.code,
       errorType: error.name,
-      requestedFilePath: filePath,
-      filename: filename,
-      directory: directory,
-      uploadsDirectory: config.uploadDir,
-      currentWorkingDirectory: process.cwd(),
-      fileExists: filePath ? fs.existsSync(filePath) : false,
-      uploadsDirExists: fs.existsSync(config.uploadDir),
+      filePath: req.body?.filePath,
       stack: error.stack
     });
     
-    logger.error('PDF extraction failed:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to extract PDF content'
+    });
+  }
+});
+
+// Public URL design extraction route (no authentication required)
+router.post('/extract-design-from-url', async (req, res) => {
+  try {
+    logger.info('=== URL DESIGN EXTRACTION API CALLED ===');
+    logger.info('Request body received:', {
+      hasUrl: !!req.body.url,
+      url: req.body.url,
+      bodyKeys: Object.keys(req.body || {}),
+      requestHeaders: {
+        'content-type': req.get('content-type'),
+        'user-agent': req.get('user-agent'),
+        'authorization': req.get('authorization') ? 'present' : 'not present'
+      }
+    });
+    
+    const { url } = req.body;
+
+    if (!url) {
+      logger.error('URL design extraction failed: No URL provided');
+      return res.status(400).json({
+        success: false,
+        error: 'URL is required'
+      });
+    }
+
+    if (!model) {
+      logger.error('URL design extraction failed: Gemini AI model not initialized');
+      return res.status(500).json({
+        success: false,
+        error: 'Gemini AI model not initialized. Please check your API key configuration.'
+      });
+    }
+
+    // Validate URL format
+    let normalizedUrl;
+    try {
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        normalizedUrl = 'https://' + url;
+      } else {
+        normalizedUrl = url;
+      }
+      new URL(normalizedUrl);
+    } catch (error) {
+      logger.error('URL design extraction failed: Invalid URL format', { url });
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid URL format'
+      });
+    }
+
+    logger.info('URL design extraction request received:', {
+      requestedUrl: url,
+      normalizedUrl: normalizedUrl
+    });
+
+    // Scrape website content
+    const WebsiteScraper = require('../utils/websiteScraper');
+    const scraper = new WebsiteScraper();
+    
+    let websiteContent;
+    try {
+      websiteContent = await scraper.scrapeWebsite(normalizedUrl);
+      logger.info('Website content scraped successfully:', {
+        url: normalizedUrl,
+        contentLength: websiteContent.length
+      });
+    } catch (scrapeError) {
+      logger.error('Website scraping failed:', {
+        error: scrapeError.message,
+        url: normalizedUrl
+      });
+      return res.status(400).json({
+        success: false,
+        error: `Failed to scrape website: ${scrapeError.message}`
+      });
+    }
+
+    // New comprehensive prompt for design section extraction from URL content
+    const SECTION_EXTRACTION_PROMPT = `
+You are a UI/UX design analysis agent for website content. 
+Analyze the provided website content and identify distinct sections. For each section, detect ALL possible design elements. 
+Possible fields include (but are not limited to):
+- section_name (Hero, Features, Pricing, FAQ, About, Contact, etc.)
+- title (main heading)
+- subtitle (supporting heading)
+- content (paragraphs, descriptions, messages)
+- buttons (array of button labels)
+- links (array of link texts or URLs)
+- images (array of image/icon names or descriptions)
+- messages/alerts (any special notices, banners, error/info messages)
+- lists (bullet points, numbered items)
+- forms/inputs (fields, placeholders, labels)
+- CTAs (special calls-to-action)
+- navigation (menu items, navigation elements)
+- testimonials (customer reviews, quotes)
+- pricing (pricing tiers, plans)
+- features (feature lists, benefits)
+
+⚠️ Rules:
+- Include ONLY the fields that actually exist in the content.
+- Do NOT add placeholders, dummy data, null, or empty arrays.
+- Use arrays for multiple values (buttons, images, links, lists).
+- Keep JSON clean and valid.
+- Focus on the main landing page sections and their design elements.
+
+Website URL: ${normalizedUrl}
+
+Website Content:
+${websiteContent.substring(0, 12000)} // Limit content length for Gemini
+
+Return ONLY JSON with this structure:
+{
+  "sections": [
+    {
+      "section_name": "Hero",
+      "title": "Welcome to Our Service",
+      "subtitle": "Fast, Reliable, Secure",
+      "content": "Supporting text...",
+      "buttons": ["Get Started", "Learn More"],
+      "images": ["hero_banner.png"],
+      "messages": ["Limited-time offer"]
+    }
+  ]
+}
+`;
+
+    logger.info('Starting Gemini AI processing with URL design extraction prompt:', {
+      url: normalizedUrl,
+      promptLength: SECTION_EXTRACTION_PROMPT.length,
+      contentLength: websiteContent.length
+    });
+
+    try {
+      logger.info('Calling Gemini AI model for URL design analysis...');
+      const result = await model.generateContent(SECTION_EXTRACTION_PROMPT);
+      
+      const response = await result.response;
+      let text = response.text();
+      
+      if (!text) {
+        throw new Error("Empty response from Gemini.");
+      }
+      
+      logger.info('Gemini AI response received for URL design analysis:', {
+        responseLength: text.length,
+        url: normalizedUrl,
+        responsePreview: text.substring(0, 200) + '...'
+      });
+
+      // Clean JSON (strip markdown fences if any)
+      let cleaned = text.trim();
+      if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+      if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+      cleaned = cleaned.trim();
+
+      let data;
+      try {
+        data = JSON.parse(cleaned);
+        logger.info('JSON parsing successful for URL design analysis:', {
+          hasSections: !!data.sections,
+          sectionsCount: data.sections ? data.sections.length : 0,
+          url: normalizedUrl
+        });
+      } catch (err) {
+        throw new Error(`Failed to parse JSON: ${err.message}\nRaw: ${cleaned}`);
+      }
+
+      // Filter out empty sections
+      const rawSections = Array.isArray(data.sections) ? data.sections : [];
+      const filteredSections = rawSections.filter(section =>
+        Object.values(section).some(v => (Array.isArray(v) ? v.length > 0 : !!v))
+      );
+
+      logger.info('Sections filtered and processed for URL design analysis:', {
+        originalCount: rawSections.length,
+        filteredCount: filteredSections.length,
+        url: normalizedUrl
+      });
+
+      // Transform sections to match the exact format requested
+      const sections = filteredSections.map((section) => {
+        const components = {};
+        
+        // Add title if present
+        if (section.title) {
+          components.title = section.title;
+        }
+        
+        // Add subtitle if present
+        if (section.subtitle) {
+          components.subtitle = section.subtitle;
+        }
+        
+        // Add content if present
+        if (section.content) {
+          components.content = section.content;
+        }
+        
+        // Add buttons if present
+        if (section.buttons && section.buttons.length > 0) {
+          components.buttons = section.buttons;
+        }
+        
+        // Add images if present
+        if (section.images && section.images.length > 0) {
+          components.images = section.images;
+        }
+        
+        // Add links if present
+        if (section.links && section.links.length > 0) {
+          components.links = section.links;
+        }
+        
+        // Add messages if present
+        if (section.messages && section.messages.length > 0) {
+          components.messages = section.messages;
+        }
+        
+        // Add lists if present
+        if (section.lists && section.lists.length > 0) {
+          components.items = section.lists;
+        }
+        
+        // Add forms if present
+        if (section.forms && section.forms.length > 0) {
+          components.forms = section.forms;
+        }
+        
+        // Add CTAs if present
+        if (section.ctas && section.ctas.length > 0) {
+          components.ctas = section.ctas;
+        }
+
+        // Add navigation if present
+        if (section.navigation && section.navigation.length > 0) {
+          components.navigation = section.navigation;
+        }
+
+        // Add testimonials if present
+        if (section.testimonials && section.testimonials.length > 0) {
+          components.testimonials = section.testimonials;
+        }
+
+        // Add pricing if present
+        if (section.pricing && section.pricing.length > 0) {
+          components.pricing = section.pricing;
+        }
+
+        // Add features if present
+        if (section.features && section.features.length > 0) {
+          components.features = section.features;
+        }
+
+        return {
+          name: section.section_name,
+          components: components
+        };
+      });
+
+      logger.info('URL design analysis completed successfully', {
+        url: normalizedUrl,
+        sectionsCount: sections.length
+      });
+
+      logger.info('=== URL DESIGN EXTRACTION COMPLETED SUCCESSFULLY ===', {
+        url: normalizedUrl,
+        sectionsCount: sections.length
+      });
+
+      res.json({
+        success: true,
+        sections: sections,
+        sourceUrl: normalizedUrl
+      });
+
+    } catch (geminiError) {
+      logger.error('Gemini AI processing failed for URL design analysis:', {
+        error: geminiError.message,
+        errorCode: geminiError.code,
+        url: normalizedUrl,
+        stack: geminiError.stack
+      });
+      
+      // Fallback: create basic sections
+      logger.info('Creating fallback analysis due to Gemini error...');
+      const fallbackSections = createFallbackSections('');
+      
+      // Transform fallback sections to match the exact format
+      const sections = fallbackSections.map((section) => {
+        return {
+          name: section.name || section.title || 'Unknown Section',
+          components: {
+            title: section.title || section.name || 'Section Title',
+            content: section.content || 'Section content not available'
+          }
+        };
+      });
+
+      logger.info('=== URL DESIGN EXTRACTION COMPLETED WITH FALLBACK ===', {
+        url: normalizedUrl,
+        reason: 'Gemini AI error',
+        sectionsCount: sections.length
+      });
+
+      res.json({
+        success: true,
+        sections: sections,
+        sourceUrl: normalizedUrl
+      });
+    }
+
+  } catch (error) {
+    logger.error('URL design extraction failed:', {
+      error: error.message,
+      errorCode: error.code,
+      errorType: error.name,
+      url: req.body?.url,
+      stack: error.stack
+    });
+    
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to extract PDF content'
+      error: error.message || 'Failed to extract design from URL'
     });
   }
 });
@@ -516,17 +707,39 @@ Return ONLY JSON: {"sections_with_titles": [{"section_name": "descriptive sectio
 // @access  Public (no authentication required)
 router.post('/extract-figma', async (req, res) => {
   try {
+    logger.info('=== FIGMA DESIGN EXTRACTION API CALLED ===');
+    logger.info('Request body received:', {
+      hasUrl: !!req.body.figmaUrl,
+      url: req.body.figmaUrl,
+      bodyKeys: Object.keys(req.body || {}),
+      requestHeaders: {
+        'content-type': req.get('content-type'),
+        'user-agent': req.get('user-agent'),
+        'authorization': req.get('authorization') ? 'present' : 'not present'
+      }
+    });
+    
     const { figmaUrl } = req.body;
 
     if (!figmaUrl) {
+      logger.error('Figma design extraction failed: No URL provided');
       return res.status(400).json({
         success: false,
         error: 'Figma URL is required'
       });
     }
 
+    if (!model) {
+      logger.error('Figma design extraction failed: Gemini AI model not initialized');
+      return res.status(500).json({
+        success: false,
+        error: 'Gemini AI model not initialized. Please check your API key configuration.'
+      });
+    }
+
     // Check if Figma access token is configured
     if (!config.figmaAccessToken) {
+      logger.error('Figma design extraction failed: Figma access token not configured');
       return res.status(500).json({
         success: false,
         error: 'Figma access token not configured. Please set FIGMA_ACCESS_TOKEN in your environment variables.'
@@ -540,447 +753,319 @@ router.post('/extract-figma', async (req, res) => {
     // Extract file key from URL
     const fileKey = figmaApi.extractFileKey(figmaUrl);
     if (!fileKey) {
+      logger.error('Figma design extraction failed: Invalid URL format', { figmaUrl });
       return res.status(400).json({
         success: false,
         error: 'Invalid Figma URL. Could not extract file key.'
       });
     }
 
-    logger.info('Starting Figma design extraction', {
-      figmaUrl,
-      fileKey,
-      userId: req.user?.id || 'anonymous'
+    logger.info('Figma design extraction request received:', {
+      requestedUrl: figmaUrl,
+      fileKey: fileKey
     });
 
     // Fetch file from Figma API
-    const figmaFile = await figmaApi.getFile(fileKey);
+    let figmaFile;
+    try {
+      figmaFile = await figmaApi.getFile(fileKey);
+      logger.info('Figma file fetched successfully:', {
+        url: figmaUrl,
+        fileName: figmaFile?.name || 'Unknown',
+        fileKey: fileKey
+      });
+    } catch (fetchError) {
+      logger.error('Figma file fetch failed:', {
+        error: fetchError.message,
+        url: figmaUrl,
+        fileKey: fileKey
+      });
+      return res.status(400).json({
+        success: false,
+        error: `Failed to fetch Figma file: ${fetchError.message}`
+      });
+    }
     
     if (!figmaFile || !figmaFile.document) {
+      logger.error('Figma file fetch validation failed:', {
+        hasFigmaFile: !!figmaFile,
+        hasDocument: !!figmaFile?.document,
+        figmaUrl: figmaUrl
+      });
       return res.status(400).json({
         success: false,
         error: 'Failed to fetch Figma file or file is empty'
       });
     }
 
-    // Analyze design structure
+    // Get basic file analysis first
     const sections = figmaApi.analyzeDesignStructure(figmaFile.document);
-    
-    // Extract design tokens
     const designTokens = figmaApi.extractDesignTokens(figmaFile.document);
-    
-    // Analyze layout
     const layoutAnalysis = figmaApi.analyzeLayout(figmaFile.document);
 
-    // Use Gemini AI for comprehensive analysis if available
-    let comprehensiveAnalysis = null;
-    if (model) {
-      try {
-        
-        // Convert Figma data to text for Gemini analysis (limit size to prevent timeout)
-        const figmaDataText = JSON.stringify({
+    // Prepare Figma data for Gemini analysis with extracted elements
+    const figmaDataForAnalysis = {
           fileName: figmaFile.name,
-          sections: sections.slice(0, 20), // Limit to first 20 sections
+      sections: sections.slice(0, 10).map(section => ({
+        name: section.title,
+        type: section.type,
+        extractedElements: section.extractedElements,
+        nodeInfo: {
+          width: section.boundingBox?.width || 0,
+          height: section.boundingBox?.height || 0,
+          isComponent: section.isComponent,
+          autoLayout: section.autoLayout
+        }
+      })),
           designTokens: designTokens,
           layoutAnalysis: layoutAnalysis,
-          // Don't include full document to prevent massive payload
           documentSummary: {
             nodeCount: figmaFile.document.children?.length || 0,
-            hasComponents: figmaFile.document.children?.some(child => child.type === 'COMPONENT') || false
-          }
-        }, null, 2);
-
-        const figmaPrompt = `
-# 📌 **Design Section Detection & Extraction Prompt**nnYou are an expert **UI/UX analyst** specializing in detecting and categorizing design elements from website layouts.nYour task is to **analyze the provided design file (Figma)** and extract a structured breakdown of the design.nn## 🎯 **Analysis Objectives**nn1. Detect all distinct **sections, text areas, interactive elements, and layout components**.n2. Classify each detected element into meaningful categories.n3. Provide a **clear, hierarchical breakdown** of the full design structure.nn---nn## 🔎 **Detection Categories**nn### 1. **Layout Structure**nnIdentify and categorize the major sections of the page:nn* **Header/Navigation** → logo, top nav, menu items, search barn* **Hero Section** → main focal content (headline, subheadline, background, CTA)n* **Content Sections** → features, services, products, info blocksn* **Social Proof** → testimonials, client logos, case studies, statsn* **Call-to-Action Areas** → buttons, forms, sign-ups, downloadsn* **Footer** → contact info, navigation links, legal disclaimersnn### 2. **Text Elements**nnFor **each text area**, extract and classify:nn* **Location** → top, center, bottom, sidebar, etc.n* **Hierarchy Level** → H1, H2, H3, body text, captions, labelsn* **Estimated Character Limit** → based on text box sizen* **Purpose** → headline, subheadline, paragraph, button text, navigation labeln* **Visual Emphasis** → bold, italic, highlighted color, large size, underlinenn---nn## 📑 **Expected Output Format (JSON-like structure)**nn\`\`\`jsonn{n  "layout_structure": {n    "header": {n      "logo": "Top-left, small icon",n      "menu_items": ["Home", "About", "Services", "Contact"]n    },n    "hero_section": {n      "headline": "Main H1 text here",n      "subheadline": "Supporting text here",n      "cta_button": "Get Started"n    },n    "content_sections": [n      {n        "title": "Features",n        "subsections": ["Feature 1", "Feature 2", "Feature 3"]n      }n    ],n    "social_proof": {n      "testimonials": 3,n      "logos": 5n    },n    "cta_areas": [n      {"button_text": "Sign Up", "location": "center-bottom"}n    ],n    "footer": {n      "links": ["Privacy Policy", "Terms of Service", "Contact Us"]n    }n  },n  "text_elements": [n    {n      "content": "Empower Your Business",n      "location": "Hero Section - Center",n      "hierarchy_level": "H1",n      "character_limit": "40-50 chars",n      "purpose": "Headline",n      "visual_emphasis": "Large bold white text"n    }n  ],n  "sections": [n    {n      "id": "unique-section-id",n      "title": "Section Title",n      "type": "header|hero|content|cta|footer|social-proof",n      "content": "Extracted text content from this section",n      "order": 1,n      "pageNumber": 1,n      "boundingBox": {n        "x": 0,n        "y": 0,n        "width": 800,n        "height": 200n      },n      "extractedAt": "2025-01-01T00:00:00.000Z"n    }n  ]n}n\`\`\`nn---nn## 📝 **Instructions for the Model**nn* Carefully **scan the entire Figma design**.n* Break down **every section and element systematically**.n* Use the **detection categories** above for classification.n* Maintain a **clear, structured output** (prefer JSON or bullet hierarchy).n* Do **not skip hidden elements** (e.g., collapsed menus, secondary links).nn## Critical Instructionsnn1. **Analyze the ENTIRE Figma design** - don't miss any sectionsn2. **Extract ALL text content** from each sectionn3. **Categorize sections properly** using the type fieldn4. **Provide meaningful titles** for each sectionn5. **Include comprehensive analysis** in the layout_structure and text_elements objectsn6. **Return ONLY valid JSON** - no additional text or explanationsn7. **Base analysis on actual content** found in the Figma design
-
-## Analysis Task
-Examine the design and identify all distinct sections, text areas, interactive elements, and layout components. Provide a comprehensive breakdown of the design structure.
-
-## Detection Categories
-
-### 1. LAYOUT STRUCTURE
-Identify the overall page organization:
-- **Header/Navigation**: Top navigation, logo placement, menu items
-- **Hero Section**: Main focal area, primary messaging space
-- **Content Sections**: Feature blocks, service areas, product showcases
-- **Social Proof**: Testimonials, reviews, client logos, statistics
-- **Call-to-Action Areas**: Button placements, form sections
-- **Footer**: Bottom navigation, contact info, legal links
-
-### 2. TEXT ELEMENTS
-For each text area, identify:
-- **Location**: Position relative to other elements (top, center, bottom, sidebar)
-- **Hierarchy Level**: H1, H2, H3, body text, captions
-- **Estimated Character Limits**: Based on text box dimensions
-- **Purpose**: Headline, description, button text, navigation label
-- **Visual Emphasis**: Bold, italic, color highlights, size variations
-
-### 3. INTERACTIVE COMPONENTS
-Detect all clickable and interactive elements:
-- **Buttons**: Primary, secondary, tertiary styling
-- **Links**: Navigation, inline links, footer links
-- **Forms**: Input fields, dropdowns, checkboxes, submit buttons
-- **Media**: Image placeholders, video areas, galleries
-- **Navigation**: Menus, breadcrumbs, pagination
-
-### 4. VISUAL HIERARCHY
-Analyze the design flow:
-- **Primary Focus Areas**: Elements with highest visual weight
-- **Secondary Elements**: Supporting information sections
-- **Visual Flow**: Reading pattern (Z-pattern, F-pattern, etc.)
-- **Grouping**: Related elements clustered together
-- **Spacing**: White space usage and section separation
-
-### 5. RESPONSIVE INDICATORS
-If visible, note:
-- **Breakpoint Hints**: Mobile, tablet, desktop layouts
-- **Flexible Elements**: Components that appear scalable
-- **Priority Content**: Elements likely to stack or hide on mobile
-
-OUTPUT FORMAT: Return ONLY valid JSON with this exact structure:
-{
-  "visualElements": {
-    "textBlocks": [
-      {
-        "id": "text-1",
-        "type": "headline|subheadline|body|cta|navigation",
-        "content": "Text content",
-        "position": { "x": 0, "y": 0, "width": 200, "height": 50 },
-        "typography": {
-          "fontFamily": "Arial",
-          "fontSize": "24px",
-          "fontWeight": "bold",
-          "color": "#000000"
-        }
+        hasComponents: figmaFile.document.children?.some(child => child.type === 'COMPONENT') || false,
+        documentType: figmaFile.document.type || 'DOCUMENT',
+        totalSections: sections.length
       }
-    ],
-    "images": [
-      {
-        "id": "img-1",
-        "type": "logo|hero|product|icon|background",
-        "description": "Image description",
-        "position": { "x": 0, "y": 0, "width": 300, "height": 200 },
-        "altText": "Alternative text"
-      }
-    ],
-    "buttons": [
-      {
-        "id": "btn-1",
-        "type": "primary|secondary|cta|navigation",
-        "text": "Button text",
-        "position": { "x": 0, "y": 0, "width": 120, "height": 40 },
-        "style": {
-          "backgroundColor": "#007bff",
-          "color": "#ffffff",
-          "borderRadius": "4px"
-        }
-      }
-    ],
-    "forms": [
-      {
-        "id": "form-1",
-        "type": "contact|newsletter|search|login",
-        "fields": [
-          {
-            "name": "email",
-            "type": "email",
-            "label": "Email Address",
-            "placeholder": "Enter your email"
-          }
-        ],
-        "position": { "x": 0, "y": 0, "width": 400, "height": 200 }
-      }
-    ]
-  },
-  "contentMapping": {
-    "headlines": [
-      {
-        "id": "headline-1",
-        "text": "Main headline text",
-        "hierarchy": "primary|secondary|tertiary",
-        "position": { "x": 0, "y": 0, "width": 600, "height": 60 }
-      }
-    ],
-    "bodyText": [
-      {
-        "id": "body-1",
-        "content": "Body text content",
-        "type": "description|feature|benefit|testimonial",
-        "position": { "x": 0, "y": 0, "width": 500, "height": 100 }
-      }
-    ],
-    "ctaButtons": [
-      {
-        "id": "cta-1",
-        "text": "Get Started",
-        "action": "signup|contact|purchase|download",
-        "position": { "x": 0, "y": 0, "width": 150, "height": 50 }
-      }
-    ],
-    "navigation": [
-      {
-        "id": "nav-1",
-        "type": "menu|sidebar|breadcrumb",
-        "items": ["Home", "About", "Services", "Contact"],
-        "position": { "x": 0, "y": 0, "width": 400, "height": 50 }
-      }
-    ],
-    "features": [
-      {
-        "id": "feature-1",
-        "title": "Feature title",
-        "description": "Feature description",
-        "type": "product|service|benefit|highlight",
-        "position": { "x": 0, "y": 0, "width": 300, "height": 200 }
-      }
-    ],
-    "testimonials": [
-      {
-        "id": "testimonial-1",
-        "quote": "Customer testimonial",
-        "author": "Customer name",
-        "rating": 5,
-        "position": { "x": 0, "y": 0, "width": 350, "height": 150 }
-      }
-    ]
-  },
-  "layoutAnalysis": {
-    "pageStructure": {
-      "header": { "present": true, "position": { "x": 0, "y": 0, "width": 1200, "height": 80 } },
-      "hero": { "present": true, "position": { "x": 0, "y": 80, "width": 1200, "height": 500 } },
-      "features": { "present": true, "position": { "x": 0, "y": 580, "width": 1200, "height": 400 } },
-      "testimonials": { "present": false },
-      "cta": { "present": true, "position": { "x": 0, "y": 980, "width": 1200, "height": 200 } },
-      "footer": { "present": true, "position": { "x": 0, "y": 1180, "width": 1200, "height": 150 } }
-    },
-    "gridSystem": {
-      "type": "12-column|6-column|flexbox|grid",
-      "columns": 12,
-      "gutters": "20px",
-      "margins": "40px"
-    },
-    "responsiveBreakpoints": [
-      {
-        "name": "mobile",
-        "width": "320px",
-        "present": true
-      },
-      {
-        "name": "tablet", 
-        "width": "768px",
-        "present": true
-      },
-      {
-        "name": "desktop",
-        "width": "1200px", 
-        "present": true
-      }
-    ],
-    "alignment": {
-      "primary": "left|center|right",
-      "secondary": "left|center|right",
-      "vertical": "top|center|bottom"
-    },
-    "spacing": {
-      "sectionPadding": "60px",
-      "elementMargin": "20px",
-      "lineHeight": "1.5"
-    }
-  },
-  "designTokens": {
-    "colors": [
-      {
-        "name": "primary",
-        "value": "#007bff",
-        "usage": "buttons|links|highlights"
-      },
-      {
-        "name": "secondary", 
-        "value": "#6c757d",
-        "usage": "text|borders|backgrounds"
-      }
-    ],
-    "typography": [
-      {
-        "name": "heading",
-        "fontFamily": "Arial, sans-serif",
-        "fontSize": "32px",
-        "fontWeight": "bold"
-      },
-      {
-        "name": "body",
-        "fontFamily": "Arial, sans-serif", 
-        "fontSize": "16px",
-        "fontWeight": "normal"
-      }
-    ],
-    "spacing": [
-      {
-        "name": "xs",
-        "value": "4px"
-      },
-      {
-        "name": "sm",
-        "value": "8px"
-      },
-      {
-        "name": "md",
-        "value": "16px"
-      },
-      {
-        "name": "lg",
-        "value": "24px"
-      },
-      {
-        "name": "xl",
-        "value": "32px"
-      }
-    ]
-  }
-}
-
-CRITICAL INSTRUCTIONS: 
-- Do NOT add any text before or after the JSON
-- Do NOT include explanations or comments
-- Return ONLY the JSON object
-- Extract sections based on the actual document structure
-- Use the natural section types that emerge from the content
-- Ensure the JSON is valid and parseable
-- Focus on extracting ALL visual elements, content mapping, and layout analysis
-- IMPORTANT: Extract REAL data from the Figma design, NOT placeholder text
-- For text content, use the actual text found in the Figma design
-- For headlines, use the actual headline text from the Figma design
-- For buttons, use the actual button text from the Figma design
-- For navigation, use the actual menu items from the Figma design
-- For features, use the actual feature titles and descriptions from the Figma design
-- For testimonials, use the actual testimonial quotes and author names from the Figma design
-- If no specific data is found, use "Not found in design" instead of placeholder text
-
-FIGMA DESIGN DATA TO ANALYZE:
----
-${figmaDataText}
----
-        `;
-
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Gemini AI request timeout after 50 seconds')), 50000);
-        });
-        
-        const geminiPromise = model.generateContent(figmaPrompt).then(result => {
-          const response = result.response;
-          return response.text();
-        });
-        
-        const text = await Promise.race([geminiPromise, timeoutPromise]);
-        
-        // Parse Gemini AI response
-        let parsedResponse;
-        try {
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            parsedResponse = JSON.parse(jsonMatch[0]);
-          } else {
-            parsedResponse = JSON.parse(text);
-          }
-        } catch (parseError) {
-          parsedResponse = null;
-        }
-
-        if (parsedResponse) {
-          comprehensiveAnalysis = {
-            visualElements: parsedResponse.visualElements || null,
-            contentMapping: parsedResponse.contentMapping || null,
-            layoutAnalysis: parsedResponse.layoutAnalysis || null,
-            designTokens: parsedResponse.designTokens || null,
-            comprehensiveAnalysis: {
-              visualElementsCount: {
-                textBlocks: parsedResponse.visualElements?.textBlocks?.length || 0,
-                images: parsedResponse.visualElements?.images?.length || 0,
-                buttons: parsedResponse.visualElements?.buttons?.length || 0,
-                forms: parsedResponse.visualElements?.forms?.length || 0
-              },
-              contentMappingCount: {
-                headlines: parsedResponse.contentMapping?.headlines?.length || 0,
-                bodyText: parsedResponse.contentMapping?.bodyText?.length || 0,
-                ctaButtons: parsedResponse.contentMapping?.ctaButtons?.length || 0,
-                navigation: parsedResponse.contentMapping?.navigation?.length || 0,
-                features: parsedResponse.contentMapping?.features?.length || 0,
-                testimonials: parsedResponse.contentMapping?.testimonials?.length || 0
-              },
-              layoutAnalysis: {
-                gridSystem: parsedResponse.layoutAnalysis?.gridSystem?.type || 'unknown',
-                responsiveBreakpoints: parsedResponse.layoutAnalysis?.responsiveBreakpoints?.length || 0,
-                alignment: parsedResponse.layoutAnalysis?.alignment?.primary || 'unknown',
-                pageStructure: parsedResponse.layoutAnalysis?.pageStructure || {}
-              },
-              designTokensCount: {
-                colors: parsedResponse.designTokens?.colors?.length || 0,
-                typography: parsedResponse.designTokens?.typography?.length || 0,
-                spacing: parsedResponse.designTokens?.spacing?.length || 0
-              }
-            }
-          };
-        }
-      } catch (geminiError) {
-        logger.error('Gemini AI analysis for Figma failed:', geminiError);
-        
-        // Continue with basic analysis - don't fail the entire request
-        comprehensiveAnalysis = null;
-      }
-    }
-
-    // Prepare extracted design data
-    const extractedDesign = {
-      designType: 'figma',
-      fileKey: fileKey,
-      fileName: figmaFile.name || 'Untitled Figma Design',
-      lastModified: figmaFile.lastModified || new Date().toISOString(),
-      version: figmaFile.version || '1',
-      sections: sections,
-      designTokens: designTokens,
-      layoutAnalysis: layoutAnalysis,
-      totalSections: sections.length,
-      extractedAt: new Date().toISOString(),
-      // Include comprehensive analysis if available
-      ...(comprehensiveAnalysis && {
-        visualElements: comprehensiveAnalysis.visualElements,
-        contentMapping: comprehensiveAnalysis.contentMapping,
-        layoutAnalysis: comprehensiveAnalysis.layoutAnalysis,
-        designTokens: comprehensiveAnalysis.designTokens,
-        comprehensiveAnalysis: comprehensiveAnalysis.comprehensiveAnalysis
-      })
     };
 
-    logger.info('Figma design extracted successfully', {
-      figmaUrl,
-      fileKey,
-      sectionsCount: sections.length,
-      userId: req.user?.id || 'anonymous'
+    // Create comprehensive prompt for Gemini AI analysis with actual extracted elements
+    const FIGMA_SECTION_EXTRACTION_PROMPT = `
+You are a UI/UX design analysis agent for Figma designs. 
+Analyze the provided Figma design data and extract the ACTUAL design elements that were found in each section.
+
+The Figma analysis has already extracted real design elements from each section:
+- texts: Array of actual text content found in the design
+- buttons: Array of actual buttons with their text and styles
+- images: Array of actual images with descriptions
+- forms: Array of actual form elements found
+
+Your task is to transform these extracted elements into a clean, organized format for each section.
+
+⚠️ CRITICAL RULES:
+- Use ONLY the actual extracted elements provided - NO placeholders or dummy content
+- If a section has no extracted texts, buttons, or images, DO NOT add fake ones
+- Transform the actual text content into proper titles, subtitles, and content
+- Use the actual button text found in the design
+- Use the actual image descriptions found in the design
+- Keep the JSON clean and only include elements that actually exist
+
+Figma Design URL: ${figmaUrl}
+File Name: ${figmaFile.name}
+
+Extracted Figma Design Data with Real Elements:
+${JSON.stringify(figmaDataForAnalysis, null, 2)}
+
+Transform the extracted elements into this structure (ONLY include fields with actual data):
+{
+  "sections": [
+    {
+      "section_name": "[Use the section name from the analysis]",
+      "title": "[Use actual text content found in the section - largest/most prominent text]",
+      "subtitle": "[Use actual secondary text if found]", 
+      "content": "[Use actual paragraph/body text if found]",
+      "buttons": ["[Use actual button text found]"],
+      "images": ["[Use actual image descriptions found]"],
+      "navigation": ["[Use actual navigation text if found]"]
+    }
+  ]
+}
+
+REMEMBER: Use ONLY the actual extracted elements - no placeholders like "[Section Content - Customize as needed]"
+`;
+
+    logger.info('Starting Gemini AI processing with Figma design extraction prompt:', {
+      figmaUrl: figmaUrl,
+      promptLength: FIGMA_SECTION_EXTRACTION_PROMPT.length,
+      figmaDataLength: JSON.stringify(figmaDataForAnalysis).length
+    });
+
+    try {
+      logger.info('Calling Gemini AI model for Figma design analysis...');
+      const result = await model.generateContent(FIGMA_SECTION_EXTRACTION_PROMPT);
+      
+      const response = await result.response;
+      let text = response.text();
+      
+      if (!text) {
+        throw new Error("Empty response from Gemini.");
+      }
+      
+      logger.info('Gemini AI response received for Figma design analysis:', {
+        responseLength: text.length,
+        figmaUrl: figmaUrl,
+        responsePreview: text.substring(0, 200) + '...'
+      });
+
+      // Clean JSON (strip markdown fences if any)
+      let cleaned = text.trim();
+      if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+      if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+      cleaned = cleaned.trim();
+
+      let data;
+      try {
+        data = JSON.parse(cleaned);
+        logger.info('JSON parsing successful for Figma design analysis:', {
+          hasSections: !!data.sections,
+          sectionsCount: data.sections ? data.sections.length : 0,
+          figmaUrl: figmaUrl
+        });
+      } catch (err) {
+        throw new Error(`Failed to parse JSON: ${err.message}\nRaw: ${cleaned}`);
+      }
+
+      // Filter out empty sections
+      const rawSections = Array.isArray(data.sections) ? data.sections : [];
+      const filteredSections = rawSections.filter(section =>
+        Object.values(section).some(v => (Array.isArray(v) ? v.length > 0 : !!v))
+      );
+
+      logger.info('Sections filtered and processed for Figma design analysis:', {
+        originalCount: rawSections.length,
+        filteredCount: filteredSections.length,
+        figmaUrl: figmaUrl
+      });
+
+      // Transform sections to match the exact format requested (like URL extraction)
+      const transformedSections = filteredSections.map((section) => {
+        const components = {};
+        
+        // Add title if present
+        if (section.title) {
+          components.title = section.title;
+        }
+        
+        // Add subtitle if present
+        if (section.subtitle) {
+          components.subtitle = section.subtitle;
+        }
+        
+        // Add content if present
+        if (section.content) {
+          components.content = section.content;
+        }
+        
+        // Add buttons if present
+        if (section.buttons && section.buttons.length > 0) {
+          components.buttons = section.buttons;
+        }
+        
+        // Add images if present
+        if (section.images && section.images.length > 0) {
+          components.images = section.images;
+        }
+        
+        // Add links if present
+        if (section.links && section.links.length > 0) {
+          components.links = section.links;
+        }
+        
+        // Add messages if present
+        if (section.messages && section.messages.length > 0) {
+          components.messages = section.messages;
+        }
+        
+        // Add lists if present
+        if (section.lists && section.lists.length > 0) {
+          components.items = section.lists;
+        }
+        
+        // Add forms if present
+        if (section.forms && section.forms.length > 0) {
+          components.forms = section.forms;
+        }
+        
+        // Add CTAs if present
+        if (section.ctas && section.ctas.length > 0) {
+          components.ctas = section.ctas;
+        }
+
+        // Add navigation if present
+        if (section.navigation && section.navigation.length > 0) {
+          components.navigation = section.navigation;
+        }
+
+        // Add testimonials if present
+        if (section.testimonials && section.testimonials.length > 0) {
+          components.testimonials = section.testimonials;
+        }
+
+        // Add pricing if present
+        if (section.pricing && section.pricing.length > 0) {
+          components.pricing = section.pricing;
+        }
+
+        // Add features if present
+        if (section.features && section.features.length > 0) {
+          components.features = section.features;
+        }
+
+        return {
+          name: section.section_name,
+          components: components
+        };
+      });
+
+      logger.info('Figma design analysis completed successfully', {
+        figmaUrl: figmaUrl,
+        sectionsCount: transformedSections.length
+      });
+
+      logger.info('=== FIGMA DESIGN EXTRACTION COMPLETED SUCCESSFULLY ===', {
+        figmaUrl: figmaUrl,
+        sectionsCount: transformedSections.length
+      });
+
+      res.json({
+        success: true,
+        sections: transformedSections,
+        sourceUrl: figmaUrl
+      });
+
+      } catch (geminiError) {
+      logger.error('Gemini AI processing failed for Figma design analysis:', {
+        error: geminiError.message,
+        errorCode: geminiError.code,
+        figmaUrl: figmaUrl,
+        stack: geminiError.stack
+      });
+      
+      // Fallback: create basic sections from the original Figma API analysis
+      logger.info('Creating fallback analysis due to Gemini error...');
+      const fallbackSections = sections.map((section) => {
+        return {
+          name: section.name || section.title || 'Unknown Section',
+          components: {
+            title: section.title || section.name || 'Section Title',
+            content: section.content || 'Section content extracted from Figma design'
+          }
+        };
+      });
+
+      logger.info('=== FIGMA DESIGN EXTRACTION COMPLETED WITH FALLBACK ===', {
+        figmaUrl: figmaUrl,
+        reason: 'Gemini AI error',
+        sectionsCount: fallbackSections.length
     });
 
     res.json({
       success: true,
-      message: 'Figma design extracted successfully',
-      data: extractedDesign
-    });
-  } catch (error) {
-    logger.error('Figma extraction failed:', error);
-    
-    // Provide more specific error messages
-    let errorMessage = 'Server error during Figma extraction';
-    if (error.message.includes('401')) {
-      errorMessage = 'Invalid Figma access token. Please check your FIGMA_ACCESS_TOKEN.';
-    } else if (error.message.includes('404')) {
-      errorMessage = 'Figma file not found. Please check the URL and ensure the file is accessible.';
-    } else if (error.message.includes('403')) {
-      errorMessage = 'Access denied to Figma file. Please ensure the file is public or you have access permissions.';
-    } else if (error.message.includes('Failed to fetch Figma file')) {
-      errorMessage = error.message;
+        sections: fallbackSections,
+        sourceUrl: figmaUrl
+      });
     }
+
+  } catch (error) {
+    logger.error('Figma design extraction failed:', {
+      error: error.message,
+      errorCode: error.code,
+      errorType: error.name,
+      figmaUrl: req.body?.figmaUrl,
+      stack: error.stack
+    });
 
     res.status(500).json({
       success: false,
-      error: errorMessage
+      error: error.message || 'Failed to extract design from Figma'
     });
   }
 });
@@ -1047,7 +1132,7 @@ router.post('/generate-landing-page', [
       tags: ['ai-generated', 'extracted-data'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       analytics: {
         views: 0,
         conversions: 0
@@ -1316,8 +1401,10 @@ CRITICAL INSTRUCTIONS:
         planningData = JSON.parse(text);
       }
     } catch (parseError) {
+      // CRITICAL: Use extracted sections instead of creating defaults
+      const extractedSectionTypes = extractedData?.sections?.map(s => s.type || s.name) || [];
       planningData = {
-        targetSections: ['header', 'hero', 'features', 'about', 'testimonials', 'cta', 'contact', 'footer'],
+        targetSections: extractedSectionTypes.length > 0 ? extractedSectionTypes : ['content'],
         contentStrategy: `Create compelling content for ${businessInfo.businessName} that speaks directly to ${businessInfo.targetAudience}`,
         toneAnalysis: `Use a ${businessInfo.brandTone || 'professional'} tone throughout while maintaining authenticity`,
         audienceInsights: `Target audience: ${businessInfo.targetAudience}. Focus on their pain points and how ${businessInfo.businessName} can solve them.`
@@ -2007,8 +2094,8 @@ router.post('/generate', [
       tags: ['ai-generated', 'extracted-data', 'step-by-step'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
-      currentStep: 'completed',
+      model: 'gemini-2.0-flash',
+      currentStep: 'Complete',
       processSteps: {
         validation: {
           completed: true,
@@ -2151,21 +2238,170 @@ router.post('/generate', [
   }
 });
 
+// Helper function to update process step in database with robust error handling
+async function updateProcessStep(landingPageId, stepName, stepData, isCompleted = true) {
+  try {
+    const LandingPage = require('../models/LandingPage');
+    
+    // Prepare the update data - simplified structure
+    const updateData = {
+      [`processSteps.${stepName}.completed`]: isCompleted,
+      [`processSteps.${stepName}.completedAt`]: new Date(),
+      [`processSteps.${stepName}.data`]: stepData,
+      currentStep: isCompleted ? stepName : 'error',
+      updatedAt: new Date()
+    };
+    
+    const result = await LandingPage.findByIdAndUpdate(landingPageId, updateData, { 
+      new: true, 
+      runValidators: true,
+      strict: false // Allow dynamic field updates
+    });
+    
+    if (!result) {
+      throw new Error(`Landing page record not found: ${landingPageId}`);
+    }
+    
+    logger.info(`Process step updated successfully: ${stepName}`, { 
+      landingPageId, 
+      stepName, 
+      completed: isCompleted
+    });
+    
+    return { success: true, record: result };
+  } catch (error) {
+    logger.error(`CRITICAL: Failed to update process step: ${stepName}`, { 
+      error: error.message, 
+      landingPageId, 
+      stepName,
+      stack: error.stack
+    });
+    return { success: false, error: error.message };
+  }
+}
+
+// Helper function to safely create initial database record
+async function createInitialLandingPageRecord(recordData) {
+  const LandingPage = require('../models/LandingPage');
+  try {
+    
+    // Add creation metadata
+    const enhancedRecord = {
+      ...recordData,
+      creationMetadata: {
+        source: 'generate-dynamic-landing-page',
+        version: '2.0',
+        createdAt: new Date(),
+        environment: process.env.NODE_ENV || 'development'
+      }
+    };
+    
+    const savedRecord = await LandingPage.create(enhancedRecord);
+    logger.info('Initial database record created successfully', { 
+      landingPageId: savedRecord._id,
+      businessName: savedRecord.businessName,
+      recordSize: JSON.stringify(savedRecord).length
+    });
+    
+    return { success: true, record: savedRecord, id: savedRecord._id };
+  } catch (error) {
+    logger.error('CRITICAL: Failed to create initial database record', { 
+      error: error.message,
+      businessName: recordData.businessName,
+      stack: error.stack
+    });
+    return { success: false, error: error.message };
+  }
+}
+
 // New endpoint for dynamic landing page generation with Gemini (public route)
 router.post('/generate-dynamic-landing-page', async (req, res) => {
+  let landingPageId = null;
+  const LandingPage = require('../models/LandingPage');
+  
   try {
-    const { businessInfo, extractedData, designType, user } = req.body
+    const { businessInfo, extractedData, designType, user } = req.body;
 
-
+    // STEP 1: VALIDATION - Create initial database record 
     // Validate required data
     if (!businessInfo || !businessInfo.businessName) {
       return res.status(400).json({
         success: false,
         error: 'Business information is required'
-      })
+      });
     }
 
-    // Prepare context for Gemini
+    // Create initial database record with validation step
+    const initialRecord = {
+      user: user ? {
+        email: user.email || null,
+        userId: user.id || null,
+        companyId: user.companyId || null
+      } : null,
+      title: `${businessInfo.businessName} - Landing Page`.substring(0, 100),
+      businessName: businessInfo.businessName,
+      businessOverview: businessInfo.businessOverview,
+      targetAudience: businessInfo.targetAudience,
+      brandTone: businessInfo.brandTone || 'professional',
+      websiteUrl: businessInfo.websiteUrl,
+      designSource: {
+        type: designType || 'url',
+        fileName: extractedData?.metadata?.title || 'Processing...',
+        processedAt: new Date()
+      },
+      sections: [],
+      status: 'draft',
+      tags: ['ai-generated'],
+      isPublic: false,
+      generatedAt: new Date(),
+      model: 'gemini-2.0-flash',
+      meta: {
+        title: `${businessInfo.businessName} - Professional Services`.substring(0, 100),
+        description: businessInfo.businessOverview,
+        keywords: `${businessInfo.businessName}, services`,
+        ogTitle: `${businessInfo.businessName} - Professional Services`,
+        ogDescription: businessInfo.businessOverview,
+        ogImage: '/images/og-image.jpg'
+      },
+      processSteps: {
+        "Extract Design": {
+          completed: true,
+          completedAt: new Date(),
+          data: {
+            stepName: 'validation',
+            inputData: { businessInfo, extractedData, designType },
+            outputData: {
+              businessInfoValid: !!(businessInfo && businessInfo.businessName),
+              extractedDataValid: !!(extractedData && Object.keys(extractedData).length > 0),
+              preferencesValid: true,
+              errors: []
+            }
+          }
+        },
+        "Plan Content": { completed: false, data: {} },
+        "Analyze Design": { completed: false, data: {} },
+        "Generate Content": { completed: false, data: {} },
+        "Generate Landing Page": { completed: false, data: {} },
+        "Preview Landing Page": { completed: false, data: {} },
+        "Download Landing Page": { completed: false, data: {} }
+      },
+      currentStep: 'Extract Design'
+    };
+
+    // Create database record - THIS MUST SUCCEED
+    const createResult = await createInitialLandingPageRecord(initialRecord);
+    if (!createResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create database record: ' + createResult.error
+      });
+    }
+    
+    landingPageId = createResult.id;
+    logger.info('Step 1 - Initial database record created successfully', { landingPageId });
+
+    // STEP 2: CONTENT PLANNING
+    const stepStartTime2 = new Date();
     const context = {
       businessName: businessInfo.businessName,
       businessOverview: businessInfo.businessOverview || 'Professional services',
@@ -2173,17 +2409,42 @@ router.post('/generate-dynamic-landing-page', async (req, res) => {
       brandTone: businessInfo.brandTone || 'Professional',
       extractedSections: extractedData?.sections || [],
       designType: designType || 'unknown',
-      // Enhanced design structure from new extraction prompt
       layoutStructure: extractedData?.layout_structure || null,
       textElements: extractedData?.text_elements || null,
       comprehensiveAnalysis: extractedData?.comprehensiveAnalysis || null,
-      // Add the new dictionary format sections for better generation
       designSections: extractedData?.sections || {},
       sectionTypes: extractedData?.sectionTypes || []
+    };
+
+    const contentPlanningResult = await updateProcessStep(landingPageId, 'Plan Content', {
+      stepName: 'contentPlanning',
+      inputData: { businessInfo, extractedData },
+      outputData: context,
+      processingTime: new Date() - stepStartTime2
+    });
+
+    if (!contentPlanningResult.success) {
+      logger.error('Content planning step failed', { landingPageId, error: contentPlanningResult.error });
     }
 
-    
-    // Use the generateCompleteLandingPage function that includes content length logic
+    // STEP 3: DESIGN ANALYSIS
+    const stepStartTime3 = new Date();
+    const designAnalysisResult = await updateProcessStep(landingPageId, 'Analyze Design', {
+      stepName: 'designAnalysis',
+      inputData: extractedData,
+      outputData: {
+        layoutStructure: context.layoutStructure,
+        extractedDataAnalysis: extractedData
+      },
+      processingTime: new Date() - stepStartTime3
+    });
+
+    if (!designAnalysisResult.success) {
+      logger.error('Design analysis step failed', { landingPageId, error: designAnalysisResult.error });
+    }
+
+    // STEP 4: CONTENT GENERATION
+    const stepStartTime4 = new Date();
     const landingPageData = await generateCompleteLandingPage({
       businessInfo,
       extractedData,
@@ -2197,65 +2458,64 @@ router.post('/generate-dynamic-landing-page', async (req, res) => {
         layoutStructure: context.layoutStructure,
         textElements: context.textElements
       }
-    })
+    });
 
-    // Validate and enhance the generated content
-    const enhancedContent = enhanceGeneratedContent(landingPageData, context)
+    const enhancedContent = enhanceGeneratedContent(landingPageData, context);
 
-    // Calculate quality score
-    const qualityScore = calculateQualityScore(enhancedContent, businessInfo)
+    const contentGenerationResult = await updateProcessStep(landingPageId, 'Generate Content', {
+      stepName: 'contentGeneration',
+      inputData: {
+        businessInfo,
+        extractedData,
+        preferences: { designType: designType || 'pdf', layoutStyle: 'clean' }
+      },
+      outputData: {
+        landingPageData,
+        enhancedContent: {
+          sections: enhancedContent.sections?.length || 0,
+          hasCSS: !!enhancedContent.css,
+          hasJS: !!enhancedContent.js,
+          hasHTML: !!enhancedContent.html
+        }
+      },
+      processingTime: new Date() - stepStartTime4
+    });
 
+    if (!contentGenerationResult.success) {
+      logger.error('Content generation step failed', { landingPageId, error: contentGenerationResult.error });
+    }
 
-    // Save landing page to database
-    const LandingPage = require('../models/LandingPage')
+    // STEP 5: GENERATE LANDING PAGE
+    const stepStartTime5 = new Date();
+    const qualityScore = calculateQualityScore(enhancedContent, businessInfo);
     
-    const landingPageRecord = {
-      // User information
-      user: user ? {
-        email: user.email || null,
-        userId: user.id || null,
-        companyId: user.companyId || null
-      } : null,
-      title: `${businessInfo.businessName} - Landing Page`.substring(0, 100),
-      businessName: businessInfo.businessName,
-      businessOverview: businessInfo.businessOverview,
-      targetAudience: businessInfo.targetAudience,
-      brandTone: businessInfo.brandTone || 'professional',
-      websiteUrl: businessInfo.websiteUrl,
-      designSource: {
-        type: designType || 'pdf',
-        fileName: extractedData?.metadata?.title || 'Extracted Design',
-        processedAt: new Date()
-      },
-      sections: enhancedContent.sections?.map(section => ({
-        id: section.id,
-        type: section.type,
-        title: section.title,
-        content: section.content || `Content for ${section.title || section.type}`,
-        order: section.order || 1,
-        pageNumber: section.pageNumber || 1,
-        boundingBox: section.boundingBox || {
-          x: 0,
-          y: 0,
-          width: 800,
-          height: 200
-        },
-        extractedAt: new Date().toISOString()
-      })) || [],
-      status: 'draft',
-      tags: ['ai-generated', 'extracted-data', 'dynamic-generation'],
-      isPublic: false,
-      generatedAt: new Date(),
-      model: 'gemini-pro',
-      analytics: {
-        views: 0,
-        conversions: 0
-      },
-      settings: {
-        theme: 'light',
-        customCSS: enhancedContent.css || '',
-        customJS: enhancedContent.js || ''
-      },
+    // Update sections in database
+    const formattedSections = enhancedContent.sections?.map(section => {
+      if (section.components) {
+        return {
+          id: section.id,
+          name: section.name,
+          type: section.name?.toLowerCase() || 'content',
+          title: section.name || 'Section',
+          content: '',
+          components: section.components,
+          order: section.order || 1
+        };
+      } else {
+        return {
+          id: section.id,
+          type: section.type,
+          title: section.title,
+          content: section.content || `Content for ${section.title || section.type}`,
+          order: section.order || 1
+        };
+      }
+    }) || [];
+
+    // Update the database record with sections and other data
+    await LandingPage.findByIdAndUpdate(landingPageId, {
+      sections: formattedSections,
+      tags: ['ai-generated', 'extracted-data', 'dynamic-generation', 'completed'],
       meta: enhancedContent.meta || {
         title: `${businessInfo.businessName} - Professional Services`.substring(0, 100),
         description: businessInfo.businessOverview,
@@ -2263,72 +2523,140 @@ router.post('/generate-dynamic-landing-page', async (req, res) => {
         ogTitle: `${businessInfo.businessName} - Professional Services`,
         ogDescription: businessInfo.businessOverview,
         ogImage: '/images/og-image.jpg'
+      }
+    });
+
+    const generateLandingPageResult = await updateProcessStep(landingPageId, 'Generate Landing Page', {
+      stepName: 'generateLandingPage',
+      inputData: {
+        enhancedContent: {
+          sectionsCount: enhancedContent.sections?.length || 0,
+          hasHTML: !!enhancedContent.html,
+          hasCSS: !!enhancedContent.css,
+          hasJS: !!enhancedContent.js
+        }
       },
-      completeHTML: enhancedContent.html || '',
-      qualityScore: qualityScore
+      outputData: {
+        formattedSections: formattedSections.length,
+        qualityScore,
+        databaseUpdated: true
+      },
+      processingTime: new Date() - stepStartTime5
+    });
+
+    if (!generateLandingPageResult.success) {
+      logger.error('Generate landing page step failed', { landingPageId, error: generateLandingPageResult.error });
     }
 
-    try {
-      const savedLandingPage = await LandingPage.create(landingPageRecord)
-      
-      res.json({
-        success: true,
-        message: 'Dynamic landing page generated and saved successfully',
-        data: {
-          id: savedLandingPage._id,
-          title: savedLandingPage.title,
-          businessName: savedLandingPage.businessName,
-          landingPageContent: enhancedContent,
-          qualityScore,
-          generationData: {
-            htmlGenerated: !!enhancedContent.html,
-            cssGenerated: !!enhancedContent.css,
-            jsGenerated: !!enhancedContent.js,
-            sectionsGenerated: enhancedContent.sections?.length || 0,
-            generationTime: Date.now(),
-            qualityScore
-          },
-          databaseRecord: {
-            id: savedLandingPage._id,
-            status: savedLandingPage.status,
-            generatedAt: savedLandingPage.generatedAt,
-            model: savedLandingPage.model
-          },
-          downloadUrl: `/api/ai/download-landing-page/${savedLandingPage._id}`,
-          previewUrl: `/api/ai/preview-landing-page/${savedLandingPage._id}`,
-          editUrl: `/editor/${savedLandingPage._id}`,
-          completedAt: new Date()
-        }
-      })
-    } catch (dbError) {
-      // Still return the generated content even if database save fails
-      res.json({
-        success: true,
-        message: 'Dynamic landing page generated successfully (database save failed)',
-        data: {
-          landingPageContent: enhancedContent,
-          qualityScore,
-          generationData: {
-            htmlGenerated: !!enhancedContent.html,
-            cssGenerated: !!enhancedContent.css,
-            jsGenerated: !!enhancedContent.js,
-            sectionsGenerated: enhancedContent.sections?.length || 0,
-            generationTime: Date.now(),
-            qualityScore
-          },
-          databaseError: 'Failed to save to database: ' + dbError.message,
-          completedAt: new Date()
-        }
-      })
+    // STEP 6: PREVIEW LANDING PAGE
+    const stepStartTime6 = new Date();
+    const previewLandingPageResult = await updateProcessStep(landingPageId, 'Preview Landing Page', {
+      stepName: 'previewLandingPage',
+      inputData: {
+        landingPageId,
+        sectionsCount: formattedSections.length
+      },
+      outputData: {
+        previewUrl: `/api/ai/preview-landing-page/${landingPageId}`,
+        previewGenerated: true,
+        qualityScore
+      },
+      processingTime: new Date() - stepStartTime6
+    });
+
+    if (!previewLandingPageResult.success) {
+      logger.error('Preview landing page step failed', { landingPageId, error: previewLandingPageResult.error });
     }
+
+    // STEP 7: DOWNLOAD LANDING PAGE PREPARATION
+    const stepStartTime7 = new Date();
+    const downloadLandingPageResult = await updateProcessStep(landingPageId, 'Download Landing Page', {
+      stepName: 'downloadLandingPage',
+      inputData: {
+        landingPageId,
+        htmlLength: (enhancedContent.html || '').length
+      },
+      outputData: {
+        downloadUrl: `/api/ai/download-landing-page/${landingPageId}`,
+        downloadPrepared: true,
+        fileSize: (enhancedContent.html || '').length,
+        downloadFormat: 'HTML'
+      },
+      processingTime: new Date() - stepStartTime7
+    });
+
+    if (!downloadLandingPageResult.success) {
+      logger.error('Download landing page step failed', { landingPageId, error: downloadLandingPageResult.error });
+    }
+
+    // Final update - mark as completed
+    await LandingPage.findByIdAndUpdate(landingPageId, {
+      currentStep: 'Complete',
+      completedAt: new Date(),
+      tags: ['ai-generated', 'extracted-data', 'dynamic-generation', 'completed', 'step-by-step-tracked']
+    });
+
+    // Get the final record to return
+    const finalRecord = await LandingPage.findById(landingPageId);
+
+    res.json({
+      success: true,
+      message: 'Dynamic landing page generated and saved successfully with step-by-step tracking',
+      data: {
+        id: landingPageId,
+        title: finalRecord.title,
+        businessName: finalRecord.businessName,
+        landingPageContent: enhancedContent,
+        qualityScore,
+        processSteps: finalRecord.processSteps,
+        currentStep: finalRecord.currentStep,
+        generationData: {
+          htmlGenerated: !!enhancedContent.html,
+          cssGenerated: !!enhancedContent.css,
+          jsGenerated: !!enhancedContent.js,
+          sectionsGenerated: formattedSections.length,
+          generationTime: Date.now(),
+          qualityScore
+        },
+        databaseRecord: {
+          id: landingPageId,
+          status: finalRecord.status,
+          generatedAt: finalRecord.generatedAt,
+          model: finalRecord.model,
+          processSteps: finalRecord.processSteps
+        },
+        downloadUrl: `/api/ai/download-landing-page/${landingPageId}`,
+        previewUrl: `/api/ai/preview-landing-page/${landingPageId}`,
+        editUrl: `/editor/${landingPageId}`,
+        completedAt: new Date()
+      }
+    });
 
   } catch (error) {
+    logger.error('Dynamic landing page generation failed:', error);
+    
+    // If we have a landingPageId, try to update it with error information
+    if (landingPageId) {
+      try {
+        await updateProcessStep(landingPageId, 'error', {
+          errorMessage: error.message,
+          errorStep: 'generation',
+          errorTime: new Date(),
+          errorStack: error.stack
+        }, false);
+      } catch (updateError) {
+        logger.error('Failed to update error step:', updateError);
+      }
+    }
+    
     res.status(500).json({
       success: false,
-      error: 'Failed to generate dynamic landing page: ' + error.message
-    })
+      error: 'Server error during landing page generation: ' + error.message,
+      landingPageId: landingPageId,
+      timestamp: new Date().toISOString()
+    });
   }
-})
+});
 
 // @desc    Extract design structure and return only section names and headers
 // @route   POST /api/ai/extract-design-structure
@@ -3023,7 +3351,7 @@ router.post('/generate-content', [
       data: {
         sections: generatedContent,
         generatedAt: new Date(),
-        model: 'gemini-pro'
+        model: 'gemini-2.0-flash'
       }
     });
   } catch (error) {
@@ -3092,7 +3420,7 @@ router.post('/regenerate-section', [
         sectionType,
         content: regeneratedContent,
         regeneratedAt: new Date(),
-        model: 'gemini-pro'
+        model: 'gemini-2.0-flash'
       }
     });
   } catch (error) {
@@ -3166,7 +3494,7 @@ router.post('/generate-landing-page', [
       tags: ['ai-generated', 'extracted-data'],
       isPublic: false,
       generatedAt: new Date(),
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       analytics: {
         views: 0,
         conversions: 0
@@ -3342,7 +3670,7 @@ Please generate new, improved content for this section that is more engaging and
 async function callGeminiAPI(prompt) {
   try {
     const response = await axios.post(
-      `${GEMINI_API_URL}/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{
           parts: [{
@@ -4147,10 +4475,27 @@ function generateContentExpansion(section, businessInfo, additionalWordsNeeded) 
 
 // Helper function to generate complete landing page content
 async function generateCompleteLandingPage({ businessInfo, extractedData, preferences, model, stepData }) {
+  // CRITICAL: Always use extracted sections, never create fallbacks
+  const extractedSections = extractedData?.sections || [];
+  
+  // If no extracted sections, return minimal structure to preserve design intent
+  if (!extractedSections || extractedSections.length === 0) {
+    return {
+      sections: [],
+      meta: {
+        title: `${businessInfo.businessName} - Professional Services`.substring(0, 100),
+        description: businessInfo.businessOverview,
+        keywords: `${businessInfo.businessName}, services, ${businessInfo.targetAudience}`,
+        ogTitle: `${businessInfo.businessName} - Professional Services`,
+        ogDescription: businessInfo.businessOverview,
+        ogImage: '/images/og-image.jpg'
+      }
+    };
+  }
+
   // Determine content length based on business info
   const contentLength = businessInfo.contentLength || 'medium';
   const customLength = businessInfo.customContentLength || 150;
-  
   
   let lengthInstruction = '';
   let wordCountRange = '';
@@ -4177,27 +4522,34 @@ async function generateCompleteLandingPage({ businessInfo, extractedData, prefer
   }
 
   const prompt = `
-Generate professional content for each section in the given payload.  
+You are a professional content generator that creates landing page content based on STRICTLY the extracted design sections and business information.
 
-IMPORTANT: You MUST generate content with EXACTLY the specified word count for each section. This is CRITICAL and non-negotiable.
+CRITICAL RULE: You MUST ONLY use the extracted sections provided. DO NOT add, remove, or create new sections.
 
-The payload contains two parts:
-- "businessInfo": details about the business (name, overview, target audience, tone, and website).
-- "extractedData.sections": a list of sections with titles.
+INPUT FORMAT:
+- businessInfo: Business details (name, overview, target audience, tone, website)
+- extractedData.sections: Array of sections with components structure (USE EXACTLY THESE)
 
-For each section:
-1. Keep only these keys in the response: "id", "title", "type", "content", "order".
-2. Use the section "title" as the theme to generate the content.
-   Example: if the title is "Projects", generate project-related content for the business. 
-3. Generate the "content" using information from "businessInfo" (businessName, businessOverview, targetAudience, brandTone, websiteUrl).
-4. Ensure the generated content matches the "brandTone".
-5. ${lengthInstruction}
-6. MANDATORY WORD COUNT: Each section's content must be ${wordCountRange}
-7. Return all sections in JSON format, where each section has enriched "content".
+OUTPUT FORMAT:
+Return the EXACT same JSON structure with customized content for each extracted section:
 
-WORD COUNT EXAMPLES:
-- If you need 200-400 words, generate content like this example (approximately 300 words):
-  "Our company specializes in providing comprehensive digital solutions that transform businesses and drive growth. With over a decade of experience in the industry, we have successfully helped hundreds of clients achieve their goals through innovative strategies and cutting-edge technology. Our team of expert professionals brings together deep industry knowledge and technical expertise to deliver results that exceed expectations. We understand that every business is unique, which is why we take a personalized approach to each project, ensuring that our solutions are tailored to meet specific needs and objectives. Our comprehensive suite of services includes web development, digital marketing, data analytics, and business consulting, all designed to help companies stay competitive in today's fast-paced digital landscape. We pride ourselves on our commitment to excellence, attention to detail, and ability to deliver projects on time and within budget. Our proven track record speaks for itself, with numerous success stories and satisfied clients who continue to trust us with their most important projects. When you choose our company, you're not just getting a service provider – you're getting a strategic partner who is invested in your long-term success and growth."
+{
+  "sections": [
+    {
+      "name": "Section Name from extraction",
+      "components": {
+        "title": "Customized title",
+        "subtitle": "Customized subtitle", 
+        "content": "Customized content",
+        "buttons": ["Customized button 1", "Customized button 2"],
+        "images": ["Customized image 1", "Customized image 2"],
+        "links": ["Customized link 1", "Customized link 2"],
+        "messages": ["Customized message 1", "Customized message 2"],
+        "items": ["Customized item 1", "Customized item 2"]
+      }
+    }
+  ]
+}
 
 BUSINESS INFORMATION:
 - Business Name: ${businessInfo.businessName}
@@ -4205,53 +4557,29 @@ BUSINESS INFORMATION:
 - Target Audience: ${businessInfo.targetAudience}
 - Brand Tone: ${businessInfo.brandTone || 'professional'}
 - Website URL: ${businessInfo.websiteUrl || 'Not provided'}
-- Content Length: ${contentLength}${contentLength === 'custom' ? ` (${customLength} words)` : ''}
 
-EXTRACTED SECTIONS:
-${JSON.stringify(extractedData.sections || [], null, 2)}
+EXTRACTED DESIGN SECTIONS (USE EXACTLY THESE - NO MORE, NO LESS):
+${JSON.stringify(extractedSections, null, 2)}
 
-ADDITIONAL CONTEXT:
-- Preferences: ${JSON.stringify(preferences, null, 2)}
-- Step Data: ${JSON.stringify(stepData, null, 2)}
+RULES:
+1. Keep the EXACT same structure and number of sections as the extracted design
+2. For each component, generate content relevant to ${businessInfo.businessName}
+3. Make content specific to the business and target audience
+4. Maintain the same component types (title, subtitle, content, buttons, images, links, messages, items)
+5. Ensure content matches the brand tone: ${businessInfo.brandTone || 'professional'}
+6. ${lengthInstruction}
+7. Return ONLY the JSON object - no other text
+8. NEVER add sections that don't exist in the extracted design
+9. NEVER remove sections that exist in the extracted design
 
----
+EXAMPLE TRANSFORMATION:
+Input: {"name": "Hero", "components": {"title": "Spicy delicious chicken wings", "buttons": ["View Recipes"]}}
+Output: {"name": "Hero", "components": {"title": "Transform Your Business with ${businessInfo.businessName}", "buttons": ["Get Started", "Learn More"]}}
 
-Sample Response Format:
+Generate the complete response now using ONLY the ${extractedSections.length} extracted sections:
 
-[
-    {
-      "id": "section-1",
-    "title": "About Me",
-    "type": "header",
-    "content": "Amazon Web Services (AWS) is the world's leading cloud platform, trusted by startups, enterprises, and governments worldwide. Our mission is to help organizations innovate faster, reduce costs, and build with confidence in a secure, scalable environment.",
-      "order": 1
-  },
-  {
-    "id": "section-2",
-    "title": "Professional Experience",
-    "type": "content",
-    "content": "AWS has decades of expertise in cloud infrastructure, supporting millions of customers with reliable, scalable, and cost-effective solutions tailored to their needs.",
-    "order": 2
-  }
-  ...
-]
-
-CRITICAL INSTRUCTIONS:
-- Do NOT add any text before or after the JSON
-- Do NOT include explanations or comments
-- Return ONLY the JSON array
-- Generate complete, engaging content for each section
-- Focus on professional, conversion-focused content that matches the brand tone
-- Use the section title as the theme for content generation
-- Content must be plain text only - NO HTML tags, NO markdown, NO formatting
-- ${lengthInstruction}
-- ABSOLUTELY MANDATORY: Each section's content must be ${wordCountRange} - this is non-negotiable!
-- COUNT WORDS CAREFULLY: Before finalizing each section, count the words and ensure they fall within the specified range
-- If a section is too short, add more detail, examples, benefits, or features
-- If a section is too long, make it more concise while keeping key information
-- Include specific business benefits and features
-- Use the exact business name and target audience in content
-- QUALITY CHECK: Verify each section meets the word count requirement before submitting
+IMPORTANT: Your response MUST contain exactly ${extractedSections.length} sections - no more, no less.
+If you generate more than ${extractedSections.length} sections, the response will be rejected.
 `;
 
   try {
@@ -4259,7 +4587,7 @@ CRITICAL INSTRUCTIONS:
     let response = await result.response;
     let text = response.text();
     
-    // Check if content meets word count requirements
+    // Parse the response - handle both old format and new components format
     let parsedResponse;
     try {
       const arrayMatch = text.match(/\[[\s\S]*\]/);
@@ -4275,14 +4603,30 @@ CRITICAL INSTRUCTIONS:
         }
       }
       
-      // Check word counts
+      // CRITICAL VALIDATION: Enforce exact section count
+      if (parsedResponse.sections && parsedResponse.sections.length !== extractedSections.length) {
+        parsedResponse.sections = parsedResponse.sections.slice(0, extractedSections.length);
+      }
+      
+      // Check word counts for both old and new formats
       let needsRetry = false;
       if (parsedResponse.sections && parsedResponse.sections.length > 0) {
         for (const section of parsedResponse.sections) {
-          const wordCount = section.content ? section.content.split(/\s+/).length : 0;
-          if (!validateWordCount(wordCount, contentLength, customLength)) {
-            needsRetry = true;
-            break;
+          // For new format with components, check content in components
+          if (section.components) {
+            const contentText = section.components.content || '';
+            const wordCount = contentText.split(/\s+/).length;
+            if (wordCount > 0 && !validateWordCount(wordCount, contentLength, customLength)) {
+              needsRetry = true;
+              break;
+            }
+          } else {
+            // For old format, check section.content
+            const wordCount = section.content ? section.content.split(/\s+/).length : 0;
+            if (!validateWordCount(wordCount, contentLength, customLength)) {
+              needsRetry = true;
+              break;
+            }
           }
         }
       }
@@ -4293,15 +4637,30 @@ CRITICAL INSTRUCTIONS:
         // Use smart fallback: manually expand content immediately
         if (parsedResponse.sections && parsedResponse.sections.length > 0) {
           parsedResponse.sections = parsedResponse.sections.map(section => {
-            const currentWordCount = section.content ? section.content.split(/\s+/).length : 0;
-            const targetMinWords = contentLength === 'short' ? 50 : 
-                                 contentLength === 'medium' ? 100 : 
-                                 contentLength === 'long' ? 200 : 
-                                 (customLength || 150) - 10;
-            
-            if (currentWordCount < targetMinWords) {
-              const expansion = generateContentExpansion(section, businessInfo, targetMinWords - currentWordCount);
-              section.content = section.content + ' ' + expansion;
+            // Handle new format with components
+            if (section.components && section.components.content) {
+              const currentWordCount = section.components.content.split(/\s+/).length;
+              const targetMinWords = contentLength === 'short' ? 50 : 
+                                   contentLength === 'medium' ? 100 : 
+                                   contentLength === 'long' ? 200 : 
+                                   (customLength || 150) - 10;
+              
+              if (currentWordCount < targetMinWords) {
+                const expansion = generateContentExpansion(section, businessInfo, targetMinWords - currentWordCount);
+                section.components.content = section.components.content + ' ' + expansion;
+              }
+            } else if (section.content) {
+              // Handle old format
+              const currentWordCount = section.content.split(/\s+/).length;
+              const targetMinWords = contentLength === 'short' ? 50 : 
+                                   contentLength === 'medium' ? 100 : 
+                                   contentLength === 'long' ? 200 : 
+                                   (customLength || 150) - 10;
+              
+              if (currentWordCount < targetMinWords) {
+                const expansion = generateContentExpansion(section, businessInfo, targetMinWords - currentWordCount);
+                section.content = section.content + ' ' + expansion;
+              }
             }
             return section;
           });
@@ -4326,6 +4685,11 @@ CRITICAL INSTRUCTIONS:
               keywords: `${businessInfo.businessName}, services, ${businessInfo.targetAudience}`
             }
           };
+          
+          // CRITICAL VALIDATION: Enforce exact section count in fallback parsing too
+          if (parsedResponse.sections && parsedResponse.sections.length !== extractedSections.length) {
+            parsedResponse.sections = parsedResponse.sections.slice(0, extractedSections.length);
+          }
         } else {
           // Fallback to object format
           const objectMatch = text.match(/\{[\s\S]*\}/);
@@ -4334,8 +4698,14 @@ CRITICAL INSTRUCTIONS:
           } else {
             parsedResponse = JSON.parse(text);
           }
+          
+          // CRITICAL VALIDATION: Enforce exact section count in object parsing too
+          if (parsedResponse.sections && parsedResponse.sections.length !== extractedSections.length) {
+            parsedResponse.sections = parsedResponse.sections.slice(0, extractedSections.length);
+          }
         }
       } catch (parseError) {
+      // CRITICAL: Always use extracted sections for fallback, never create new ones
         parsedResponse = createFallbackLandingPage(businessInfo, extractedData);
       }
     }
@@ -4349,21 +4719,56 @@ CRITICAL INSTRUCTIONS:
       };
     }
 
-    // Transform the sections to match expected structure
+    // Transform the sections to match expected structure - handle both old and new formats
     if (parsedResponse.sections && parsedResponse.sections.length > 0) {
-      parsedResponse.sections = parsedResponse.sections.map((section, index) => ({
-        id: section.id || `section-${index + 1}`,
-        type: section.type || 'content',
-        title: section.title || section.name || `Section ${index + 1}`,
-        content: cleanHtmlContent(section.content) || generateBusinessSpecificContent(section, businessInfo),
-        order: section.order || index + 1
-      }));
+      parsedResponse.sections = parsedResponse.sections.map((section, index) => {
+        // Handle new format with components
+        if (section.components) {
+          return {
+            id: section.id || `section-${index + 1}`,
+            name: section.name || `Section ${index + 1}`,
+            components: section.components,
+            order: section.order || index + 1
+          };
+        } else {
+          // Handle old format
+          return {
+            id: section.id || `section-${index + 1}`,
+            type: section.type || 'content',
+            title: section.title || section.name || `Section ${index + 1}`,
+            content: cleanHtmlContent(section.content) || generateBusinessSpecificContent(section, businessInfo),
+            order: section.order || index + 1
+          };
+        }
+      });
       
       // Validate word counts (simplified logging)
       let totalWords = 0;
       let sectionsMeetingRequirements = 0;
       parsedResponse.sections.forEach((section, index) => {
-        const wordCount = section.content ? section.content.split(/\s+/).length : 0;
+        let wordCount = 0;
+        
+        // Handle new format with components
+        if (section.components) {
+          // Count words in all text components
+          Object.values(section.components).forEach(component => {
+            if (Array.isArray(component)) {
+              component.forEach(item => {
+                if (typeof item === 'string') {
+                  wordCount += item.split(/\s+/).length;
+                } else if (typeof item === 'object' && item.content) {
+                  wordCount += item.content.split(/\s+/).length;
+                }
+              });
+            } else if (typeof component === 'string') {
+              wordCount += component.split(/\s+/).length;
+            }
+          });
+        } else {
+          // Handle old format
+          wordCount = section.content ? section.content.split(/\s+/).length : 0;
+        }
+        
         totalWords += wordCount;
         
         // Check if word count meets requirements
@@ -4393,49 +4798,33 @@ CRITICAL INSTRUCTIONS:
   }
 }
 
-// Helper function to create fallback landing page
+// Helper function to create fallback landing page - STRICTLY using extracted sections
 function createFallbackLandingPage(businessInfo, extractedData) {
-  // Use extracted sections if available, otherwise return empty sections
+  // CRITICAL: ONLY use extracted sections, never create defaults
   const extractedSections = extractedData?.sections || [];
   
   let sections = [];
   
   if (extractedSections.length > 0) {
-    // Create sections based on extracted design structure with business-specific content
+    // Create sections based STRICTLY on extracted design structure with business-specific content
     sections = extractedSections.map((section, index) => {
       return {
         id: section.id || `section-${index + 1}`,
         type: section.type || 'content',
         title: section.title || section.name || `Section ${index + 1}`,
         content: generateBusinessSpecificContent(section, businessInfo),
-        order: section.order || index + 1
+        order: section.order || index + 1,
+        // Preserve all original section properties
+        name: section.name,
+        components: section.components,
+        pageNumber: section.pageNumber,
+        boundingBox: section.boundingBox,
+        metadata: section.metadata
       };
     });
   } else {
-    // Create default sections if no extracted data
-    sections = [
-      {
-        id: 'section-1',
-        type: 'hero',
-        title: 'Welcome to ' + businessInfo.businessName,
-        content: `Transform your business with ${businessInfo.businessName}. ${businessInfo.businessOverview} Perfect for ${businessInfo.targetAudience}. Get started today and see the difference we can make for your business.`,
-        order: 1
-      },
-      {
-        id: 'section-2',
-        type: 'features',
-        title: 'Our Services',
-        content: `Key features of ${businessInfo.businessName}: ${businessInfo.businessOverview.toLowerCase()}. Our solutions are designed specifically for ${businessInfo.targetAudience} to help you achieve your goals efficiently and effectively.`,
-        order: 2
-      },
-      {
-        id: 'section-3',
-        type: 'cta',
-        title: 'Get Started',
-        content: `Contact ${businessInfo.businessName} today! We're here to help ${businessInfo.targetAudience} achieve their goals. Reach out to us for a consultation and discover how we can help your business grow.`,
-        order: 3
-      }
-    ];
+    // If NO extracted sections, return empty - DO NOT create defaults
+    sections = [];
   }
   
   return {
@@ -4506,15 +4895,28 @@ function generateBusinessSpecificContent(section, businessInfo) {
 function enhanceGeneratedContent(content, context) {
   const enhanced = { ...content };
   
-  // Ensure sections are properly formatted
+  // Ensure sections are properly formatted - handle both old and new formats
   if (enhanced.sections && Array.isArray(enhanced.sections)) {
-    enhanced.sections = enhanced.sections.map((section, index) => ({
-      id: section.id || `section-${index + 1}`,
-      type: section.type || 'content',
-      title: section.title || `Section ${index + 1}`,
-      content: section.content || `Content for ${section.title || section.type}`,
-      order: section.order || index + 1
-    }));
+    enhanced.sections = enhanced.sections.map((section, index) => {
+      // Handle new format with components
+      if (section.components) {
+        return {
+          id: section.id || `section-${index + 1}`,
+          name: section.name || `Section ${index + 1}`,
+          components: section.components,
+          order: section.order || index + 1
+        };
+      } else {
+        // Handle old format
+        return {
+          id: section.id || `section-${index + 1}`,
+          type: section.type || 'content',
+          title: section.title || `Section ${index + 1}`,
+          content: section.content || `Content for ${section.title || section.type}`,
+          order: section.order || index + 1
+        };
+      }
+    });
   }
   
   // Enhance HTML content with business context

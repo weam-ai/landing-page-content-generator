@@ -30,7 +30,7 @@ const consoleFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: config.logLevel,
   format: logFormat,
-  defaultMeta: { service: 'ai-landing-page-generator' },
+  defaultMeta: { service: config.serviceName },
   transports: [
     // Console transport for development
     new winston.transports.Console({

@@ -52,6 +52,15 @@ interface LandingPageSection {
   content: string
   order: number
   metadata?: any
+  name?: string
+  pageNumber?: number
+  boundingBox?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  components?: any
 }
 
 interface GeneratedLandingPage {
@@ -172,7 +181,7 @@ export function CompleteLandingPageGenerator({
           keywords: `${businessInfo.businessName}, services, ${businessInfo.targetAudience}`
         },
         generatedAt: new Date(),
-        model: 'gemini-pro'
+        model: 'gemini-2.0-flash'
       }
       
       setGeneratedLandingPage(landingPageData)
@@ -263,21 +272,118 @@ export function CompleteLandingPageGenerator({
   const handleSectionsSave = async (editedSections: LandingPageSection[]) => {
     if (!generatedLandingPage) return
 
-    // Update the generated landing page with edited sections
-    const updatedLandingPage = {
-      ...generatedLandingPage,
-      sections: editedSections
+    try {
+      // Make API call to save the edited sections to database
+      const { apiService } = await import('@/lib/api')
+      
+      if (generatedLandingPage.id) {
+        console.log('Saving sections to database via API...')
+        
+        // Transform sections to ensure they have the required fields
+        const transformedSections = editedSections.map((section, index) => {
+          // Extract content from components if content field is empty
+          let sectionContent = section.content || ''
+          if (!sectionContent && section.components) {
+            const componentContent = Object.values(section.components)
+              .filter(component => component && String(component).trim())
+              .map(component => {
+                if (Array.isArray(component)) {
+                  return component.filter(item => item && String(item).trim()).join(' ')
+                }
+                return String(component).trim()
+              })
+              .join(' ')
+            sectionContent = componentContent
+          }
+          
+          return {
+            id: section.id || `section-${index + 1}`,
+            title: section.title || section.name || `Section ${index + 1}`,
+            type: section.type || 'content',
+            content: sectionContent || `Content for ${section.title || `Section ${index + 1}`}`,
+            order: section.order || index + 1,
+            pageNumber: section.pageNumber || 1,
+            boundingBox: section.boundingBox || {
+              x: 0,
+              y: index * 120,
+              width: 800,
+              height: 200
+            },
+            components: section.components || {}
+          }
+        })
+        
+        console.log('Transformed sections for API:', transformedSections)
+        console.log('Original sections for frontend:', editedSections)
+        
+        // Send both transformed sections (for backend schema) and original sections (for frontend)
+        const response = await apiService.updateLandingPageSections(generatedLandingPage.id, {
+          sections: transformedSections,
+          originalSections: editedSections
+        })
+        
+        if (response.success) {
+          console.log('✅ Sections saved to database successfully')
+          console.log('API response data:', response.data)
+          console.log('API response sections:', response.data.sections)
+          
+          // Update the generated landing page with the original edited sections
+          // (not the transformed ones, since the frontend expects the original structure)
+          const updatedLandingPage = {
+            ...generatedLandingPage,
+            sections: editedSections // Use the original edited sections, not the transformed ones
+          }
+
+          setGeneratedLandingPage(updatedLandingPage)
+
+          // Update localStorage with the edited sections
+          localStorage.setItem('latestLandingPage', JSON.stringify({
+            ...updatedLandingPage,
+            lastUpdated: Date.now()
+          }))
+
+          console.log('✅ Sections updated successfully in local state')
+        } else {
+          throw new Error(response.error || 'Failed to save sections to database')
+        }
+      } else {
+        // Fallback: just update local state if no ID
+        console.log('No landing page ID, updating local state only')
+        
+        const updatedLandingPage = {
+          ...generatedLandingPage,
+          sections: editedSections
+        }
+
+        setGeneratedLandingPage(updatedLandingPage)
+
+        // Update localStorage with the edited sections
+        localStorage.setItem('latestLandingPage', JSON.stringify({
+          ...updatedLandingPage,
+          lastUpdated: Date.now()
+        }))
+
+        console.log('✅ Sections updated successfully in local state (no database save)')
+      }
+    } catch (error) {
+      console.error('Error saving sections:', error)
+      
+      // Fallback: still update local state even if API fails
+      const updatedLandingPage = {
+        ...generatedLandingPage,
+        sections: editedSections
+      }
+
+      setGeneratedLandingPage(updatedLandingPage)
+
+      // Update localStorage with the edited sections
+      localStorage.setItem('latestLandingPage', JSON.stringify({
+        ...updatedLandingPage,
+        lastUpdated: Date.now()
+      }))
+
+      console.log('✅ Sections updated in local state (API save failed)')
     }
-
-    setGeneratedLandingPage(updatedLandingPage)
-
-    // Update localStorage with the edited sections
-    localStorage.setItem('latestLandingPage', JSON.stringify({
-      ...updatedLandingPage,
-      lastUpdated: Date.now()
-    }))
-
-    console.log('✅ Sections updated successfully')
   }
 
   const saveToDatabase = async () => {

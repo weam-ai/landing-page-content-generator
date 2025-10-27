@@ -16,7 +16,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+} from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { api } from "@/lib/utils"
 
@@ -125,14 +133,14 @@ export function BusinessInfoModal({
       <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50/30">
         <DialogHeader className="pb-6 border-b border-slate-200/60">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
-              <Building2 className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 md:bg-b12 rounded-lg flex items-center justify-center md:border">
+              <Building2 className="h-6 w-6 text-b2" />
             </div>
             <div>
-              <DialogTitle className="text-3xl font-bold text-slate-800 flex items-center">
+              <DialogTitle className="md:text-2xl text-lgfont-bold text-slate-800 flex items-center max-md:text-left">
                 Business Information & Overview
               </DialogTitle>
-              <DialogDescription className="text-lg text-slate-600 mt-1">
+              <DialogDescription className="md:text-sm text-xs text-slate-600 mt-1 max-md:text-left">
                 Manage and update your business details to create compelling landing pages
               </DialogDescription>
             </div>
@@ -140,13 +148,13 @@ export function BusinessInfoModal({
         </DialogHeader>
         
         <div className="overflow-y-auto max-h-[70vh] pr-2 py-6">
-          <div className="space-y-8">
+          <div className="space-y-4">
             {/* Business Name and Brand Tone */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <Label className="text-base font-semibold text-slate-700 flex items-center">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                    <Building2 className="h-4 w-4 text-blue-600" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <Label className="text-sm font-semibold text-slate-700 flex items-center">
+                  <div className="w-8 h-8 flex items-center justify-center mr-1">
+                    <Building2 className="h-4 w-4 text-b5" />
                   </div>
                   Business Name *
                 </Label>
@@ -154,10 +162,10 @@ export function BusinessInfoModal({
                   placeholder="Enter your business name"
                   value={formData.businessName}
                   onChange={(e) => handleInputChange("businessName", e.target.value)}
-                  className={`text-lg h-12 border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 ${
+                  className={` ${
                     errors.businessName 
                       ? 'border-red-300 focus:border-red-500 bg-red-50' 
-                      : 'border-slate-200 focus:border-blue-500 bg-white hover:border-slate-300'
+                      : 'border-slate-200 bg-white'
                   }`}
                 />
                 {errors.businessName && (
@@ -168,32 +176,36 @@ export function BusinessInfoModal({
                 )}
               </div>
 
-              <div className="space-y-4">
-                <Label className="text-base font-semibold text-slate-700 flex items-center">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                    <Sparkles className="h-4 w-4 text-purple-600" />
+              <div className="space-y-1">
+                <Label className="text-sm font-semibold text-slate-700 flex items-center">
+                  <div className="w-8 h-8 flex items-center justify-center mr-1">
+                    <Sparkles className="h-4 w-4 text-b5" />
                   </div>
                   Brand Tone
                 </Label>
-                <Select
-                  value={formData.brandTone || 'professional'}
-                  onChange={(e) => handleInputChange("brandTone", e.target.value)}
-                  className="text-lg h-12 border-2 border-slate-200 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-white hover:border-slate-300"
+                <Select 
+                  value={formData.brandTone || ''} 
+                  onValueChange={(value: string) => handleInputChange("brandTone", value)}
                 >
-                  <option value="professional">Professional</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="playful">Playful</option>
-                  <option value="authoritative">Authoritative</option>
-                  <option value="casual">Casual</option>
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select brand tone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="friendly">Friendly</SelectItem>
+                    <SelectItem value="playful">Playful</SelectItem>
+                    <SelectItem value="authoritative">Authoritative</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
 
             {/* Target Audience */}
-            <div className="space-y-4">
-              <Label className="text-base font-semibold text-slate-700 flex items-center">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                  <Users className="h-4 w-4 text-green-600" />
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold text-slate-700 flex items-center">
+                <div className="w-8 h-8 flex items-center justify-center mr-1">
+                  <Users className="h-4 w-4 text-b5" />
                 </div>
                 Target Audience *
               </Label>
@@ -201,10 +213,10 @@ export function BusinessInfoModal({
                 placeholder="Describe your target audience (e.g., small business owners, tech professionals, etc.)"
                 value={formData.targetAudience}
                 onChange={(e) => handleInputChange("targetAudience", e.target.value)}
-                className={`text-base min-h-[120px] border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-green-500/20 resize-none ${
+                className={`min-h-[120px] resize-none ${
                   errors.targetAudience 
                     ? 'border-red-300 focus:border-red-500 bg-red-50' 
-                    : 'border-slate-200 focus:border-green-500 bg-white hover:border-slate-300'
+                    : ''
                 }`}
               />
               {errors.targetAudience && (
@@ -216,10 +228,10 @@ export function BusinessInfoModal({
             </div>
 
             {/* Website URL */}
-            <div className="space-y-4">
-              <Label className="text-base font-semibold text-slate-700 flex items-center">
-                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
-                  <Globe className="h-4 w-4 text-orange-600" />
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold text-slate-700 flex items-center">
+                <div className="w-8 h-8 flex items-center justify-center mr-1">
+                  <Globe className="h-4 w-4 text-b5" />
                 </div>
                 Website URL
               </Label>
@@ -227,10 +239,10 @@ export function BusinessInfoModal({
                 placeholder="https://your-website.com"
                 value={formData.websiteUrl || ''}
                 onChange={(e) => handleInputChange("websiteUrl", e.target.value)}
-                className={`text-lg h-12 border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-orange-500/20 ${
+                className={` ${
                   errors.websiteUrl 
                     ? 'border-red-300 focus:border-red-500 bg-red-50' 
-                    : 'border-slate-200 focus:border-orange-500 bg-white hover:border-slate-300'
+                    : ''
                 }`}
               />
               {errors.websiteUrl && (
@@ -242,10 +254,10 @@ export function BusinessInfoModal({
             </div>
 
             {/* Business Overview */}
-            <div className="space-y-4">
-              <Label className="text-base font-semibold text-slate-700 flex items-center">
-                <div className="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center mr-3">
-                  <FileText className="h-4 w-4 text-cyan-600" />
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold text-slate-700 flex items-center">
+                <div className="w-8 h-8 flex items-center justify-center mr-1">
+                  <FileText className="h-4 w-4 text-b5" />
                 </div>
                 Business Overview *
               </Label>
@@ -253,10 +265,10 @@ export function BusinessInfoModal({
                 placeholder="Provide a comprehensive overview of your business, services, and value proposition"
                 value={formData.businessOverview}
                 onChange={(e) => handleInputChange("businessOverview", e.target.value)}
-                className={`text-base min-h-[180px] border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-cyan-500/20 resize-none ${
+                className={`min-h-[180px] resize-none ${
                   errors.businessOverview 
                     ? 'border-red-300 focus:border-red-500 bg-red-50' 
-                    : 'border-slate-200 focus:border-cyan-500 bg-white hover:border-slate-300'
+                    : ''
                 }`}
               />
               {errors.businessOverview && (
@@ -286,12 +298,12 @@ export function BusinessInfoModal({
             )}
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <Button
               variant="outline"
               onClick={handleClose}
               disabled={saveStatus === 'saving'}
-              className="h-11 px-6 border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 font-medium transition-all duration-200"
+              className="border bg-white hover:bg-b2 hover:text-white"
             >
               <X className="h-4 w-4 mr-2" />
               Cancel
@@ -299,7 +311,7 @@ export function BusinessInfoModal({
             <Button
               onClick={handleSave}
               disabled={saveStatus === 'saving'}
-              className="h-11 px-8 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+              className="bg-b2 text-white hover:bg-b5"
             >
               {saveStatus === 'saving' ? (
                 <>

@@ -15,6 +15,10 @@ const backendConfig = {
   isProduction: process.env.NODE_ENV === 'production',
   isTest: process.env.NODE_ENV === 'test',
 
+  // API Route Configuration
+  apiRoutePrefix: process.env.NEXT_PUBLIC_API_ROUTE_PREFIX || 'page-revamp-api',
+  serviceName: process.env.SERVICE_NAME || 'page-revamp',
+
   // Database
   mongodbUri: process.env.MONGODB_URI || null, // Don't use fallback, let database.js handle individual variables
 

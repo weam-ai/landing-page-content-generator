@@ -91,10 +91,10 @@ class ApiService {
     });
   }
 
-  async updateLandingPageSections(id: string, sections: any[]) {
+  async updateLandingPageSections(id: string, data: any) {
     return this.request(`/landing-pages/${id}/sections`, {
       method: 'PUT',
-      body: JSON.stringify({ sections }),
+      body: JSON.stringify(data),
     });
   }
 
@@ -169,7 +169,41 @@ class ApiService {
       }
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('API Service - extractPDFContent result:', result);
+    return result;
+  }
+
+  // URL Design Extraction API (Enhanced with Gemini AI)
+  async extractDesignFromUrl(url: string) {
+    // Call the Next.js API route instead of the backend directly
+    const response = await fetch(api('/ai/extract-design-from-url'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
+      } else if (response.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      } else if (response.status === 403) {
+        throw new Error('Access forbidden. You do not have permission to perform this action.');
+      } else if (response.status === 404) {
+        throw new Error('Resource not found.');
+      } else if (response.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    }
+
+    const result = await response.json();
+    console.log('API Service - extractDesignFromUrl result:', result);
+    return result;
   }
 
   // Business Information API

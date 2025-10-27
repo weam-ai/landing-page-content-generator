@@ -9,69 +9,26 @@ import apiService from '@/lib/api'
 import { api } from '@/lib/utils'
 
 export interface PDFSection {
-  id: string
-  title: string
-  type: string // Allow any string type from PDF (dynamic like Figma)
-  content: string
-  order: number
-  pageNumber: number
-  boundingBox: {
-    x: number
-    y: number
-    width: number
-    height: number
+  name: string
+  components: {
+    title?: string
+    subtitle?: string
+    content?: string
+    buttons?: string[]
+    images?: string[]
+    links?: string[]
+    messages?: string[]
+    items?: string[]
+    forms?: string[]
+    ctas?: string[]
   }
 }
 
 export interface PDFAnalysisResult {
   sections: PDFSection[]
-  totalPages: number
-  designType: 'landing-page' | 'brochure' | 'document' | 'unknown'
   designName?: string
-  extractedText: string
-  metadata: {
-    title?: string
-    author?: string
-    subject?: string
-    keywords?: string[]
-  }
-  // Comprehensive analysis data
-  visualElements?: {
-    textBlocks: any[]
-    images: any[]
-    buttons: any[]
-    forms: any[]
-  } | null
-  contentMapping?: any | null
-  layoutAnalysis?: any | null
-  designTokens?: any | null
-  comprehensiveAnalysis?: {
-    visualElementsCount: {
-      textBlocks: number
-      images: number
-      buttons: number
-      forms: number
-    }
-    contentMappingCount: {
-      headlines: number
-      bodyText: number
-      ctaButtons: number
-      navigation: number
-      features: number
-      testimonials: number
-    }
-    layoutAnalysis: {
-      gridSystem: string
-      responsiveBreakpoints: number
-      alignment: string
-      pageStructure: any
-    }
-    designTokensCount: {
-      colors: number
-      typography: number
-      spacing: number
-    }
-  }
+  designType?: string
+  totalPages?: number
 }
 
 interface PDFProcessorProps {
@@ -188,8 +145,14 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
       // Clear the progress interval
       clearInterval(aiProgressInterval)
       
-      if (!analysisResponse.success) {
+      // Check if the response has sections (new format) or success property (old format)
+      if (analysisResponse.success === false) {
         throw new Error(analysisResponse.error || 'Failed to analyze PDF with Gemini AI')
+      }
+      
+      // If no sections in response, it's an error
+      if (!analysisResponse.sections || !Array.isArray(analysisResponse.sections)) {
+        throw new Error('No sections found in API response')
       }
 
       setProgress(90)
@@ -197,23 +160,18 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
       setCurrentStep('Finalizing analysis...')
 
       // Step 3: Process the results
-      const analysisResult = analysisResponse.data
-      console.log('Gemini AI analysis result:', analysisResult)
-
-      // Transform the backend result to match our frontend interface
+      console.log('Full API response:', analysisResponse)
+      
+      // The backend now returns the data directly with sections property
       const transformedResult: PDFAnalysisResult = {
-        sections: analysisResult.sections || [],
-        totalPages: analysisResult.totalPages || 1,
-        designType: analysisResult.designType || 'unknown',
-        designName: analysisResult.designName || analysisResult.metadata?.title || file.name,
-        extractedText: analysisResult.extractedText || '',
-        metadata: {
-          title: analysisResult.designName || analysisResult.metadata?.title || file.name,
-          author: analysisResult.metadata?.author,
-          subject: analysisResult.metadata?.subject,
-          keywords: analysisResult.metadata?.keywords
-        }
+        sections: analysisResponse.sections || [],
+        designName: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+        designType: 'pdf',
+        totalPages: 1 // Default to 1, could be enhanced to extract actual page count
       }
+
+      console.log('PDFProcessor - transformedResult:', transformedResult)
+      console.log('PDFProcessor - sections count:', transformedResult.sections.length)
 
       setProgress(100)
       setCurrentStep('Analysis complete!')
@@ -221,10 +179,10 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
       setIsProcessing(false)
 
       // Call the success callback
+      console.log('PDFProcessor - calling onAnalysisComplete with:', transformedResult)
       onAnalysisComplete(transformedResult)
 
     } catch (error) {
-      console.error('PDF processing error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       setError(errorMessage)
       setIsProcessing(false)
@@ -269,7 +227,7 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
         <CardHeader className="pb-3">
           <CardTitle className="text-lg text-blue-800 flex items-center">
             <FileText className="w-5 h-5 mr-2" />
-            Processing PDF Design
+            Processing your PDF
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -508,7 +466,7 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-lg p-3 border border-green-100">
               <p className="text-sm text-green-600 font-medium">Design Type</p>
-              <p className="text-lg font-bold text-green-800 capitalize">{analysis.designType.replace('-', ' ')}</p>
+              <p className="text-lg font-bold text-green-800 capitalize">{(analysis.designType || 'pdf').replace('-', ' ')}</p>
             </div>
             <div className="bg-white rounded-lg p-3 border border-green-100">
               <p className="text-sm text-green-600 font-medium">Total Pages</p>
@@ -520,14 +478,14 @@ export function PDFProcessor({ file, onAnalysisComplete, onError }: PDFProcessor
             <p className="text-sm text-green-600 font-medium mb-2">Extracted Sections ({analysis.sections.length})</p>
             <div className="space-y-2">
               {analysis.sections.slice(0, 5).map((section, index) => (
-                <div key={section.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+                <div key={`${section.name}-${index}`} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                   <div className="flex items-center space-x-2">
                     <Badge variant="outline" className="text-xs bg-green-100 border-green-200 text-green-700">
-                      {section.type}
+                      {section.name}
                     </Badge>
-                    <span className="text-sm text-gray-700">{section.title}</span>
+                    <span className="text-sm text-gray-700">{section.components.title || 'Untitled Section'}</span>
                   </div>
-                  <span className="text-xs text-gray-500">Page {section.pageNumber}</span>
+                  <span className="text-xs text-gray-500">PDF Section</span>
                 </div>
               ))}
               {analysis.sections.length > 5 && (

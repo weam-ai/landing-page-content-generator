@@ -77,6 +77,8 @@ class FigmaAPI {
     const sortedSections = this.sortSectionsByPosition(mainSections);
 
     sortedSections.forEach((node, index) => {
+      const extractedElements = this.extractDesignElements(node);
+      
       const section = {
         id: `section-${sectionId}`,
         title: this.extractSectionTitle(node),
@@ -87,6 +89,8 @@ class FigmaAPI {
         figmaNodeId: node.id,
         depth: this.calculateDepth(node),
         parentSection: this.findParentId(node, document),
+        // Add extracted design elements
+        extractedElements: extractedElements,
         // Add Figma-specific properties
         autoLayout: node.layoutMode && node.layoutMode !== 'NONE',
         isComponent: node.type === 'COMPONENT' || node.type === 'INSTANCE',
@@ -279,52 +283,189 @@ class FigmaAPI {
     return 'content';
   }
 
-  // Extract content from node (default placeholder text instead of actual content)
+  // Extract actual content from node (extract real text, buttons, images, etc.)
   extractSectionContent(node) {
-    // Return default placeholder content based on section type
+    const extractedElements = this.extractDesignElements(node);
+    
+    // If we found actual content, return it in a structured format
+    if (extractedElements.texts.length > 0 || extractedElements.buttons.length > 0 || extractedElements.images.length > 0) {
+      return {
+        texts: extractedElements.texts,
+        buttons: extractedElements.buttons,
+        images: extractedElements.images,
+        links: extractedElements.links,
+        forms: extractedElements.forms
+      };
+    }
+    
+    // Fallback to descriptive content if no elements found
     const sectionType = this.determineSectionType(node);
     const sectionName = this.extractSectionTitle(node);
     
-    switch (sectionType) {
-      case 'header':
-        return '[Header Navigation Content]';
-      case 'hero':
-        return '[Hero Section Content - Main headline and CTA]';
-      case 'testimonials':
-        return '[Customer Testimonials and Reviews]';
-      case 'features':
-        return '[Feature Highlights and Benefits]';
-      case 'contact':
-        return '[Contact Form and Information]';
-      case 'about':
-        return '[About Us Content and Story]';
-      case 'cta':
-        return '[Call to Action Content]';
-      case 'content':
-      default:
-        // Generate contextual placeholder based on section name
-        if (sectionName.toLowerCase().includes('work')) {
-          return '[Work Management Features and Tools]';
-        } else if (sectionName.toLowerCase().includes('customise') || sectionName.toLowerCase().includes('customize')) {
-          return '[Customization Options and Settings]';
-        } else if (sectionName.toLowerCase().includes('data')) {
-          return '[Data Management and Security Features]';
-        } else if (sectionName.toLowerCase().includes('sponsors')) {
-          return '[Sponsor Logos and Partnerships]';
-        } else if (sectionName.toLowerCase().includes('apps')) {
-          return '[App Integrations and Tools]';
-        } else if (sectionName.toLowerCase().includes('logo')) {
-          return '[Company Logo and Branding]';
-        } else if (sectionName.toLowerCase().includes('landing page')) {
-          return '[Landing Page Layout and Structure]';
-        } else if (sectionName.toLowerCase().includes('pricing')) {
-          return '[Pricing Plans and Features]';
-        } else if (sectionName.toLowerCase().includes('footer')) {
-          return '[Footer Links and Company Information]';
-        } else {
-          return '[Section Content - Customize as needed]';
+    return `${sectionName} section with ${node.children?.length || 0} design elements`;
+  }
+
+  // NEW: Extract actual design elements (text, buttons, images, etc.) from Figma nodes
+  extractDesignElements(node) {
+    const elements = {
+      texts: [],
+      buttons: [],
+      images: [],
+      links: [],
+      forms: []
+    };
+
+    const traverse = (currentNode) => {
+      if (!currentNode) return;
+
+      // Extract text content
+      if (currentNode.type === 'TEXT' && currentNode.characters && currentNode.characters.trim()) {
+        elements.texts.push({
+          content: currentNode.characters.trim(),
+          fontSize: currentNode.style?.fontSize || 16,
+          fontFamily: currentNode.style?.fontFamily || 'Arial',
+          fontWeight: currentNode.style?.fontWeight || 'normal',
+          color: this.extractNodeColor(currentNode),
+          position: currentNode.absoluteBoundingBox
+        });
+      }
+
+      // Extract button-like elements (frames with text and specific styling)
+      if (this.isButtonLike(currentNode)) {
+        const buttonText = this.findTextInNode(currentNode);
+        if (buttonText) {
+          elements.buttons.push({
+            text: buttonText,
+            style: this.extractButtonStyle(currentNode),
+            position: currentNode.absoluteBoundingBox
+          });
         }
+      }
+
+      // Extract image elements
+      if (this.isImageLike(currentNode)) {
+        elements.images.push({
+          name: currentNode.name || 'Image',
+          url: currentNode.fills?.[0]?.imageRef || null,
+          description: this.generateImageDescription(currentNode),
+          position: currentNode.absoluteBoundingBox
+        });
+      }
+
+      // Extract potential form elements
+      if (this.isFormLike(currentNode)) {
+        elements.forms.push({
+          type: this.determineFormType(currentNode),
+          placeholder: this.findTextInNode(currentNode) || 'Input field',
+          position: currentNode.absoluteBoundingBox
+        });
+      }
+
+      // Recursively traverse children
+      if (currentNode.children) {
+        currentNode.children.forEach(traverse);
+      }
+    };
+
+    traverse(node);
+    return elements;
+  }
+
+  // Helper: Check if a node looks like a button
+  isButtonLike(node) {
+    if (!node || !node.absoluteBoundingBox) return false;
+
+    const { width, height } = node.absoluteBoundingBox;
+    const hasButtonName = node.name?.toLowerCase().includes('button') || 
+                         node.name?.toLowerCase().includes('btn') ||
+                         node.name?.toLowerCase().includes('cta');
+    
+    // Button-like dimensions and styling
+    const hasButtonDimensions = width > 60 && width < 400 && height > 25 && height < 80;
+    const hasButtonStyling = node.fills?.length > 0 || node.strokes?.length > 0;
+    const hasText = this.findTextInNode(node);
+    
+    return (hasButtonName || (hasButtonDimensions && hasButtonStyling)) && hasText;
+  }
+
+  // Helper: Check if a node looks like an image
+  isImageLike(node) {
+    if (!node) return false;
+    
+    return node.type === 'RECTANGLE' && 
+           node.fills?.some(fill => fill.type === 'IMAGE') ||
+           node.name?.toLowerCase().includes('image') ||
+           node.name?.toLowerCase().includes('img') ||
+           node.name?.toLowerCase().includes('photo') ||
+           node.name?.toLowerCase().includes('icon');
+  }
+
+  // Helper: Check if a node looks like a form element
+  isFormLike(node) {
+    if (!node || !node.absoluteBoundingBox) return false;
+    
+    const formKeywords = ['input', 'field', 'form', 'search', 'email', 'text', 'textarea'];
+    const nodeName = node.name?.toLowerCase() || '';
+    
+    return formKeywords.some(keyword => nodeName.includes(keyword)) ||
+           (node.absoluteBoundingBox.height < 60 && node.fills?.length > 0);
+  }
+
+  // Helper: Find text content within a node
+  findTextInNode(node) {
+    if (!node) return null;
+    
+    if (node.type === 'TEXT' && node.characters) {
+      return node.characters.trim();
     }
+    
+    if (node.children) {
+      for (const child of node.children) {
+        const text = this.findTextInNode(child);
+        if (text) return text;
+      }
+    }
+    
+    return null;
+  }
+
+  // Helper: Extract color from node
+  extractNodeColor(node) {
+    if (node.fills && node.fills[0] && node.fills[0].color) {
+      const color = node.fills[0].color;
+      return this.rgbToHex(color.r, color.g, color.b);
+    }
+    return '#000000';
+  }
+
+  // Helper: Extract button styling
+  extractButtonStyle(node) {
+    return {
+      backgroundColor: this.extractNodeColor(node),
+      borderRadius: node.cornerRadius || 0,
+      width: node.absoluteBoundingBox?.width || 'auto',
+      height: node.absoluteBoundingBox?.height || 'auto'
+    };
+  }
+
+  // Helper: Generate image description
+  generateImageDescription(node) {
+    const name = node.name?.toLowerCase() || '';
+    if (name.includes('hero')) return 'Hero banner image';
+    if (name.includes('logo')) return 'Company logo';
+    if (name.includes('icon')) return 'Icon element';
+    if (name.includes('profile') || name.includes('avatar')) return 'Profile image';
+    return 'Design image element';
+  }
+
+  // Helper: Determine form type
+  determineFormType(node) {
+    const name = node.name?.toLowerCase() || '';
+    if (name.includes('email')) return 'email';
+    if (name.includes('search')) return 'search';
+    if (name.includes('password')) return 'password';
+    if (name.includes('textarea')) return 'textarea';
+    return 'text';
   }
 
   // Find all text nodes in a subtree
