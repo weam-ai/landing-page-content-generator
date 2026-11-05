@@ -1,5 +1,9 @@
+
+# pnpm 11 waits 1 day before installing a newly published version.
+# This lockfile already pins electron-to-chromium, resolve, and
+# is-core-module from inside that window, so frozen installs fail.
 minimumReleaseAge: 0
 
 allowBuilds:
-  aws-sdk: true,
-  sharp: true,
+ aws-sdk: true
+ sharp: true
